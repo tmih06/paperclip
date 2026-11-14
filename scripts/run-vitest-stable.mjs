@@ -547,12 +547,13 @@ async function runGeneralGroup(routeTests, groupName, shardIndex = null, shardCo
     return;
   }
   if (groupName === generalServerNativeRunnerGroupName) {
+    // Each worker also starts a database, Runner and provider sidecars. Reserve
+    // half the host CPUs for those processes, as the Runner package suite does.
+    const workers = hasSharedTestDatabase ? 1 : Math.min(4, Math.max(1, Math.floor(os.availableParallelism() / 2)));
     await runVitest(
       ["--project", "@paperclipai/server",
-        // Each file owns its database, home, and processes. Keep cases serial,
-        // but overlap long real lease windows in four isolated fork workers.
-        ...(hasSharedTestDatabase ? serializedServerVitestArgs
-          : ["--pool=forks", "--isolate", "--fileParallelism", "--maxWorkers=4"]),
+        ...(workers === 1 ? serializedServerVitestArgs
+          : ["--pool=forks", "--isolate", "--fileParallelism", `--maxWorkers=${workers}`]),
         ...nativeRunnerSuites],
       "native runner vertical-slice suite",
     );

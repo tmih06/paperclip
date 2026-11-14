@@ -869,6 +869,8 @@ for (const [group, parallelWorkers, shardArgs] of [
 ]) test(`${group} files overlap only when their database fixtures are isolated`, { skip: process.platform === "win32" }, () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "native-file-workers-"));
   const receipt = path.join(directory, "args.json");
+  const cpuFixture = path.join(directory, "cpu.cjs");
+  writeFileSync(cpuFixture, "require('node:os').availableParallelism = () => 8;\n");
   const fakePnpm = path.join(directory, "pnpm");
   writeFileSync(fakePnpm, `#!/usr/bin/env node\nrequire('node:fs').writeFileSync(${JSON.stringify(receipt)}, JSON.stringify(process.argv.slice(2)));\n`);
   chmodSync(fakePnpm, 0o755);
@@ -882,7 +884,7 @@ for (const [group, parallelWorkers, shardArgs] of [
       const env = workflowEnv({ PATH: `${directory}${path.delimiter}${process.env.PATH}`, PAPERCLIP_CI_PROFILE: "false" });
       for (const key of Object.keys(env)) if (key.endsWith("_TEST_DATABASE_URL")) delete env[key];
       Object.assign(env, databaseEnv);
-      const result = spawnSync(process.execPath, [script, "--mode", "general", "--group", group, ...shardArgs], {
+      const result = spawnSync(process.execPath, ["--require", cpuFixture, script, "--mode", "general", "--group", group, ...shardArgs], {
         cwd: repoRoot, encoding: "utf8", env,
       });
       assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -893,6 +895,27 @@ for (const [group, parallelWorkers, shardArgs] of [
       if (group === "general-server-native-runner") {
         for (const file of [restartRecoverySuitePath, ...restartWaitSuites]) assert.ok(args.includes(file));
       }
+    }
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("native suites reserve CPU for their Runner, sidecars, and database processes", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "native-cpu-workers-"));
+  const receipt = path.join(directory, "args.json"), cpuFixture = path.join(directory, "cpu.cjs");
+  const fakePnpm = path.join(directory, "pnpm");
+  writeFileSync(fakePnpm, `#!${process.execPath}\nrequire('node:fs').writeFileSync(${JSON.stringify(receipt)}, JSON.stringify(process.argv.slice(2)));\n`);
+  chmodSync(fakePnpm, 0o755);
+  try {
+    for (const [cpus, workers] of [[1, 1], [2, 1], [4, 2], [8, 4], [32, 4]]) {
+      writeFileSync(cpuFixture, `require('node:os').availableParallelism = () => ${cpus};\n`);
+      const env = workflowEnv({ PATH: `${directory}${path.delimiter}${process.env.PATH}`, PAPERCLIP_CI_PROFILE: "false" });
+      for (const key of Object.keys(env)) if (key.endsWith("_TEST_DATABASE_URL")) delete env[key];
+      const result = spawnSync(process.execPath, ["--require", cpuFixture, script, "--mode", "general", "--group", "general-server-native-runner"], { cwd: repoRoot, env, encoding: "utf8" });
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+      const args = JSON.parse(readFileSync(receipt, "utf8"));
+      assert.ok(args.includes(`--maxWorkers=${workers}`), `${cpus} CPUs: ${args.join(" ")}`);
+      assert.ok(args.includes(workers > 1 ? "--fileParallelism" : "--no-file-parallelism"));
+      assert.ok(args.includes(pluginEvictionSuitePath), "keep the real recovery suite in the gate");
     }
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });

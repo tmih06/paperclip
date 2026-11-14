@@ -27,6 +27,11 @@ compatible with Ubuntu 26's multicall coreutils. Upstream runner selection is
 unchanged. The upstream npm Release and automatic Docker workflows are disabled
 in this fork; the manual Fork Release workflow owns its publication.
 
+Native server suites reserve half the available CPUs for their real database,
+Runner, and provider processes (two Vitest workers on four CPUs; four workers
+on eight CPUs). Assertions and per-test deadlines stay unchanged. Trusted fork
+dispatches cache Rust dependencies, but always rebuild their workspace code.
+
 ## Published outputs
 
 - Every `publishFromCi: true` package in `scripts/release-package-manifest.json`
@@ -66,5 +71,11 @@ workflow does not change visibility or repository security settings.
 A tag alone does not trigger this release. The public release is created last.
 A failure may leave immutable package versions or candidate images published;
 inspect the failed job before retrying. Never overwrite a published version or
-claim a partial run succeeded. If registry publication has started, choose a new
-same-day patch slot for the next run rather than reusing immutable versions.
+claim a partial run succeeded. A failed publish job can be rerun using the same
+staged artifact: already published packages must have identical identity and
+integrity. Draft release attachments can resume too. Image build caches are
+isolated to this fork and architecture; failed probes retain image metadata.
+
+If a new build produces different bytes after registry publication has started,
+choose an unused same-day slot with `-f release_patch=1` (or the next free slot).
+The workflow refuses to replace different immutable package bytes.

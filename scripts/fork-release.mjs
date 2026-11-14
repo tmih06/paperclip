@@ -92,13 +92,32 @@ async function stage(directory, owner, version, repository) {
   } finally { rmSync(work, { recursive: true, force: true }); }
 }
 
+export function assertPublishedPackage(entry, metadata) {
+  assert.equal(metadata.name, entry.name);
+  assert.equal(metadata.version, entry.version);
+  assert.equal(metadata.dist.integrity, entry.integrity, `Refusing to replace different immutable bytes: ${entry.name}@${entry.version}`);
+}
+
 async function publish(directory) {
   const manifest = json(join(directory, 'packages.json'));
   assert.equal(manifest.repository, process.env.GITHUB_REPOSITORY);
+  assert.equal(manifest.source, process.env.SOURCE);
+  assert.equal(manifest.version, process.env.VERSION);
   for (const entry of manifest.archives) {
     assert.equal(entry.name, forkName(entry.originalName, manifest.repository.split('/')[0]));
     assert.equal(digest(join(directory, entry.file), 'sha256'), entry.sha256);
-    run('npm', ['publish', join(directory, entry.file), '--ignore-scripts', '--registry', registry, '--tag', 'latest']);
+    let existing;
+    try {
+      existing = JSON.parse(execFileSync('npm', ['view', `${entry.name}@${entry.version}`, '--json', '--registry', registry], { encoding: 'utf8', stdio: 'pipe' }));
+    } catch (error) {
+      if (!/\bE404\b/.test(error.stderr?.toString() ?? '')) throw error;
+    }
+    if (existing) {
+      assertPublishedPackage(entry, existing);
+      console.log(`Already published identical bytes: ${entry.name}@${entry.version}`);
+    } else {
+      run('npm', ['publish', join(directory, entry.file), '--ignore-scripts', '--registry', registry, '--tag', 'latest']);
+    }
   }
 }
 
@@ -110,9 +129,8 @@ async function verify(directory) {
     for (const entry of manifest.archives) {
       const spec = `${entry.name}@${entry.version}`;
       const metadata = JSON.parse(run('npm', ['view', spec, '--json', '--registry', registry]));
-      assert.equal(metadata.version, manifest.version);
+      assertPublishedPackage(entry, metadata);
       assert.equal(metadata['dist-tags'].latest, manifest.version);
-      assert.equal(metadata.dist.integrity, entry.integrity);
       const result = JSON.parse(run('npm', ['pack', spec, '--ignore-scripts', '--json', '--pack-destination', work, '--registry', registry]));
       assert.equal(digest(join(work, result[0].filename), 'sha256'), entry.sha256, `Registry bytes differ: ${spec}`);
       verified.push(spec);
@@ -168,7 +186,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const prefix = releaseVersion(date, 0).replace(/0$/, '');
     const tags = run('git', ['tag', '--list', `v${prefix}*`]).trim().split('\n');
     let patch = 0;
-    while (tags.includes(`v${releaseVersion(date, patch)}`)) patch++;
+    if (owner !== undefined && owner !== '') {
+      assert.match(owner, /^\d+$/, 'Release patch must be a nonnegative integer');
+      patch = Number(owner);
+      assert.ok(!tags.includes(`v${releaseVersion(date, patch)}`), 'Release tag already exists');
+    } else while (tags.includes(`v${releaseVersion(date, patch)}`)) patch++;
     const value = releaseVersion(date, patch);
     console.log(value);
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `version=${value}\n`);
@@ -176,5 +198,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   else if (command === 'publish') await publish(resolve(directory));
   else if (command === 'verify') await verify(resolve(directory));
   else if (command === 'smoke') await smoke(resolve(directory));
-  else throw new Error('Usage: fork-release.mjs version [DATE] | stage DIRECTORY OWNER VERSION REPOSITORY | publish|verify|smoke DIRECTORY');
+  else throw new Error('Usage: fork-release.mjs version [DATE] [PATCH] | stage DIRECTORY OWNER VERSION REPOSITORY | publish|verify|smoke DIRECTORY');
 }

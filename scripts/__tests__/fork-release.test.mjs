@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { startPackedRegistry, writePackedRegistryCatalog } from '../public-install-registry.mjs';
-import { forkManifest, releaseVersion } from '../fork-release.mjs';
+import { assertPublishedPackage, forkManifest, releaseVersion } from '../fork-release.mjs';
 
 test('release dates use the existing UTC calendar version format', () => {
   assert.equal(releaseVersion('2026-11-14', 0), '2026.1114.0');
@@ -70,6 +70,15 @@ test('a clean consumer resolves original import bindings exclusively through for
   } finally {
     if (registry) await registry.close();
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a resumed publish accepts only the exact immutable package identity and bytes', () => {
+  const entry = { name: '@tmih06/server', version: '2026.1114.0', integrity: 'sha512-qualified' };
+  const metadata = { name: entry.name, version: entry.version, dist: { integrity: entry.integrity } };
+  assert.doesNotThrow(() => assertPublishedPackage(entry, metadata));
+  for (const change of [{ name: '@paperclipai/server' }, { version: '2026.1114.1' }, { dist: { integrity: 'sha512-other' } }]) {
+    assert.throws(() => assertPublishedPackage(entry, { ...metadata, ...change }));
   }
 });
 

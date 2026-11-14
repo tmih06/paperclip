@@ -8,6 +8,10 @@ on:
         description: UTC date (YYYY-MM-DD); empty uses today. Version is YYYY.MDD.P.
         type: string
         default: ""
+      release_patch:
+        description: Optional same-day patch slot (use a new slot after a partial immutable publish)
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -36,9 +40,10 @@ jobs:
       - id: version
         env:
           RELEASE_DATE: ${{ inputs.release_date }}
-        run: node scripts/fork-release.mjs version "$RELEASE_DATE"
+          RELEASE_PATCH: ${{ inputs.release_patch }}
+        run: node scripts/fork-release.mjs version "$RELEASE_DATE" "$RELEASE_PATCH"
       - name: Test fork publication contract
-        run: node --test scripts/__tests__/fork-release.test.mjs
+        run: node --test scripts/__tests__/fork-release.test.mjs scripts/__tests__/run-vitest-stable-shard.test.mjs
 
   verify:
     needs: plan
@@ -165,6 +170,8 @@ jobs:
               --build-arg "PAPERCLIP_RUNNER_SOURCE_REVISION=$SOURCE" \
               --build-arg "PAPERCLIP_BUILD_VERSION=$VERSION" \
               --build-arg "CLI_TOOLS_CACHE_EPOCH=$(date -u +%G-W%V)" \
+              --cache-from "type=registry,ref=ghcr.io/$GITHUB_REPOSITORY:fork-buildcache-$ARCH" \
+              --cache-to "type=registry,ref=ghcr.io/$GITHUB_REPOSITORY:fork-buildcache-$ARCH,mode=max,image-manifest=true,oci-mediatypes=true" \
               --metadata-file "$RUNNER_TEMP/images/$target-$ARCH.json" -t "$image" .
             if [ "$target" != runner-artifacts ]; then
               docker run -d --name fork-smoke --network host \
@@ -189,6 +196,7 @@ jobs:
             fi
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: fork-images-${{ matrix.arch }}
           path: ${{ runner.temp }}/images/
@@ -278,9 +286,13 @@ jobs:
 
           Build and verification: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
           EOF
-          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE" --title "Paperclip fork v$VERSION" --notes-file RELEASE-NOTES.md --draft
-          gh release upload "v$VERSION" --repo "$GITHUB_REPOSITORY" ./*.tgz ./*.json ./*.tar.gz SHA256SUMS
-          mkdir "$RUNNER_TEMP/release-download"
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish --jq 'select(.isDraft and .targetCommitish == env.SOURCE)' | grep -q .; then
+            gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" --notes-file RELEASE-NOTES.md
+          else
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE" --title "Paperclip fork v$VERSION" --notes-file RELEASE-NOTES.md --draft
+          fi
+          gh release upload "v$VERSION" --repo "$GITHUB_REPOSITORY" --clobber ./*.tgz ./*.json ./*.tar.gz SHA256SUMS
+          mkdir -p "$RUNNER_TEMP/release-download"
           gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release-download"
           (cd "$RUNNER_TEMP/release-download" && sha256sum -c SHA256SUMS)
           gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --latest
