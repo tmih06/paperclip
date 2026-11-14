@@ -167,10 +167,15 @@ jobs:
               --build-arg "CLI_TOOLS_CACHE_EPOCH=$(date -u +%G-W%V)" \
               --metadata-file "$RUNNER_TEMP/images/$target-$ARCH.json" -t "$image" .
             if [ "$target" != runner-artifacts ]; then
-              docker run -d --name fork-smoke -p 127.0.0.1:3200:3100 \
-                -e PAPERCLIP_DEPLOYMENT_MODE=local_trusted "$image"
+              docker run -d --name fork-smoke --network host \
+                -e PAPERCLIP_DEPLOYMENT_MODE=local_trusted -e PAPERCLIP_BIND=loopback \
+                -e HOST=127.0.0.1 -e PORT=3200 "$image"
               ready=false
               for attempt in $(seq 1 180); do
+                if [ "$(docker inspect -f '{{.State.Running}}' fork-smoke)" != true ]; then
+                  docker logs fork-smoke
+                  exit 1
+                fi
                 if node --input-type=module -e 'const r=await fetch("http://127.0.0.1:3200/api/health");const h=await r.json();if(!r.ok||h.status!=="ok"||h.bootstrapStatus!=="ready")process.exit(1)' 2>/dev/null; then
                   ready=true
                   break
