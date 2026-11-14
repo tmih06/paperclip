@@ -2,7 +2,8 @@
 // Fork-only publication. Source import bindings stay unchanged; npm aliases
 // resolve the published workspace graph from the fork's GitHub Packages scope.
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,6 +11,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getReleasePackages } from './release-package-map.mjs';
 import { materializePublishManifest, prepareBundledPackage } from './prepare-bundled-package.mjs';
+import { startPackedRegistry, writePackedRegistryCatalog } from './public-install-registry.mjs';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const registry = 'https://npm.pkg.github.com';
@@ -55,6 +57,29 @@ export function forkManifest(source, names, owner, version, repository) {
   return pkg;
 }
 
+export function forkOwnerChecks(source, owner) {
+  const name = forkName('@paperclipai/server', owner);
+  // Rewrite identity checks only. Import bindings and node_modules paths must
+  // retain @paperclipai/server because npm installs the dependency as an alias.
+  return source
+    .replace(/(\bname\s*(?:===|!==)\s*)(["'])@paperclipai\/server\2/g, `$1"${name}"`)
+    .replace(/(\bSERVER_PACKAGE_NAME\s*=\s*)(["'])@paperclipai\/server\2/g, `$1"${name}"`)
+    .replace('["@paperclipai/paperclip-runner", "@paperclipai/server"].includes(owner.name)',
+      `["@paperclipai/paperclip-runner", "${name}"].includes(owner.name)`);
+}
+
+function stageForkOwnerChecks(directory, owner) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) stageForkOwnerChecks(path, owner);
+    else if (entry.isFile() && /\.(?:cjs|mjs|js)$/.test(entry.name)) {
+      const original = readFileSync(path, 'utf8');
+      const rewritten = forkOwnerChecks(original, owner);
+      if (rewritten !== original) writeFileSync(path, rewritten);
+    }
+  }
+}
+
 async function stage(directory, owner, version, repository) {
   assert.ok(!existsSync(directory), 'Use a fresh output directory');
   mkdirSync(directory, { recursive: true });
@@ -78,6 +103,7 @@ async function stage(directory, owner, version, repository) {
         run('tar', ['-xzf', join(packed, files[0]), '-C', packed]);
         run('mv', [join(packed, 'package'), target]);
       }
+      if (entry.name === '@paperclipai/server') stageForkOwnerChecks(join(target, 'dist'), owner);
       const path = join(target, 'package.json');
       const manifest = forkManifest(json(path), names, owner, version, repository);
       writeJson(path, manifest);
@@ -139,14 +165,22 @@ async function verify(directory) {
   } finally { rmSync(work, { recursive: true, force: true }); }
 }
 
-async function smoke(directory) {
+async function smoke(directory, packed = false) {
   const manifest = json(join(directory, 'packages.json'));
   const cli = manifest.archives.find(entry => entry.originalName === 'paperclipai');
   const work = mkdtempSync(join(tmpdir(), 'paperclip-fork-smoke-'));
-  let child;
+  let child, packedRegistry;
   try {
+    const registryArgs = [];
+    if (packed) {
+      await writePackedRegistryCatalog(directory);
+      packedRegistry = await startPackedRegistry(directory);
+      registryArgs.push('--registry', packedRegistry.url, `--@${manifest.repository.split('/')[0]}:registry=${packedRegistry.url}`, '--replace-registry-host=never');
+    }
     writeJson(join(work, 'package.json'), { private: true, type: 'module' });
-    run('npm', ['install', '--omit=dev', '--ignore-scripts', `${cli.name}@${manifest.version}`], work);
+    const installed = await promisify(execFile)('npm', ['install', '--omit=dev', '--ignore-scripts', ...registryArgs, `${cli.name}@${manifest.version}`], { cwd: work, maxBuffer: 64 * 1024 * 1024 });
+    process.stdout.write(installed.stdout);
+    process.stderr.write(installed.stderr);
     run('npm', ['rebuild', '--dangerously-allow-all-scripts'], work);
     const versionOutput = run('node', [join(work, 'node_modules', cli.name, 'dist/index.js'), '--version'], work).trim();
     assert.equal(versionOutput, manifest.version);
@@ -175,6 +209,7 @@ async function smoke(directory) {
       child.kill('SIGTERM');
       await new Promise(resolve => child.once('exit', resolve));
     }
+    if (packedRegistry) await packedRegistry.close();
     rmSync(work, { recursive: true, force: true });
   }
 }
@@ -198,5 +233,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   else if (command === 'publish') await publish(resolve(directory));
   else if (command === 'verify') await verify(resolve(directory));
   else if (command === 'smoke') await smoke(resolve(directory));
+  else if (command === 'smoke-packed') await smoke(resolve(directory), true);
   else throw new Error('Usage: fork-release.mjs version [DATE] [PATCH] | stage DIRECTORY OWNER VERSION REPOSITORY | publish|verify|smoke DIRECTORY');
 }

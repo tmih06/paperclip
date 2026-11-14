@@ -8,6 +8,10 @@ on:
         description: UTC date (YYYY-MM-DD); empty uses today. Version is YYYY.MDD.P.
         type: string
         default: ""
+      rebuild_images:
+        description: Rebuild and qualify images for a new patch version while reusing exact-source tests/native binaries
+        type: boolean
+        default: false
       qualification_run:
         description: Optional completed Fork Release run whose source, native, and image gates all passed
         type: string
@@ -37,6 +41,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       source: ${{ steps.source.outputs.sha }}
       artifact_run: ${{ inputs.qualification_run || github.run_id }}
+      image_run: ${{ inputs.rebuild_images && github.run_id || inputs.qualification_run || github.run_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -116,6 +121,12 @@ jobs:
           github-token: ${{ github.token }}
           merge-multiple: true
           path: native-packs
+      - name: Load current fork packaging tooling for the qualified source
+        env:
+          TOOLING_SHA: ${{ github.sha }}
+        run: |
+          git fetch --depth=1 origin "$TOOLING_SHA"
+          git show "$TOOLING_SHA:scripts/fork-release.mjs" > scripts/fork-release.mjs
       - name: Build complete public package payloads
         env:
           VERSION: ${{ needs.plan.outputs.version }}
@@ -139,6 +150,8 @@ jobs:
           node cli/node_modules/tsx/dist/cli.mjs scripts/generate-feature-catalog.ts --version "$VERSION" --out "$RUNNER_TEMP/packages/feature-catalog.json"
           tar -czf "$RUNNER_TEMP/packages/runner-daemons.tar.gz" -C native-daemons .
           tar -czf "$RUNNER_TEMP/packages/provider-packs.tar.gz" -C native-packs .
+          node scripts/fork-release.mjs smoke-packed "$RUNNER_TEMP/packages"
+          rm "$RUNNER_TEMP/packages/registry-packages.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: fork-packages
@@ -147,7 +160,7 @@ jobs:
           retention-days: 30
 
   images:
-    if: inputs.qualification_run == ''
+    if: inputs.qualification_run == '' || inputs.rebuild_images
     needs: plan
     strategy:
       fail-fast: false
@@ -234,7 +247,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.packages.result == 'success' && ((needs.verify.result == 'success' && needs.images.result == 'success') || inputs.qualification_run != '') }}
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.packages.result == 'success' && (needs.verify.result == 'success' || inputs.qualification_run != '') && (needs.images.result == 'success' || (inputs.qualification_run != '' && !inputs.rebuild_images)) }}
     needs: [plan, verify, packages, images]
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -264,10 +277,16 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: fork-images-*
-          run-id: ${{ needs.plan.outputs.artifact_run }}
+          run-id: ${{ needs.plan.outputs.image_run }}
           github-token: ${{ github.token }}
           merge-multiple: true
           path: release-assets/images
+      - name: Load current fork publishing tooling
+        env:
+          TOOLING_SHA: ${{ github.sha }}
+        run: |
+          git fetch --depth=1 origin "$TOOLING_SHA"
+          git show "$TOOLING_SHA:scripts/fork-release.mjs" > scripts/fork-release.mjs
       - name: Publish and verify every GitHub package
         run: |
           node scripts/fork-release.mjs publish release-assets

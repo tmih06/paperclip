@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { stripTypeScriptTypes } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { startPackedRegistry, writePackedRegistryCatalog } from '../public-install-registry.mjs';
-import { assertPublishedPackage, forkManifest, releaseVersion } from '../fork-release.mjs';
+import { assertPublishedPackage, forkManifest, forkOwnerChecks, releaseVersion } from '../fork-release.mjs';
 import { assertQualification, requiredQualificationJobs } from '../fork-release-qualification.mjs';
 
 test('release dates use the existing UTC calendar version format', () => {
@@ -81,6 +83,37 @@ test('a resumed publish accepts only the exact immutable package identity and by
   for (const change of [{ name: '@paperclipai/server' }, { version: '2026.1114.1' }, { dist: { integrity: 'sha512-other' } }]) {
     assert.throws(() => assertPublishedPackage(entry, { ...metadata, ...change }));
   }
+});
+
+test('fork ownership checks keep import bindings and reject a substituted owner', async () => {
+  const source = `import x from "@paperclipai/server"; const path = "/node_modules/@paperclipai/server/dist";
+const SERVER_PACKAGE_NAME = "@paperclipai/server";
+if (owner.name === "@paperclipai/server") {};
+if (value.name !== "@paperclipai/server") {};
+if (!["@paperclipai/paperclip-runner", "@paperclipai/server"].includes(owner.name)) throw Error();`;
+  const rewritten = forkOwnerChecks(source, 'tmih06');
+  assert.match(rewritten, /import x from "@paperclipai\/server"/);
+  assert.match(rewritten, /node_modules\/@paperclipai\/server/);
+  assert.match(rewritten, /SERVER_PACKAGE_NAME = "@tmih06\/server"/);
+  assert.match(rewritten, /owner.name === "@tmih06\/server"/);
+  assert.match(rewritten, /value.name !== "@tmih06\/server"/);
+  const root = mkdtempSync(join(tmpdir(), 'fork-owner-'));
+  try {
+    const dir = join(root, 'dist/vendor/paperclip-runner/drivers/acpx');
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, 'installation-integrity.js');
+    writeFileSync(file, '// owned verifier');
+    const authority = join(dir, 'authority.mjs');
+    const code = readFileSync(new URL('../../packages/paperclip-runner/src/drivers/acpx/installed-provider-authority.ts', import.meta.url), 'utf8');
+    writeFileSync(authority, forkOwnerChecks(stripTypeScriptTypes(code), 'tmih06'));
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: '@tmih06/server', type: 'module' }));
+    const { resolveInstalledProviderAuthority } = await import(pathToFileURL(authority).href);
+    assert.deepEqual(resolveInstalledProviderAuthority(pathToFileURL(file).href), { root, manifest: join(root, 'package.json') });
+    for (const name of ['@paperclipai/server', '@attacker/server', 'unrelated']) {
+      writeFileSync(join(root, 'package.json'), JSON.stringify({ name, type: 'module' }));
+      assert.throws(() => resolveInstalledProviderAuthority(pathToFileURL(file).href), /owning server/);
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('resuming requires every source, native and image gate from the exact fork source', () => {

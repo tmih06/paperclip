@@ -81,7 +81,14 @@ packaging-only failure, a new dispatch can reuse qualified outputs with
 `-f qualification_run=<run-id> -f source_sha=<full-sha>`. The plan verifies all
 37 source, native, and image job conclusions against the exact SHA and fork
 before reuse. Package builds still run from that source, and registry/install
-and release attachment checks still run before publication. An absent, skipped,
+and release attachment checks still run before publication. Packaging uses the
+current workflow's fork tooling over the exact qualified source. Fork staging
+rewrites server ownership comparisons to the fork name, but preserves import
+aliases, canonical-path checks, and integrity guards. A clean staged-tarball
+install/startup must pass before any package publication.
+
+Use `-f rebuild_images=true` with a new patch version so the images carry the
+same version as the packages. An absent, skipped,
 failed, or ambiguous qualification job refuses reuse.
 
 If a new build produces different bytes after registry publication has started,
