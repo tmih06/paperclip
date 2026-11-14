@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { startPackedRegistry, writePackedRegistryCatalog } from '../public-install-registry.mjs';
 import { assertPublishedPackage, forkManifest, releaseVersion } from '../fork-release.mjs';
+import { assertQualification, requiredQualificationJobs } from '../fork-release-qualification.mjs';
 
 test('release dates use the existing UTC calendar version format', () => {
   assert.equal(releaseVersion('2026-11-14', 0), '2026.1114.0');
@@ -80,6 +81,23 @@ test('a resumed publish accepts only the exact immutable package identity and by
   for (const change of [{ name: '@paperclipai/server' }, { version: '2026.1114.1' }, { dist: { integrity: 'sha512-other' } }]) {
     assert.throws(() => assertPublishedPackage(entry, { ...metadata, ...change }));
   }
+});
+
+test('resuming requires every source, native and image gate from the exact fork source', () => {
+  const source = 'a'.repeat(40), repository = 'tmih06/paperclip';
+  const run = { repository: { full_name: repository }, path: '.github/workflows/fork-release.yml',
+    event: 'workflow_dispatch', head_sha: source, status: 'completed' };
+  const jobs = requiredQualificationJobs.map(name => ({ name, conclusion: 'success' }));
+  assert.doesNotThrow(() => assertQualification(run, jobs, source, repository));
+  for (const job of jobs) {
+    assert.throws(() => assertQualification(run, jobs.filter(value => value !== job), source, repository));
+    for (const conclusion of ['failure', 'skipped', 'cancelled', null]) {
+      assert.throws(() => assertQualification(run, jobs.map(value => value === job ? { ...job, conclusion } : value), source, repository));
+    }
+  }
+  assert.throws(() => assertQualification({ ...run, head_sha: 'b'.repeat(40) }, jobs, source, repository));
+  assert.throws(() => assertQualification({ ...run, repository: { full_name: 'other/paperclip' } }, jobs, source, repository));
+  assert.throws(() => assertQualification(run, [...jobs, jobs[0]], source, repository));
 });
 
 test('staging refuses unpublished internal edges and upstream namespaces', () => {

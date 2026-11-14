@@ -76,6 +76,14 @@ staged artifact: already published packages must have identical identity and
 integrity. Draft release attachments can resume too. Image build caches are
 isolated to this fork and architecture; failed probes retain image metadata.
 
+Native artifacts are collected across all attempts of the same run. After a
+packaging-only failure, a new dispatch can reuse qualified outputs with
+`-f qualification_run=<run-id> -f source_sha=<full-sha>`. The plan verifies all
+37 source, native, and image job conclusions against the exact SHA and fork
+before reuse. Package builds still run from that source, and registry/install
+and release attachment checks still run before publication. An absent, skipped,
+failed, or ambiguous qualification job refuses reuse.
+
 If a new build produces different bytes after registry publication has started,
 choose an unused same-day slot with `-f release_patch=1` (or the next free slot).
 The workflow refuses to replace different immutable package bytes.

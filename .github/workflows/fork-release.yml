@@ -8,6 +8,14 @@ on:
         description: UTC date (YYYY-MM-DD); empty uses today. Version is YYYY.MDD.P.
         type: string
         default: ""
+      qualification_run:
+        description: Optional completed Fork Release run whose source, native, and image gates all passed
+        type: string
+        default: ""
+      source_sha:
+        description: Full source SHA (required only when resuming qualified outputs)
+        type: string
+        default: ""
       release_patch:
         description: Optional same-day patch slot (use a new slot after a partial immutable publish)
         type: string
@@ -15,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: fork-release
@@ -27,6 +36,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       source: ${{ steps.source.outputs.sha }}
+      artifact_run: ${{ inputs.qualification_run || github.run_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -36,7 +46,20 @@ jobs:
         with:
           node-version: 24
       - id: source
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          QUALIFICATION_RUN: ${{ inputs.qualification_run }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -n "$QUALIFICATION_RUN" ]; then
+            node scripts/fork-release-qualification.mjs "$QUALIFICATION_RUN" "$SOURCE_SHA" "$GITHUB_REPOSITORY"
+            git cat-file -e "$SOURCE_SHA^{commit}"
+          else
+            test -z "$SOURCE_SHA"
+            SOURCE_SHA=$(git rev-parse HEAD)
+          fi
+          echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
       - id: version
         env:
           RELEASE_DATE: ${{ inputs.release_date }}
@@ -46,12 +69,14 @@ jobs:
         run: node --test scripts/__tests__/fork-release.test.mjs scripts/__tests__/run-vitest-stable-shard.test.mjs
 
   verify:
+    if: inputs.qualification_run == ''
     needs: plan
     uses: ./.github/workflows/release-verify.yml
     with:
       ref: ${{ needs.plan.outputs.source }}
 
   native:
+    if: inputs.qualification_run == ''
     needs: plan
     uses: ./.github/workflows/release-verify.yml
     with:
@@ -59,6 +84,7 @@ jobs:
       runner_binaries_only: true
 
   packages:
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.native.result == 'success' || inputs.qualification_run != '') }}
     needs: [plan, native]
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -78,12 +104,16 @@ jobs:
           node-version: 24
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          pattern: ${{ needs.native.outputs.runner_artifact_prefix }}-*
+          pattern: runner-release-${{ needs.plan.outputs.artifact_run }}-*
+          run-id: ${{ needs.plan.outputs.artifact_run }}
+          github-token: ${{ github.token }}
           merge-multiple: true
           path: native-daemons
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          pattern: ${{ needs.native.outputs.provider_pack_artifact_prefix }}-*
+          pattern: runner-provider-packs-${{ needs.plan.outputs.artifact_run }}-*
+          run-id: ${{ needs.plan.outputs.artifact_run }}
+          github-token: ${{ github.token }}
           merge-multiple: true
           path: native-packs
       - name: Build complete public package payloads
@@ -117,6 +147,7 @@ jobs:
           retention-days: 30
 
   images:
+    if: inputs.qualification_run == ''
     needs: plan
     strategy:
       fail-fast: false
@@ -203,12 +234,14 @@ jobs:
           if-no-files-found: error
 
   publish:
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.packages.result == 'success' && ((needs.verify.result == 'success' && needs.images.result == 'success') || inputs.qualification_run != '') }}
     needs: [plan, verify, packages, images]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
       contents: write
       packages: write
+      actions: read
     env:
       NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -231,6 +264,8 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: fork-images-*
+          run-id: ${{ needs.plan.outputs.artifact_run }}
+          github-token: ${{ github.token }}
           merge-multiple: true
           path: release-assets/images
       - name: Publish and verify every GitHub package
