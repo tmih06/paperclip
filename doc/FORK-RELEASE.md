@@ -21,7 +21,9 @@ Omit `release_date` to use the current UTC date. Run only trusted source refs.
 The workflow verifies the exact source SHA with the existing Release Verify
 workflow, including typecheck, tests, build, and chaos/recovery checks. Native
 daemons are built for Linux and macOS on x64 and arm64; Linux provider packs
-are built on their native hosts.
+are built on their native hosts. The fork's Runner verification lanes use
+Ubuntu 24.04 because their renamed executable fixtures are not compatible with
+Ubuntu 26's multicall coreutils. Upstream runner selection is unchanged.
 
 ## Published outputs
 
