@@ -1,4 +1,4 @@
-import type { AgentAdapterType, EnvironmentDriver } from "./constants.js";
+import { SLOT_BACKED_AGENT_ADAPTER_TYPE, type AgentAdapterType, type EnvironmentDriver } from "./constants.js";
 import type { SandboxEnvironmentProvider } from "./types/environment.js";
 import type {
   JsonSchema,
@@ -76,6 +76,7 @@ const REMOTE_MANAGED_ADAPTERS = new Set<AgentAdapterType>([
   "kimi_local",
   "opencode_local",
   "pi_local",
+  SLOT_BACKED_AGENT_ADAPTER_TYPE,
 ]);
 
 export function adapterSupportsRemoteManagedEnvironments(adapterType: string): boolean {
@@ -83,6 +84,7 @@ export function adapterSupportsRemoteManagedEnvironments(adapterType: string): b
 }
 
 export function supportedEnvironmentDriversForAdapter(adapterType: string): EnvironmentDriver[] {
+  if (adapterType === SLOT_BACKED_AGENT_ADAPTER_TYPE) return ["sandbox"];
   if (adapterType === "paperclip_runner") return ["local", "ssh", "sandbox", "plugin"];
   return adapterSupportsRemoteManagedEnvironments(adapterType)
     ? ["local", "ssh", "sandbox"]
@@ -93,6 +95,9 @@ export function supportedSandboxProvidersForAdapter(
   adapterType: string,
   additionalProviders: readonly string[] = [],
 ): SandboxEnvironmentProvider[] {
+  if (adapterType === SLOT_BACKED_AGENT_ADAPTER_TYPE) {
+    return additionalProviders.filter(provider => provider === "ompig_factory") as SandboxEnvironmentProvider[];
+  }
   return adapterSupportsRemoteManagedEnvironments(adapterType)
     ? Array.from(new Set(additionalProviders)) as SandboxEnvironmentProvider[]
     : [];

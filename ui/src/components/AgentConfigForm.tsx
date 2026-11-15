@@ -27,7 +27,7 @@ import type {
   EnvSecretRefBinding,
   Environment,
 } from "@paperclipai/shared";
-import { AGENT_DEFAULT_MAX_CONCURRENT_RUNS, supportedEnvironmentDriversForAdapter, isValidBrowserCode, ADAPTER_AUTH_MISSING_CHECK_CODE } from "@paperclipai/shared";
+import { AGENT_DEFAULT_MAX_CONCURRENT_RUNS, SLOT_BACKED_AGENT_ADAPTER_TYPE, supportedEnvironmentDriversForAdapter, isValidBrowserCode, ADAPTER_AUTH_MISSING_CHECK_CODE } from "@paperclipai/shared";
 import type { AdapterModel } from "../api/agents";
 import { agentsApi } from "../api/agents";
 import { ApiError } from "../api/client";
@@ -2310,7 +2310,13 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   className={inputClass}
                 />
               </Field>
-              <Field label="Max concurrent runs" hint={help.maxConcurrentRuns}>
+              {adapterType === SLOT_BACKED_AGENT_ADAPTER_TYPE ? (
+                <Field label="Concurrency">
+                  <p className="text-sm text-muted-foreground">
+                    Clones share the worker pool. Available sandbox slots determine concurrency; budgets and task ownership still apply.
+                  </p>
+                </Field>
+              ) : <Field label="Max concurrent runs" hint={help.maxConcurrentRuns}>
                 <DraftNumberInput
                   value={eff(
                     "heartbeat",
@@ -2321,7 +2327,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   immediate
                   className={inputClass}
                 />
-              </Field>
+              </Field>}
               <div className="rounded-md border border-border/70 px-3 py-2">
                 <ToggleField
                   label="Continue after max-turn stop"

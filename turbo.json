@@ -178,6 +178,7 @@
     },
     "//#ci:typecheck": {
       "inputs": [
+        "integrations/ompig-factory/**",
         "server/**",
         "cli/**",
         "packages/**",

@@ -82,6 +82,8 @@ export const AGENT_ROLE_LABELS: Record<AgentRole, string> = {
 };
 
 export const AGENT_DEFAULT_MAX_CONCURRENT_RUNS = 20;
+/** Image-backed clones consume sandbox slots, not a per-identity concurrency allowance. */
+export const SLOT_BACKED_AGENT_ADAPTER_TYPE = "ompig_factory";
 export const WORKSPACE_BRANCH_ROUTINE_VARIABLE = "workspaceBranch";
 
 // Config keys owned by Paperclip/company state rather than one concrete adapter.
