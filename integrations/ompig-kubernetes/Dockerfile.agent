@@ -1,9 +1,21 @@
-ARG BASE_IMAGE=ompig-slim-workspace:base
-FROM ${BASE_IMAGE}
+FROM ompig-slim-workspace:base AS ompig
+FROM paperclip-agent-runtime-base:local
 
 USER root
+COPY --from=ompig /usr/local/bin/ompig-slim /usr/local/bin/ompig-slim
 COPY ompig-paperclip /usr/local/bin/ompig-paperclip
-RUN chmod 0755 /usr/local/bin/ompig-paperclip
-USER 1000
-ENTRYPOINT ["/bin/sh", "-c"]
-CMD ["sleep infinity"]
+RUN chmod 0755 /usr/local/bin/ompig-slim /usr/local/bin/ompig-paperclip \
+    && git init /workspace \
+    && git --git-dir=/workspace/.git config user.name ompig \
+    && git --git-dir=/workspace/.git config user.email ompig@localhost \
+    && touch /workspace/.gitkeep \
+    && git --git-dir=/workspace/.git --work-tree=/workspace add .gitkeep \
+    && git --git-dir=/workspace/.git --work-tree=/workspace commit -m 'Initialize sandbox workspace' \
+    && mv /usr/local/bin/paperclip-agent-shim /usr/local/bin/paperclip-agent-shim.real \
+    && printf '%s\n' '#!/bin/sh' 'if [ ! -d /workspace/.git ]; then git init /workspace >/dev/null 2>&1 || true; fi' 'exec /usr/local/bin/paperclip-agent-shim.real "$@"' > /usr/local/bin/paperclip-agent-shim \
+    && chmod 0755 /usr/local/bin/paperclip-agent-shim \
+    && chown -R 1000:1000 /workspace
+USER 1000:1000
+WORKDIR /workspace
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/usr/local/bin/paperclip-agent-shim"]
