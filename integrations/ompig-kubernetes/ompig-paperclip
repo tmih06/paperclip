@@ -5,7 +5,7 @@ if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-v" ]; then
   exec ompig-slim --version
 fi
 
-state="${OMPIG_STATE_DIR:-/workspace/.ompig-state}"
+state="${OMPIG_STATE_DIR:-/tmp/ompig-state}"
 mkdir -p "$state"
 model_provider="${OMPIG_PROVIDER:-deploy}"
 model_id="${OMPIG_MODEL_ID:-deepseek-ai/deepseek-v4.1-flash-1017}"
@@ -16,7 +16,8 @@ while [ "$#" -gt 0 ]; do
     --provider) model_provider="${2:-$model_provider}"; shift 2 ;;
     --model) model_id="${2:-$model_id}"; shift 2 ;;
     --session|--skill|--extension|--append-system-prompt|--tools|--thinking) shift 2 ;;
-    -p|--prompt) prompt="${2:-}"; shift 2 ;;
+    -p) shift ;;
+    --prompt) prompt="${2:-}"; shift 2 ;;
     --mode) shift 2 ;;
     --) shift; prompt="${1:-}"; shift ;;
     *) prompt="$1"; shift ;;
