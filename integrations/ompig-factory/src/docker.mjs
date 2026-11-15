@@ -116,6 +116,10 @@ export class DockerEngine {
     await writeFile(image, row.image, { mode: 0o666 });
     await chown(expires, 1000, 1000);
     await chown(image, 1000, 1000);
+    // The service umask is intentionally private (0077); make these two
+    // non-secret control inputs explicitly readable by the sandbox UID.
+    await chmod(expires, 0o644);
+    await chmod(image, 0o644);
   }
 
   async create(row) {

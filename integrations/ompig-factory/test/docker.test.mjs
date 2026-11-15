@@ -7,11 +7,25 @@ import { randomUUID } from "node:crypto";
 import { openWorker, createWorkerServer } from "../src/worker.mjs";
 import { createProvider } from "../src/provider.mjs";
 import { createServerAdapter } from "../src/adapter.mjs";
+import { DockerEngine } from "../src/docker.mjs";
 import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
 import { writeFile } from "node:fs/promises";
 
 const image = process.env.PAPERCLIP_FACTORY_DOCKER_IMAGE;
+
+test("Docker makes non-secret lease control inputs readable under a private worker umask", { skip: process.getuid?.() !== 0 }, async () => {
+  const { mkdtemp, stat, rm } = await import("node:fs/promises");
+  const root = await mkdtemp(path.join(tmpdir(), "factory-control-"));
+  const engine = new DockerEngine({ dataDir: root, workerId: "test", network: "none" });
+  const row = { id: "a".repeat(64), companyId: "c", environmentId: "e", agentId: "a", runId: "r", image: `sha256:${"a".repeat(64)}`, expiresAt: Date.now() + 60_000 };
+  try {
+    await engine.prepare(row);
+    for (const file of ["expires", "image"]) {
+      assert.equal((await stat(path.join(root, "leases", row.id, "control", file))).mode & 0o777, 0o644);
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 
 test("Docker accepts registry digest references when the container reports its immutable image ID", async () => {
   const digest = `a${"a".repeat(63)}`;
