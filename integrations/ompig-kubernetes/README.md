@@ -15,7 +15,8 @@ Build the runtime from the already-pinned Ompig image:
 
 ```sh
 docker build -f integrations/ompig-kubernetes/Dockerfile.agent \
-  -t ghcr.io/tmih06/agent-runtime-pi:v1 .
+  --build-arg BASE_IMAGE=paperclip-ompig-factory:local \
+  -t ghcr.io/tmih06/agent-runtime-pi:v1 integrations/ompig-kubernetes
 ```
 
 Push it to the registry used by the Paperclip Kubernetes provider. Keep the

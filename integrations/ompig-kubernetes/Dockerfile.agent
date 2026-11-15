@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=paperclip-ompig-factory:local
+ARG BASE_IMAGE=ompig-slim-workspace:base
 FROM ${BASE_IMAGE}
 
 USER root
