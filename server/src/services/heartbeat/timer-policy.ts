@@ -1,5 +1,5 @@
 import { agents, heartbeatRuns, costEvents, issues, type Db } from "@paperclipai/db";
-import { AGENT_DEFAULT_MAX_CONCURRENT_RUNS, SLOT_BACKED_AGENT_ADAPTER_TYPE, compareCents } from "@paperclipai/shared";
+import { AGENT_DEFAULT_MAX_CONCURRENT_RUNS, compareCents } from "@paperclipai/shared";
 import { and, eq, gte, lt, notInArray, sql, isNull, inArray, type SQL } from "drizzle-orm";
 import { asBoolean, asNumber, parseObject } from "../../adapters/utils.js";
 import { isHeartbeatWakeOnDemandEnabled } from "../heartbeat-policy.js";
@@ -8,9 +8,6 @@ import { nonIdleSlackIssueCondition } from "../slack-conversation-state.js";
 const HEARTBEAT_MAX_CONCURRENT_RUNS_DEFAULT = AGENT_DEFAULT_MAX_CONCURRENT_RUNS;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_MIN = 1;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_MAX = 50;
-// Physical admission for image clones belongs to atomic worker reservations.
-// Keep an int32 ceiling to match the SQL running-count representation.
-const SANDBOX_SLOT_ADMISSION_CEILING = 2_147_483_647;
 const TIMER_ACTIONABLE_ISSUE_STATUSES = ["todo", "in_progress"] as const;
 const SINGLE_RUN_RUNNER_PROVIDERS = ["openai_dot", "grok_bot", "muse"];
 
@@ -29,7 +26,6 @@ function normalizeMaxConcurrentRuns(value: unknown) {
 export function maxConcurrentRunsSql(): SQL<number> {
   const configured = sql`${agents.runtimeConfig}->'heartbeat'->'maxConcurrentRuns'`;
   return sql<number>`(case
-    when ${agents.adapterType} = ${SLOT_BACKED_AGENT_ADAPTER_TYPE} then ${SANDBOX_SLOT_ADMISSION_CEILING}
     when ${agents.adapterType} = 'paperclip_runner'
       and ${agents.adapterConfig}->>'provider' in (${sql.join(SINGLE_RUN_RUNNER_PROVIDERS.map(provider => sql`${provider}`), sql`, `)}) then 1
     when jsonb_typeof(${configured}) = 'number' then greatest(${HEARTBEAT_MAX_CONCURRENT_RUNS_MIN},
@@ -63,8 +59,7 @@ export function parseHeartbeatPolicy(agent: typeof agents.$inferSelect) {
     enabled: asBoolean(heartbeat.enabled, false),
     intervalSec: Math.max(0, asNumber(heartbeat.intervalSec, 0)),
     wakeOnDemand: isHeartbeatWakeOnDemandEnabled(agent),
-    maxConcurrentRuns: agent.adapterType === SLOT_BACKED_AGENT_ADAPTER_TYPE ? SANDBOX_SLOT_ADMISSION_CEILING
-      : agent.adapterType === "paperclip_runner" &&
+    maxConcurrentRuns: agent.adapterType === "paperclip_runner" &&
       SINGLE_RUN_RUNNER_PROVIDERS.includes(String(parseObject(agent.adapterConfig).provider))
       ? 1 : normalizeMaxConcurrentRuns(heartbeat.maxConcurrentRuns),
     skipTimerWhenNoActionableWork: asBoolean(

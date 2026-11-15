@@ -1221,14 +1221,6 @@ describe("AgentConfigForm environment selector", () => {
     expect(mockAgentsApi.testEnvironment).not.toHaveBeenCalled();
   });
 
-  it("explains physical slot capacity instead of offering an ineffective per-agent limit", async () => {
-    const result = await renderForm([], { adapterType: "ompig_factory", adapterConfig: { model: "fixture/model" } });
-    roots.push(result.root);
-    await clickByText(result.container, "Advanced Run Policy");
-    expect(result.container.textContent).toContain("Available sandbox slots determine concurrency");
-    expect(result.container.textContent).not.toContain("Max concurrent runs");
-  });
-
   it("clears dirty state when a runtime toggle is restored", async () => {
     const dirty = vi.fn();
     const result = await renderForm([], {}, { content: "configuration", onDirtyChange: dirty });

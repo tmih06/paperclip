@@ -1,0 +1,9 @@
+ARG BASE_IMAGE=paperclip-ompig-factory:local
+FROM ${BASE_IMAGE}
+
+USER root
+COPY ompig-paperclip /usr/local/bin/ompig-paperclip
+RUN chmod 0755 /usr/local/bin/ompig-paperclip
+USER 1000
+ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["sleep infinity"]

@@ -46,7 +46,7 @@ const mockCompaniesApi = vi.hoisted(() => ({ create: vi.fn() }));
 // environment list, the instance settings, and the experimental settings. The
 // test stubs these so the resolution settles on the local default, the same as
 // a real run with no instance default.
-const mockEnvironmentsApi = vi.hoisted(() => ({ list: vi.fn(), probe: vi.fn() }));
+const mockEnvironmentsApi = vi.hoisted(() => ({ list: vi.fn() }));
 const mockInstanceSettingsApi = vi.hoisted(() => ({
   get: vi.fn(),
   getExperimental: vi.fn(),
@@ -179,7 +179,7 @@ describe("OnboardingWizard — which step it lands on", () => {
     dialogState.onboardingOpen = false;
     dialogState.onboardingOptions = {};
     dialogState.onboardingRouteDismissed = false;
-    mockAdaptersApi.list.mockResolvedValue(["ompig_factory"].map(type => ({
+    mockAdaptersApi.list.mockResolvedValue(["claude_local", "codex_local"].map(type => ({
       type, loaded: true, disabled: false, defaultRunner: "legacy", supportedRunners: ["legacy"],
     })));
     mockGoalsApi.list.mockResolvedValue([]);
@@ -206,10 +206,7 @@ describe("OnboardingWizard — which step it lands on", () => {
     mockAgentsApi.getClaudeOAuthTokenStatus.mockRejectedValue(
       new ApiError("Not found", 404, null),
     );
-    mockEnvironmentsApi.list.mockResolvedValue([{ id: "pool", driver: "sandbox", status: "active", config: {
-      provider: "ompig_factory", image: `ghcr.io/tmih06/agent@sha256:${"a".repeat(64)}`, model: "openai/example",
-    } }]);
-    mockEnvironmentsApi.probe.mockResolvedValue({ ok: true });
+    mockEnvironmentsApi.list.mockResolvedValue([]);
     mockInstanceSettingsApi.get.mockResolvedValue({ defaultEnvironmentId: null });
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({
       enableManagedSandboxOnly: false,
@@ -253,8 +250,7 @@ describe("OnboardingWizard — which step it lands on", () => {
       await settle();
 
       expect(currentStep()).toBe("agent");
-      expect(announcedCount()).toBeNull();
-      expect(document.body.textContent).toContain("Finish");
+      expect(announcedCount()).toBe("Step 2 of 4");
     });
 
     it("counts three on a self-hosted company that has no agents yet", async () => {
@@ -269,8 +265,7 @@ describe("OnboardingWizard — which step it lands on", () => {
       await settle();
 
       expect(currentStep()).toBe("agent");
-      expect(announcedCount()).toBeNull();
-      expect(document.body.textContent).toContain("Finish");
+      expect(announcedCount()).toBe("Step 1 of 3");
     });
   });
 
@@ -489,7 +484,7 @@ describe("OnboardingWizard — which step it lands on", () => {
     await settle();
 
     expect(currentStep()).toBe("agent");
-    expect(companyState.setSelectedCompanyId).toHaveBeenCalledWith("company-created", { source: "route_sync" });
+    expect(companyState.setSelectedCompanyId).toHaveBeenCalledWith("company-created");
     expect(mockCompaniesApi.create).toHaveBeenCalledTimes(1);
   });
 
@@ -505,7 +500,7 @@ describe("OnboardingWizard — which step it lands on", () => {
     };
     await render();
     await settle();
-    expect(currentStep()).toBe("agent");
+    expect(currentStep()).toBe("other");
 
     dialogState.onboardingOpen = false;
     await rerender();
@@ -572,10 +567,22 @@ describe("OnboardingWizard — which step it lands on", () => {
     function stepCta(): HTMLButtonElement {
       const cta = [...document.body.querySelectorAll("button")].find((b) => {
         const text = b.textContent?.trim();
-        return text === "Finish";
+        return text === "Next" || text === "Connect";
       });
       expect(cta, "the step should render its forward button").toBeTruthy();
       return cta as HTMLButtonElement;
+    }
+
+    /**
+     * Pick a model source. The connect step arrives with nothing chosen, so its
+     * CTA stays disabled until a tile is pressed — found by `aria-checked`
+     * rather than by label, because this suite mocks the display registry and
+     * the tiles carry whatever it happens to return.
+     */
+    async function pickModelSource() {
+      const tiles = [...document.body.querySelectorAll("button[aria-checked]")];
+      expect(tiles.length, "the connect step should offer a source").toBeGreaterThan(0);
+      await press(tiles[0]!);
     }
 
     it("hires under the neutral role, with the name the customer typed", async () => {
@@ -587,7 +594,8 @@ describe("OnboardingWizard — which step it lands on", () => {
       await nameAgent("Ada");
 
       await press(stepCta());
-      expect(document.body.querySelectorAll("button[aria-checked]")).toHaveLength(0);
+      await pickModelSource();
+      await press(stepCta());
 
       expect(mockAgentsApi.hire).toHaveBeenCalled();
       const [, payload] = mockAgentsApi.hire.mock.calls.at(-1)!;
@@ -615,7 +623,7 @@ describe("OnboardingWizard — which step it lands on", () => {
           b.getAttribute("aria-label") ?? "",
         ),
       ) as HTMLButtonElement[];
-      expect(segments).toHaveLength(0);
+      expect(segments).toHaveLength(3);
       expect(segments.every((segment) => segment.disabled)).toBe(true);
 
       // And company creation is genuinely unreachable, not merely unlinked.

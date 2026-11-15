@@ -20,7 +20,6 @@ import { needsClaudeSetupQualification, qualifyClaudeSetup } from "@/lib/qualify
 import { useCloudInstance } from "@/hooks/useCloudInstance";
 import { isNewAgentAdapterAllowed } from "@/lib/new-agent-adapters";
 import { pendingAgentSetupChoice } from "@/lib/agent-setup-choice";
-import { factoryOnboardingDefaults, FACTORY_ADAPTER_TYPE } from "@/lib/factory-onboarding";
 import { useEffect, useRef, useState } from "react";
 import { hashKey, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
@@ -137,7 +136,6 @@ function Setup({
   const { openNewIssue } = useDialogActions();
   const appearanceDraft = useAgentAppearanceDraft(`${companyId}:new-agent`);
   const [runner, setRunner] = useState<AgentRunnerChoice>(initialRunner === "legacy" || initialRunner === "paperclip" ? initialRunner : "auto");
-  const isFactory = adapterType === FACTORY_ADAPTER_TYPE;
   const isRunner = adapterType === "paperclip_runner";
   const isDot = isRunner && runnerProvider === "openai_dot";
   const isKimi = isRunner && runnerProvider === "kimi";
@@ -167,7 +165,7 @@ function Setup({
   const hasCredentialField =
     isKimi || chooseProvider || Boolean(SETUP_CREDENTIAL_KEYS[adapterType]);
   const nativeCursorCloud = adapterType === "cursor_cloud" && runner === "paperclip";
-  const showModel = !isFactory && !isDot && adapterType !== "hermes_gateway" && (adapterType !== "cursor_cloud" || nativeCursorCloud);
+  const showModel = !isDot && adapterType !== "hermes_gateway" && (adapterType !== "cursor_cloud" || nativeCursorCloud);
   const [allowUnmeteredProvider, setAllowUnmeteredProvider] = useState(false);
   const [gatewayUrl, setGatewayUrl] = useState("");
   const [kimiModel, setKimiModel] = useState("");
@@ -313,11 +311,13 @@ function Setup({
     envs.data ?? [],
   );
   const managedOnly = experimental.data?.enableManagedSandboxOnly === true;
-  function resolveSetupEnvironment(override: string) {
-    return nativeCursorCloud ? null : forced.forced
+  let environmentId: string | null = null;
+  let environmentError: string | null = null;
+  try {
+    environmentId = nativeCursorCloud ? null : forced.forced
       ? (forced.kubernetesEnvironment?.id ?? null)
       : resolveAdapterTestEnvironmentId({
-          agentDefaultEnvironmentId: override || null,
+          agentDefaultEnvironmentId: environmentOverride || null,
           instanceDefaultEnvironmentId:
             settings.data?.defaultEnvironmentId ?? null,
           localDefaultEnvironmentId: resolveLocalDefaultEnvironmentId(
@@ -329,11 +329,6 @@ function Setup({
           ),
           visibleEnvironmentIds: (envs.data ?? []).map((env) => env.id),
         });
-  }
-  let environmentId: string | null = null;
-  let environmentError: string | null = null;
-  try {
-    environmentId = resolveSetupEnvironment(environmentOverride);
   } catch (cause) {
     environmentError =
       describeError(cause).body;
@@ -451,7 +446,7 @@ function Setup({
     !caps.error &&
     (nativeCursorCloud || !(managedOnly || forced.forced) || environmentId),
   );
-  const needsCurrentSetup = isFactory || ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(adapterType);
+  const needsCurrentSetup = ["codex_local", "claude_local", "opencode_local", "pi_local"].includes(adapterType);
   const preparingComputer = created?.pauseReason === "setup" && ["preparing", "pausing"].includes(created.lifecycleState ?? "");
   const environmentSelectionSaved = nativeCursorCloud
     || (!environmentOverride && created?.defaultEnvironmentId == null)
@@ -469,12 +464,7 @@ function Setup({
     nextConnection = connection,
     binding = selectedBinding,
     setupRunner?: AgentRunner,
-    targetEnvironment = environment,
   ): Record<string, unknown> {
-    if (isFactory) {
-      const defaults = factoryOnboardingDefaults(targetEnvironment ? [targetEnvironment] : [], targetEnvironment?.id ?? null);
-      return { ...(created?.adapterType === FACTORY_ADAPTER_TYPE ? created.adapterConfig : {}), ...defaults.adapterConfig };
-    }
     const values = {
       ...defaultCreateValues,
       adapterType,
@@ -667,9 +657,7 @@ function Setup({
     if (pendingAntigravity) return;
     if (!created || completed) return;
     const binding = runtimeAiBinding ?? nextConnection?.aiConnection;
-    const targetEnvironmentId = resolveSetupEnvironment(selectedEnvironment);
-    const config = testedConfig ?? buildConfig(nextConnection, selectedBinding, undefined,
-      isFactory ? envs.data?.find(env => env.id === targetEnvironmentId) : environment);
+    const config = testedConfig ?? buildConfig(nextConnection);
     const staged: Array<{ remove: () => Promise<unknown> }> = [];
     let submitted = false;
     const rememberCredentials = () => {
@@ -687,7 +675,7 @@ function Setup({
       submitted = true;
       const agent = await agentsApi.update(created.id, {
         adapterType: requestAdapterType, runner, adapterConfig: config,
-        defaultEnvironmentId: isFactory ? targetEnvironmentId : nativeCursorCloud ? null : selectedEnvironment || (forced.forced || managedOnly ? environmentId : null),
+        defaultEnvironmentId: nativeCursorCloud ? null : selectedEnvironment || (forced.forced || managedOnly ? environmentId : null),
         runtimeConfig: { ...created.runtimeConfig, ...(binding ? { aiConnection: binding } : {}) },
         ...(antigravityCandidate ? { metadata: { ...created.metadata, setupAdapterPending: false, setupAdapterChoice: undefined } } : {}),
         ...(nextConnection?.applyStoredClaudeLogin ? { applyStoredClaudeLogin: true } : {}),
@@ -815,7 +803,7 @@ function Setup({
         adapterType: requestAdapterType,
         ...(["codex_local", "claude_local", "opencode_local", "pi_local", "cursor_cloud"].includes(adapterType) && runner !== "auto" ? { runner } : {}),
         adapterConfig: config,
-        defaultEnvironmentId: isFactory ? resolveSetupEnvironment(environmentOverride) : nativeCursorCloud ? null :
+        defaultEnvironmentId: nativeCursorCloud ? null :
           environmentOverride ||
           (forced.forced || managedOnly ? environmentId : null),
         runtimeConfig: { ...buildNewAgentRuntimeConfig({ heartbeatEnabled: false }), ...(aiBinding ? { aiConnection: aiBinding } : {}) },
@@ -1193,11 +1181,6 @@ function Setup({
                     <h2 className="text-xl font-semibold">
                       Configure your agent
                     </h2>
-                    {isFactory && <section aria-label="Docker factory defaults" className="space-y-2 text-sm">
-                      <p className="text-muted-foreground">Image and model are inherited from the selected worker pool. Authentication comes from the ompig broker; no provider sign-in is needed here.</p>
-                      <p className="break-all font-mono">Model: {String(environment?.config.model ?? "Configure a default model on the Docker Worker Pool")}</p>
-                      <p className="break-all font-mono">Image: {String(environment?.config.image ?? "Configure an immutable agent image on the Docker Worker Pool")}</p>
-                    </section>}
                     <fieldset disabled={busy} className="space-y-8">
                       <section className="space-y-5">
                         {isDot && <>

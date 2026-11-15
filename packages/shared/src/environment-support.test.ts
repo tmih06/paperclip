@@ -7,14 +7,6 @@ import {
 } from "./environment-support.js";
 
 describe("isSandboxProviderSupportedForAdapter", () => {
-  it("restricts image agents to their installed worker-pool sandbox provider", () => {
-    expect(adapterSupportsRemoteManagedEnvironments("ompig_factory")).toBe(true);
-    expect(supportedEnvironmentDriversForAdapter("ompig_factory")).toEqual(["sandbox"]);
-    expect(isSandboxProviderSupportedForAdapter("ompig_factory", "ompig_factory", ["ompig_factory"])).toBe(true);
-    expect(isSandboxProviderSupportedForAdapter("ompig_factory", "ompig_factory", [])).toBe(false);
-    expect(isSandboxProviderSupportedForAdapter("ompig_factory", "other", ["other"])).toBe(false);
-  });
-
   it("treats Paperclip Runner as a remote-managed adapter", () => {
     expect(adapterSupportsRemoteManagedEnvironments("paperclip_runner")).toBe(true);
     expect(supportedEnvironmentDriversForAdapter("paperclip_runner")).toEqual([

@@ -505,7 +505,6 @@ See [doc/DEVELOPING.md](doc/DEVELOPING.md) for the full development guide.
 - ✅ Agent Reviews and Approvals
 - ✅ Multiple Human Users
 - ✅ Cloud / Sandbox agents (e2b, Cloudflare, Daytona, Modal, Novita, boxd, self-hosted Kubernetes)
-- 🧪 ompig-slim image agents on remote Docker worker pools. This fork uses Docker-only first-agent onboarding: enter a name and finish using the preconfigured default pool, image, and model (worker provisioning required; see [`integrations/ompig-factory`](integrations/ompig-factory/README.md)).
 - ✅ Artifacts & Work Products
 - ✅ Deep Planning (planning mode, revisioned plans, plan approvals)
 - ✅ Enforced Outcomes (watchdogs, recovery actions, review gates)
