@@ -1,0 +1,47 @@
+# Published fork image + task pods on a local kind cluster; see docker/KUBERNETES.md.
+services:
+  db:
+    ports: !reset []
+    restart: unless-stopped
+  server:
+    build: !reset null
+    image: ${PAPERCLIP_IMAGE:-ghcr.io/tmih06/paperclip:2026.1114.1-cloud}
+    pull_policy: missing
+    restart: unless-stopped
+    ports: !override
+      # IPv4 only: Docker's IPv6 DNAT for the kind network is blocked, which
+      # makes `localhost` resolve to ::1 and fail.
+      - "0.0.0.0:3100:3100"
+    environment:
+      PAPERCLIP_PUBLIC_URL: http://localhost:3100
+      PAPERCLIP_AUTH_PUBLIC_BASE_URL: http://localhost:3100
+      HOST: 0.0.0.0
+      PAPERCLIP_ALLOWED_HOSTNAMES: localhost,127.0.0.1,${PAPERCLIP_SERVER_IP:-172.18.0.3},server
+      PAPERCLIP_EXECUTION_MODE: kubernetes
+      PAPERCLIP_K8S_IN_CLUSTER: "true"
+      PAPERCLIP_K8S_BACKEND: sandbox-cr
+      PAPERCLIP_KUBERNETES_PLUGIN_PATH: /opt/paperclip-kubernetes
+      KUBERNETES_SERVICE_HOST: ${PAPERCLIP_K8S_API_HOST:-paperclip-control-plane}
+      KUBERNETES_SERVICE_PORT: "6443"
+      PAPERCLIP_K8S_RPC_TIMEOUT_MS: "300000"
+      PAPERCLIP_ADAPTERS_FILE: /etc/paperclip/kubernetes-adapters.json
+      PAPERCLIP_AGENT_JWT_SECRET: "${PAPERCLIP_AGENT_JWT_SECRET:?PAPERCLIP_AGENT_JWT_SECRET must be set}"
+      PAPERCLIP_K8S_EGRESS_ALLOW_CIDRS: "${PAPERCLIP_K8S_EGRESS_ALLOW_CIDRS:?PAPERCLIP_K8S_EGRESS_ALLOW_CIDRS must be set}"
+    volumes:
+      - ./kubernetes-local/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount:ro
+      - ./kubernetes-local/package:/opt/paperclip-kubernetes:ro
+      - ./kubernetes-adapters.json:/etc/paperclip/kubernetes-adapters.json:ro
+    networks:
+      default: {}
+      kind:
+        ipv4_address: ${PAPERCLIP_SERVER_IP:-172.18.0.3}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 10
+networks:
+  kind:
+    external: true
+    name: ${PAPERCLIP_K8S_NETWORK:-kind}
