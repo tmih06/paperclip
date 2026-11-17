@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "build": "tsc --noEmit",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts"
+    "build": "bun x --bun --no-install tsc --noEmit",
+    "typecheck": "bun x --bun --no-install tsc --noEmit",
+    "test": "bun x --bun --no-install vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@cloudflare/sandbox": "^0.7.0"

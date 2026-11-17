@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test *.test.mjs",
-    "init": "node cli.mjs init",
-    "serve": "node cli.mjs serve",
-    "provision": "node cli.mjs provision",
-    "live": "node live-client.mjs"
+    "test": "bun test *.test.mjs",
+    "init": "bun cli.mjs init",
+    "serve": "bun cli.mjs serve",
+    "provision": "bun cli.mjs provision",
+    "live": "bun live-client.mjs"
   },
   "engines": {
     "node": ">=24.11.0"

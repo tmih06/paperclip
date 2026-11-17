@@ -37,10 +37,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "bun x --bun --no-install tsc",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "bun x --bun --no-install tsc --noEmit",
+    "test": "bun x --bun --no-install vitest run"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.31.0",

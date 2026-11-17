@@ -88,14 +88,14 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
+    "build": "bun x --bun --no-install tsc",
+    "dev": "bun x --bun --no-install tsc --watch",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:command-resolution": "vitest run src/server/command-resolution.test.ts",
-    "prepack": "node scripts/prepare-publish-package.mjs",
-    "postpack": "node scripts/restore-dev-package.mjs",
+    "typecheck": "bun x --bun --no-install tsc --noEmit",
+    "test": "bun x --bun --no-install vitest run",
+    "test:command-resolution": "bun x --bun --no-install vitest run src/server/command-resolution.test.ts",
+    "prepack": "bun scripts/prepare-publish-package.mjs",
+    "postpack": "bun scripts/restore-dev-package.mjs",
     "clean": "rm -rf dist"
   },
   "dependencies": {

@@ -41,9 +41,9 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun x tsc && mkdir -p dist/cliplab && cp src/cliplab/LICENSE src/cliplab/PROVENANCE.md dist/cliplab/",
+    "build": "bun x --bun --no-install tsc && mkdir -p dist/cliplab && cp src/cliplab/LICENSE src/cliplab/PROVENANCE.md dist/cliplab/",
     "clean": "rm -rf dist",
-    "typecheck": "bun x tsc --noEmit"
+    "typecheck": "bun x --bun --no-install tsc --noEmit"
   },
   "dependencies": {
     "zod": "^4.6.6",

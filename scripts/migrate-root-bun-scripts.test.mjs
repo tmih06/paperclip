@@ -4,6 +4,16 @@ import { migratePackageScript } from "./migrate-root-bun-scripts.mjs";
 
 for (const [before, after] of [
   ["vp build", "bun x --bun --no-install vp build"],
+  ["pnpm run build && node scripts/probe.mjs", "bun run build && bun scripts/probe.mjs"],
+  ["node --import ./cli/node_modules/tsx/dist/loader.mjs scripts/probe.ts", "bun scripts/probe.ts"],
+  ["node ../../cli/node_modules/tsx/dist/cli.mjs scripts/probe.ts", "bun scripts/probe.ts"],
+  ["pnpm exec tsx src/probe.ts", "bun src/probe.ts"],
+  ["pnpm -C ../../../.. --filter @paperclipai/plugin-sdk ensure-build-deps", "bun run --cwd ../../../.. --filter @paperclipai/plugin-sdk ensure-build-deps"],
+  ["pnpm --filter @paperclipai/shared run build", "bun run --filter @paperclipai/shared build"],
+  ["node --test scripts/probe.test.mjs", "bun test scripts/probe.test.mjs"],
+  ["node --check scripts/probe.mjs", "bun scripts/check-js-syntax.mjs scripts/probe.mjs"],
+  ["node ./node_modules/typescript/bin/tsc --noEmit", "bun x --bun --no-install tsc --noEmit"],
+  ["bun x --cwd server --no-install tsx scripts/probe.ts", "bun --cwd server scripts/probe.ts"],
   ["vite build --config vite.sdk.config.ts", "bun x --bun --no-install vp build --config vite.sdk.config.ts"],
   ["bun x tsc --noEmit", "bun x --bun --no-install tsc --noEmit"],
   ["bun x --no-install vitest run", "bun x --bun --no-install vitest run"],
