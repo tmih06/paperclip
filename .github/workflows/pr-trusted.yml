@@ -114,7 +114,7 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.upload_selection.outputs.artifact-id }}
         run: |
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import assert from 'node:assert/strict';
           import { appendFileSync, readFileSync } from 'node:fs';
           const plan = JSON.parse(readFileSync('.ci-test-selection/plan.json', 'utf8'));
@@ -291,7 +291,7 @@ jobs:
       # Each lane resolves a stale lockfile inline; this early check still
       # fails fast when the merge tree cannot resolve at all.
       - name: Validate dependency resolution
-        run: bun install --no-save
+        run: bun install --lockfile-only --ignore-scripts --no-frozen-lockfile
 
       - name: Upload CI profile timings
         continue-on-error: true
@@ -347,20 +347,20 @@ jobs:
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') != ''
         uses: ./.github/actions/setup-ci-dependencies
 
-      - name: Locate pnpm store
+      - name: Locate the Bun install cache
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        id: pnpm_store
+        id: bun_cache
         run: |
-          echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-          echo "arch=$(node -p 'process.arch')" >> "$GITHUB_OUTPUT"
+          echo "path=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+          echo "arch=$(bun -e 'console.log(process.arch)')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore pnpm store (read only)
+      - name: Restore the Bun install cache (read only)
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
-          restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
+          path: ${{ steps.bun_cache.outputs.path }}
+          key: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
@@ -372,7 +372,7 @@ jobs:
         run: |
           if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            bun install --no-save
+            bun install --lockfile-only
             bun install --frozen-lockfile
           fi
 
@@ -573,20 +573,20 @@ jobs:
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') != ''
         uses: ./.github/actions/setup-ci-dependencies
 
-      - name: Locate pnpm store
+      - name: Locate the Bun install cache
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        id: pnpm_store
+        id: bun_cache
         run: |
-          echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-          echo "arch=$(node -p 'process.arch')" >> "$GITHUB_OUTPUT"
+          echo "path=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+          echo "arch=$(bun -e 'console.log(process.arch)')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore pnpm store (read only)
+      - name: Restore the Bun install cache (read only)
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
-          restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
+          path: ${{ steps.bun_cache.outputs.path }}
+          key: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
@@ -598,7 +598,7 @@ jobs:
         run: |
           if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            bun install --no-save
+            bun install --lockfile-only
             bun install --frozen-lockfile
           fi
 
@@ -837,7 +837,7 @@ jobs:
           CI_PLAN: ${{ needs.test_selection.outputs.plan || needs.gate.outputs.plan }}
           CI_RESULTS: ${{ toJSON(needs) }}
         run: |
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import assert from 'node:assert/strict';
           const results = JSON.parse(process.env.CI_RESULTS);
           assert.equal(results.gate.result, 'success', 'CI routing must succeed');
@@ -900,20 +900,20 @@ jobs:
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') != ''
         uses: ./.github/actions/setup-ci-dependencies
 
-      - name: Locate pnpm store
+      - name: Locate the Bun install cache
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        id: pnpm_store
+        id: bun_cache
         run: |
-          echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-          echo "arch=$(node -p 'process.arch')" >> "$GITHUB_OUTPUT"
+          echo "path=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+          echo "arch=$(bun -e 'console.log(process.arch)')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore pnpm store (read only)
+      - name: Restore the Bun install cache (read only)
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
-          restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
+          path: ${{ steps.bun_cache.outputs.path }}
+          key: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
@@ -925,7 +925,7 @@ jobs:
         run: |
           if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            bun install --no-save
+            bun install --lockfile-only
             bun install --frozen-lockfile
           fi
 
@@ -1138,20 +1138,20 @@ jobs:
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') != ''
         uses: ./.github/actions/setup-ci-dependencies
 
-      - name: Locate pnpm store
+      - name: Locate the Bun install cache
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        id: pnpm_store
+        id: bun_cache
         run: |
-          echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-          echo "arch=$(node -p 'process.arch')" >> "$GITHUB_OUTPUT"
+          echo "path=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+          echo "arch=$(bun -e 'console.log(process.arch)')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore pnpm store (read only)
+      - name: Restore the Bun install cache (read only)
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
-          restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
+          path: ${{ steps.bun_cache.outputs.path }}
+          key: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
@@ -1163,7 +1163,7 @@ jobs:
         run: |
           if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            bun install --no-save
+            bun install --lockfile-only
             bun install --frozen-lockfile
           fi
 
@@ -1406,20 +1406,20 @@ jobs:
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') != ''
         uses: ./.github/actions/setup-ci-dependencies
 
-      - name: Locate pnpm store
+      - name: Locate the Bun install cache
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        id: pnpm_store
+        id: bun_cache
         run: |
-          echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-          echo "arch=$(node -p 'process.arch')" >> "$GITHUB_OUTPUT"
+          echo "path=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+          echo "arch=$(bun -e 'console.log(process.arch)')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore pnpm store (read only)
+      - name: Restore the Bun install cache (read only)
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
-          restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
+          path: ${{ steps.bun_cache.outputs.path }}
+          key: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
@@ -1431,7 +1431,7 @@ jobs:
         run: |
           if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            bun install --no-save
+            bun install --lockfile-only
             bun install --frozen-lockfile
           fi
 
@@ -1502,20 +1502,20 @@ jobs:
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') != ''
         uses: ./.github/actions/setup-ci-dependencies
 
-      - name: Locate pnpm store
+      - name: Locate the Bun install cache
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        id: pnpm_store
+        id: bun_cache
         run: |
-          echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-          echo "arch=$(node -p 'process.arch')" >> "$GITHUB_OUTPUT"
+          echo "path=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+          echo "arch=$(bun -e 'console.log(process.arch)')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore pnpm store (read only)
+      - name: Restore the Bun install cache (read only)
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
-          restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
+          path: ${{ steps.bun_cache.outputs.path }}
+          key: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
@@ -1527,7 +1527,7 @@ jobs:
         run: |
           if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            bun install --no-save
+            bun install --lockfile-only
             bun install --frozen-lockfile
           fi
 
@@ -1724,20 +1724,20 @@ jobs:
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') != ''
         uses: ./.github/actions/setup-ci-dependencies
 
-      - name: Locate pnpm store
+      - name: Locate the Bun install cache
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        id: pnpm_store
+        id: bun_cache
         run: |
-          echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-          echo "arch=$(node -p 'process.arch')" >> "$GITHUB_OUTPUT"
+          echo "path=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+          echo "arch=$(bun -e 'console.log(process.arch)')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore pnpm store (read only)
+      - name: Restore the Bun install cache (read only)
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
-          restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
+          path: ${{ steps.bun_cache.outputs.path }}
+          key: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-cache-${{ runner.os }}-${{ steps.bun_cache.outputs.arch }}-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
@@ -1749,7 +1749,7 @@ jobs:
         run: |
           if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            bun install --no-save
+            bun install --lockfile-only
             bun install --frozen-lockfile
           fi
 
@@ -1823,7 +1823,7 @@ jobs:
           CI_PLAN: ${{ needs.gate.outputs.plan }}
           CI_RESULTS: ${{ toJSON(needs) }}
         run: |
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import assert from 'node:assert/strict';
           const results = JSON.parse(process.env.CI_RESULTS);
           assert.equal(results.gate.result, 'success', 'CI routing must succeed');

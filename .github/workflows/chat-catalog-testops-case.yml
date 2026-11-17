@@ -119,7 +119,7 @@ jobs:
           (cd chat-completion-build && sha256sum -c chat-completion-build.tar.gz.sha256)
           tar -xzf chat-completion-build/chat-completion-build.tar.gz -C "$GITHUB_WORKSPACE"
           bun install --frozen-lockfile --ignore-scripts
-          (cd .testops-trusted && bun tests/runner-e2e/prepare-report-lock.mjs && bun install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/chat-completion-retention-store")
+          (cd .testops-trusted && bun tests/runner-e2e/prepare-report-lock.mjs && bun install --frozen-lockfile --ignore-scripts --cache-dir "$RUNNER_TEMP/chat-completion-retention-store")
       - name: Qualify the pinned provider runtime and preinstalled browser
         run: |
           node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs

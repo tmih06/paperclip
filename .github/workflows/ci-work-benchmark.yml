@@ -101,7 +101,7 @@ jobs:
       - name: Remove materialized outputs before restore
         if: steps.qualification.outputs.cacheable == 'true'
         run: |
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import { execFileSync } from 'node:child_process';
           import { rmSync } from 'node:fs';
           const plan = JSON.parse(execFileSync(process.execPath, ['scripts/ci-dependency-cache.mjs'], {
@@ -147,7 +147,7 @@ jobs:
           git worktree add --detach ../baseline "$base_sha"
           cd ../baseline
           if ! bun install --frozen-lockfile; then
-            bun install --no-save
+            bun install --lockfile-only
             bun install --frozen-lockfile
           fi
           bun run preflight:workspace-links
@@ -273,7 +273,7 @@ jobs:
           started=$(date +%s)
           cargo build --manifest-path runner/Cargo.toml --locked --workspace --bins --message-format=json > "$RUNNER_TEMP/rust-restored-build.jsonl"
           echo "Restored Rust build: $(($(date +%s) - started)) seconds." >> "$GITHUB_STEP_SUMMARY"
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import { readFileSync } from 'node:fs';
           const artifacts = readFileSync(`${process.env.RUNNER_TEMP}/rust-restored-build.jsonl`, 'utf8')
             .trim().split('\n').map(line => JSON.parse(line)).filter(row => row.reason === 'compiler-artifact');

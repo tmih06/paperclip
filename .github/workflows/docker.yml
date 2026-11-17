@@ -281,7 +281,7 @@ jobs:
         if: needs.runner_image.outputs.mode != 'published'
         run: |
           set -euo pipefail
-          bun install --no-save
+          bun install --lockfile-only --ignore-scripts --no-frozen-lockfile
 
           changed="$(git status --porcelain)"
           if [ -z "$changed" ]; then
@@ -303,8 +303,6 @@ jobs:
           set -euo pipefail
           echo "Disk before cleanup:"
           df -h
-
-          pnpm store prune || true
           sudo apt-get clean || true
           sudo rm -rf \
             /usr/share/dotnet \

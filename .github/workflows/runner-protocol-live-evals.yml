@@ -586,7 +586,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           # The controller installs exactly the committed lockfile of the trusted revision.
           git diff --quiet HEAD -- bun.lock
-          bun install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/runner-controller-pnpm-store"
+          bun install --frozen-lockfile --ignore-scripts --cache-dir "$RUNNER_TEMP/runner-controller-pnpm-store"
           node packages/paperclip-runner/scripts/controlled-evals/build-runtime.mjs \
             "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" > "$RUNNER_TEMP/controller-runtime-receipt.json"
           echo "runtime_receipt_sha256=$(jq -r .receiptSha256 "$RUNNER_TEMP/controller-runtime-receipt.json")" >> "$GITHUB_OUTPUT"
@@ -865,7 +865,7 @@ jobs:
         env:
           CONTROLLED_RUNNER_ROOT: ${{ needs.authorize.outputs.accounting_mode == 'controlled' && format('/tmp/paperclip-runner-controlled-{0}/runner', github.run_id) || '' }}
         run: |
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import { execFileSync } from "node:child_process";
           import { createHash } from "node:crypto";
           import { readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -885,7 +885,7 @@ jobs:
           const triple = arch === "x64" ? "x86_64-unknown-linux-musl" : "aarch64-unknown-linux-musl";
           const suffix = `/vendor/${triple}/bin/codex`;
           const binary = realpathSync(path.join(path.dirname(platformPackage), suffix));
-          if (!binary.startsWith(root + "/node_modules/.pnpm/") || !binary.endsWith(suffix) || !/^[/A-Za-z0-9_.@+\-]+$/.test(binary)) {
+          if (!binary.startsWith(root + "/node_modules/") || !binary.endsWith(suffix) || !/^[/A-Za-z0-9_.@+\-]+$/.test(binary)) {
             throw new Error("Codex executable is outside the resolved dependency tree");
           }
           const name = `paperclip-e2e-codex-${createHash("sha256").update(binary).digest("hex").slice(0,16)}`;
@@ -1025,7 +1025,7 @@ jobs:
             --run-id "gha-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CELL_ID}"
           status=$?
           set -e
-          CELL_EXIT_CODE="$status" bun --input-type=module <<'NODE'
+          CELL_EXIT_CODE="$status" bun --input-type=module - <<'NODE'
           import { readFileSync, writeFileSync } from "node:fs";
           let authenticationMode;
           let authenticationEvidenceFailure;
@@ -1339,8 +1339,8 @@ jobs:
       - name: Verify the actual chat viewer before publication
         if: needs.authorize.outputs.accounting_mode == 'legacy'
         run: |
-          bun install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/runner-report-pnpm-store"
-          bun run --filter @paperclipai/paperclip-runner exec playwright install --with-deps chromium
+          bun install --frozen-lockfile --ignore-scripts --cache-dir "$RUNNER_TEMP/runner-report-pnpm-store"
+          bun x --cwd packages/paperclip-runner playwright install --with-deps chromium
           node packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/public-report --screenshots runner-protocol-merged/viewer-proof
           node packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/report
 

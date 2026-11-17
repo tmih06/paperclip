@@ -88,7 +88,6 @@ jobs:
       - name: Free runner disk
         run: |
           set -euo pipefail
-          pnpm store prune || true
           sudo apt-get clean || true
           sudo rm -rf /usr/share/dotnet /usr/share/swift /usr/local/lib/android /usr/local/share/boost \
             /usr/local/share/powershell /opt/ghc /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/PyPy /opt/hostedtoolcache/Ruby || true

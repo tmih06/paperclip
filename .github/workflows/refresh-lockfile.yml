@@ -86,14 +86,14 @@ jobs:
           echo "Resolving from the lockfiles held by run $run_id."
 
       - name: Refresh the Bun lockfile
-        run: bun install --no-save
+        run: bun install --lockfile-only --ignore-scripts --no-frozen-lockfile
 
       # Sandbox providers stay out of the root workspace. The shared typecheck
       # workspace has its own bunfig.toml, and Daytona installs alone.
       - name: Refresh the sandbox provider lockfiles
         run: |
-          bun run --cwd scripts/typecheck-sandbox-providers install --lockfile-only --ignore-scripts --no-frozen-lockfile
-          bun run --cwd packages/plugins/sandbox-providers/daytona install --ignore-workspace --lockfile-only --ignore-scripts --no-frozen-lockfile
+          bun install --cwd scripts/typecheck-sandbox-providers --lockfile-only --ignore-scripts --no-frozen-lockfile
+          bun install --cwd packages/plugins/sandbox-providers/daytona --lockfile-only --ignore-scripts --no-frozen-lockfile
 
       # A verified Dependabot lockfile merged to master is trusted lock content.
       # Report its hash so the proof refresh can admit it.

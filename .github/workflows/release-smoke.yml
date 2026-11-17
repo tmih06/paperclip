@@ -344,7 +344,7 @@ jobs:
           [[ "$TOOLING_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]] || exit 1
           [[ "$(git -C .qualification-tooling rev-parse HEAD)" == "$TOOLING_SHA" ]] || exit 1
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import { createHash } from 'node:crypto';
           import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
           import { join } from 'node:path';

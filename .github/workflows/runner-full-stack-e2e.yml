@@ -437,7 +437,7 @@ jobs:
       # and hashes those exact base references into the immutable image tag.
       - name: Compute Daytona image content ID with pinned bases
         id: daytona_image_content
-        run: echo "content_id=$(pnpm --silent test:e2e:runner:image-id)" >> "$GITHUB_OUTPUT"
+        run: echo "content_id=$(bun --silent run test:e2e:runner:image-id)" >> "$GITHUB_OUTPUT"
 
       - name: Validate selectors and emit matrix
         id: catalog
@@ -528,7 +528,7 @@ jobs:
           if [ "$explicit" = false ] && { [ "$EVENT_NAME" = schedule ] || [ "${SELECT_ALL:-false}" = true ]; }; then
             args+=(--all)
           fi
-          catalog_json="$(pnpm --silent test:e2e:runner -- "${args[@]}")"
+          catalog_json="$(bun --silent run test:e2e:runner -- "${args[@]}")"
           {
             echo "matrix=$(jq -c '{include: .include}' <<< "$catalog_json")"
             echo "needs_daytona=$(jq -r '.needsDaytona' <<< "$catalog_json")"
@@ -1107,7 +1107,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           bun tests/runner-e2e/prepare-report-lock.mjs
-          bun install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/manual-private-publication-store"
+          bun install --frozen-lockfile --ignore-scripts --cache-dir "$RUNNER_TEMP/manual-private-publication-store"
 
       - name: Bind protected original run and compatible target evidence protocol
         id: manual_private
@@ -1324,7 +1324,7 @@ jobs:
       - name: Provision Codex sandbox on the disposable trusted runner
         if: matrix.environmentId == 'local' && (needs.catalog.outputs.operations_cadence == 'weekly' || matrix.profileId == 'runner-codex' || matrix.profileId == 'runner-codex-mini' || matrix.profileId == 'runner-acpx-codex' || matrix.profileId == 'runner-codex-subscription')
         run: |
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import { execFileSync } from "node:child_process";
           import { createHash } from "node:crypto";
           import { readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -1344,7 +1344,7 @@ jobs:
           const triple = arch === "x64" ? "x86_64-unknown-linux-musl" : "aarch64-unknown-linux-musl";
           const suffix = `/vendor/${triple}/bin/codex`;
           const binary = realpathSync(path.join(path.dirname(platformPackage), suffix));
-          if (!binary.startsWith(root + "/node_modules/.pnpm/") || !binary.endsWith(suffix) || !/^[/A-Za-z0-9_.@+\-]+$/.test(binary)) {
+          if (!binary.startsWith(root + "/node_modules/") || !binary.endsWith(suffix) || !/^[/A-Za-z0-9_.@+\-]+$/.test(binary)) {
             throw new Error("Codex executable is outside the resolved dependency tree");
           }
           const name = `paperclip-e2e-codex-${createHash("sha256").update(binary).digest("hex").slice(0,16)}`;
@@ -1573,7 +1573,7 @@ jobs:
         run: bun tests/runner-e2e/prepare-report-lock.mjs
 
       - name: Install pinned reporting dependencies
-        run: bun install --frozen-lockfile --ignore-scripts --store-dir "${{ runner.temp }}/eval-report-store"
+        run: bun install --frozen-lockfile --ignore-scripts --cache-dir "${{ runner.temp }}/eval-report-store"
 
       - name: Prepare exact manual report storage identity
         id: manual_report
@@ -2191,7 +2191,7 @@ jobs:
         run: bun tests/runner-e2e/prepare-report-lock.mjs
 
       - name: Install pinned publication dependencies
-        run: bun install --frozen-lockfile --ignore-scripts --store-dir "${{ runner.temp }}/eval-publisher-store"
+        run: bun install --frozen-lockfile --ignore-scripts --cache-dir "${{ runner.temp }}/eval-publisher-store"
 
       - name: Install publisher-only Chromium
         run: bun x playwright install --with-deps --only-shell chromium

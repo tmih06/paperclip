@@ -28,7 +28,7 @@ test("the bot token is minted only after resolution and the release-age gate", (
     assert.notEqual(index, -1, `missing step "${name}"`);
     return index;
   };
-  assert.ok(order("Refresh pnpm lockfile") < order("Check release age of added package versions"));
+  assert.ok(order("Refresh the Bun lockfile") < order("Check release age of added package versions"));
   assert.ok(order("Check release age of added package versions") < order("Create lockfile bot token"));
   assert.ok(order("Create lockfile bot token") < order("Merge lockfile PR"));
 });
@@ -41,7 +41,7 @@ test("the gate runs only for an open PR, and the bot acts only when the gate pas
 });
 
 test("a held refresh keeps its versions through the next master run's artifact", () => {
-  assert.ok(stepNames.indexOf("Reuse versions from a held refresh") < stepNames.indexOf("Refresh pnpm lockfile"));
+  assert.ok(stepNames.indexOf("Reuse versions from a held refresh") < stepNames.indexOf("Refresh the Bun lockfile"));
   const reuse = step("Reuse versions from a held refresh");
   assert.match(reuse, /gh run list --workflow refresh-lockfile\.yml --branch master --status success/);
   assert.match(reuse, /gh run download "\$run_id" --name held-pnpm-lock/);

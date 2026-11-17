@@ -52,7 +52,7 @@ jobs:
         # dependency or workspace lifecycle scripts, including on the fast path.
         run: |
           if ! bun install --frozen-lockfile --ignore-scripts; then
-            bun install --no-save
+            bun install --lockfile-only
             bun install --frozen-lockfile --ignore-scripts
           fi
 

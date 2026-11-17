@@ -589,7 +589,7 @@ jobs:
           set -euo pipefail
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]] || exit 1
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import assert from 'node:assert/strict';
           import { execFileSync } from 'node:child_process';
           import { appendFileSync } from 'node:fs';
@@ -701,7 +701,7 @@ jobs:
         run: bun install --no-save
       - name: Build TypeScript contract and host daemon concurrently
         run: |
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import { mkdirSync, readFileSync } from 'node:fs';
           import { join } from 'node:path';
           import { startPrefetch, stopPrefetches } from './scripts/prefetch-child.mjs';

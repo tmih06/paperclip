@@ -54,7 +54,7 @@ jobs:
 
       - name: Run Runner fault and replay suites
         run: |
-          bun run --filter @paperclipai/paperclip-runner exec vitest run \
+          bun x --cwd packages/paperclip-runner vitest run \
             src/eval/workflow-evals.test.ts \
             src/native-session-runtime.test.ts \
             src/live/live-session.test.ts \

@@ -46,7 +46,7 @@ jobs:
           NODE_ENV: test
           VITEST: 'true'
         run: |
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import assert from 'node:assert/strict';
           import { readFileSync } from 'node:fs';
           import { execFileSync } from 'node:child_process';
@@ -96,7 +96,7 @@ jobs:
         env:
           CI_TURBO_BIN: ${{ runner.temp }}/ci-tools/node_modules/.bin/turbo
         run: |
-          bun --input-type=module <<'NODE'
+          bun --input-type=module - <<'NODE'
           import { readFileSync, writeFileSync } from 'node:fs';
           import { execFileSync } from 'node:child_process';
           import assert from 'node:assert/strict';
