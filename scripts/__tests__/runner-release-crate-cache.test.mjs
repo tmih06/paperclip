@@ -340,7 +340,7 @@ test("every PR reader restores the crate after the dependency cache and marks it
 
     const key = step(body, KEY_STEP);
     assert.match(key, /id: runner_release_crate_key\n/, name);
-    assert.match(key, /run: echo "scope=\$\(node scripts\/runner-release-crate-cache\.mjs scope\)" >> "\$GITHUB_OUTPUT"/, name);
+    assert.match(key, /run: echo "scope=\$\(bun scripts\/runner-release-crate-cache\.mjs scope\)" >> "\$GITHUB_OUTPUT"/, name);
 
     const restore = step(body, RESTORE_STEP);
     assert.match(restore, /id: runner_release_crate\n/, name);
@@ -349,7 +349,7 @@ test("every PR reader restores the crate after the dependency cache and marks it
 
     const mark = step(body, MARK_STEP);
     assert.match(mark, /if: \$\{\{ steps\.runner_release_crate\.outputs\.cache-hit == 'true' \}\}/, name);
-    assert.match(mark, /run: node scripts\/runner-release-crate-cache\.mjs mark-current/, name);
+    assert.match(mark, /run: bun scripts\/runner-release-crate-cache\.mjs mark-current/, name);
   }
   // No other job restores or saves the crate.
   const total = prWorkflow.match(/- name: Restore the Runner release crate \(read only\)\n/g)?.length ?? 0;
@@ -398,7 +398,7 @@ test("only the master Rust lane writes the crate, after a lookup, with the reade
       stepName,
     );
   }
-  assert.match(step(body, KEY_STEP), /run: echo "scope=\$\(node scripts\/runner-release-crate-cache\.mjs scope\)" >> "\$GITHUB_OUTPUT"/);
+  assert.match(step(body, KEY_STEP), /run: echo "scope=\$\(bun scripts\/runner-release-crate-cache\.mjs scope\)" >> "\$GITHUB_OUTPUT"/);
 
   const lookup = step(body, LOOKUP_STEP);
   assert.match(lookup, /id: runner_release_crate\n/);
@@ -417,8 +417,9 @@ test("only the master Rust lane writes the crate, after a lookup, with the reade
   assert.match(save, /uses: actions\/cache\/save@/);
   assertCacheStep(save, "writer save");
 
-  // The dependency cache's own writer gate is the same expression.
-  assert.match(body, new RegExp(`save-if: \\$\\{\\{ ${WRITER_GATE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\}\\}`));
+  // Dependency cache writes also authorize exact-ref manual runs in the fork.
+  const dependencyWriterGate = "matrix.lane == 'rust' && ((github.repository == 'paperclipai/paperclip' && github.event_name == 'push' && github.ref == 'refs/heads/master' && inputs.ref == github.sha) || (github.repository == 'tmih06/paperclip' && github.event_name == 'workflow_dispatch' && inputs.ref == github.sha))";
+  assert.ok(body.includes("save-if: ${{ " + dependencyWriterGate + " }}"));
   assert.equal((releaseWorkflow.match(/actions\/cache\/save@/g) ?? []).length, 2, "release and debug workspace caches have separate guarded writers");
 });
 

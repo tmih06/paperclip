@@ -13,8 +13,7 @@ import { loadSelection, selectedShard } from "./ci/test-selection-manifest.mjs";
 
 const repoRoot = process.cwd();
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
-// Bun links the vitest CLI into the root node_modules; spawn the CLI's entry
-// file under Node so the app runtime stays Node and no shell hop is needed.
+// Run the installed Vitest entrypoint with the current Bun runtime.
 const vitestBin = path.join(repoRoot, "node_modules", "vitest", "vitest.mjs");
 const generalServerShardDurations = loadShardDurations(
   path.join(scriptsDir, "general-server-shard-durations.json"),

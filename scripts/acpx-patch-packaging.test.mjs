@@ -247,7 +247,7 @@ test("Linux-produced Claude bundles retain the SDK and install native packages f
   assert.equal(readFileSync(join(bridge, "package.json"), "utf8"), bridgeBefore);
   assert.deepEqual(stageBundledProviderOptionalDependencies(directory, staged, profiles), staged);
   writeFileSync(join(directory, "package.json"), JSON.stringify(staged));
-  const packs = JSON.parse(execFileSync("npm", ["pack", "--ignore-scripts", "--offline", "--json"], {
+  const packs = JSON.parse(execFileSync(process.execPath, ["x", "--yes", "npm@10.9.7", "pack", "--ignore-scripts", "--offline", "--json"], {
     cwd: directory, encoding: "utf8", timeout: 30_000,
     env: { ...process.env, HOME: directory, npm_config_cache: join(directory, "cache"), npm_config_update_notifier: "false" },
   }));
@@ -307,7 +307,7 @@ test("Codex bundles retain pinned JavaScript and delegate official consumer plat
   assert.equal(readFileSync(join(runtime, "bin/codex.js"), "utf8"), "// official JavaScript fixture, never executed\n");
   assert.deepEqual(stageBundledProviderOptionalDependencies(directory, staged, profiles), staged);
   writeFileSync(join(directory, "package.json"), JSON.stringify(staged));
-  const packs = JSON.parse(execFileSync("npm", ["pack", "--ignore-scripts", "--offline", "--json"], {
+  const packs = JSON.parse(execFileSync(process.execPath, ["x", "--yes", "npm@10.9.7", "pack", "--ignore-scripts", "--offline", "--json"], {
     cwd: directory, encoding: "utf8", timeout: 30_000,
     env: { ...process.env, HOME: directory, npm_config_cache: join(directory, "cache"), npm_config_update_notifier: "false" },
   }));
@@ -368,7 +368,10 @@ test("Linux-produced esbuild bundles publish exact consumer platform dependencie
       name: `@esbuild/${target}`, version: staged.optionalDependencies[`@esbuild/${target}`], os: ["darwin"], cpu: [target.slice(7)],
     });
     mkdirSync(join(artifact, "bin")); writeFileSync(join(artifact, "bin/esbuild"), "consumer-selected fixture; never executed");
-    assert.equal(issuer.resolve(`@esbuild/${target}/bin/esbuild`), join(artifact, "bin/esbuild"));
+    const resolved = execFileSync(process.execPath, ["-e",
+      'import { createRequire } from "node:module"; console.log(createRequire(process.argv[1]).resolve(process.argv[2]));',
+      join(esbuild, "package.json"), `@esbuild/${target}/bin/esbuild`], { encoding: "utf8" }).trim();
+    assert.equal(resolved, join(artifact, "bin/esbuild"));
   }
 });
 
@@ -722,25 +725,25 @@ printf 'patched requestExtension runtime\\n' > "$target/dist/runtime.js"
 });
 
 test("bundled package dry runs preview without querying published versions", () => {
-  assert.match(releaseScript, /run_bundled_npm_pack pack --pack-destination "\$publish_dir"/);
+  assert.match(releaseScript, /bun pm pack --dry-run --ignore-scripts/);
   assert.match(releaseLib, /BUNDLED_NPM_PACK_VERSION="10\.9\.7"/);
   assert.match(releaseLib, /BUNDLED_NPM_PUBLISH_VERSION="11\.18\.0"/);
   assert.match(
     releaseLib,
-    /npx --yes "npm@\$BUNDLED_NPM_PACK_VERSION" "\$@" --ignore-scripts/,
+    /bun x --yes "npm@\$BUNDLED_NPM_PACK_VERSION" "\$@" --ignore-scripts/,
   );
   assert.match(
     releaseLib,
-    /npx --yes "npm@\$BUNDLED_NPM_PUBLISH_VERSION" "\$@" --ignore-scripts/,
+    /bun x --yes "npm@\$BUNDLED_NPM_PUBLISH_VERSION" "\$@" --ignore-scripts/,
   );
   assert.match(releaseLib, /"\$@" --ignore-scripts --loglevel verbose/);
   assert.match(releaseLib, /run_bundled_npm_publish publish --tag "\$dist_tag"/);
   assert.doesNotMatch(releaseLib, /run_bundled_npm_publish publish "\.\/\$tarball"/);
 });
 
-test("npm builds use corepack instead of requiring a global pnpm", () => {
-  assert.match(buildNpmScript, /corepack bun run --workspaces --if-present typecheck/);
-  assert.doesNotMatch(buildNpmScript, /^\s*bun run --workspaces --if-present typecheck/m);
+test("npm builds use Bun without Corepack or a global pnpm", () => {
+  assert.match(buildNpmScript, /bun run --workspaces --if-present typecheck/);
+  assert.doesNotMatch(buildNpmScript, /corepack|pnpm/);
 });
 
 

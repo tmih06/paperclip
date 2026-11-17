@@ -297,7 +297,8 @@ test("stale SDK public input pins stop verification before selection; fresh pins
   f.write("tests/runner-e2e/report-lock.json", `${JSON.stringify({ inputSha256: "b".repeat(64), outputSha256 })}\n`);
   f.write("packages/shared/src/schema.ts", "export const schema = 1;\n");
   const writeRegistry = schema => f.write(registry, `${JSON.stringify({ lockSha256: outputSha256, inputs: {
-    "package.json": blob(readFileSync(path.join(f.root, "package.json"), "utf8")), "packages/shared/src/schema.ts": blob(schema) } }, null, 2)}\n`);
+    "package.json": blob(readFileSync(path.join(f.root, "package.json"), "utf8")),
+    "bun.lock": blob(readFileSync(path.join(f.root, "bun.lock"), "utf8")), "packages/shared/src/schema.ts": blob(schema) } }, null, 2)}\n`);
   writeRegistry("export const schema = 1;\n");
   f.git("add", "."); f.git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "sdk pin baseline");
   const base = f.git("rev-parse", "HEAD");

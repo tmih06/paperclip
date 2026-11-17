@@ -96,7 +96,7 @@ const plannedCommands = [
   { command: "bun", args: ["run", "ensure:eval-build-deps"], cwd: packageRoot },
   { command: "bun", args: ["run", "build:rust"], cwd: packageRoot },
   ...(runPackageTests
-    ? [{ command: "bun", args: ["x", "--no-install", "vitest", "run", ...packageArgs], cwd: packageRoot, profile: "vitest" }]
+    ? [{ command: "bun", args: ["x", "--bun", "--no-install", "vitest", "run", ...packageArgs], cwd: packageRoot, profile: "vitest" }]
     : []),
   ...(runNativeRunnerGroup
     ? [{

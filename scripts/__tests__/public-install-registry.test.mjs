@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { grokPublicInstallVersion } from '../grok-public-install-sandbox.mjs';
-import { startPackedRegistry, writePackedRegistryCatalog } from '../public-install-registry.mjs';
+import { PUBLIC_INSTALL_NPM_VERSION, startPackedRegistry, writePackedRegistryCatalog } from '../public-install-registry.mjs';
 
 const script = fileURLToPath(new URL('../public-install-registry.mjs', import.meta.url));
 const scratch = async body => {
@@ -17,7 +17,9 @@ const scratch = async body => {
 const environment = root => ({ ...process.env, HOME: root, npm_config_cache: join(root, 'cache'),
   npm_config_userconfig: join(root, 'no-npmrc'), npm_config_audit: 'false', npm_config_fund: 'false', npm_config_update_notifier: 'false', npm_config_fetch_retries: '0', npm_config_fetch_timeout: '10000' });
 const run = (command, args, cwd, env = environment(cwd)) => new Promise((resolve, reject) => {
-  const child = spawn(command, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = command === 'npm'
+    ? spawn(process.execPath, ['x', '--yes', `npm@${PUBLIC_INSTALL_NPM_VERSION}`, ...args], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+    : spawn(command, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '';
   for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { output += chunk; });
   child.once('error', reject);
