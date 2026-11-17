@@ -5,7 +5,7 @@
  * provider calls, production data, or model inference. Alternates the baseline
  * and current policy services, one listing (fresh decision cache) per run.
  *
- * pnpm --filter @paperclipai/server exec tsx scripts/benchmark-tool-policy-matching.ts \
+ * bun run --filter @paperclipai/server exec tsx scripts/benchmark-tool-policy-matching.ts \
  *   --baseline-ref origin/master --tools 800 --rounds 9
  */
 import { execFileSync } from "node:child_process";

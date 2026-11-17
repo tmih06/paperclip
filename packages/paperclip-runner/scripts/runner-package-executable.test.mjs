@@ -18,7 +18,7 @@ const pnpm = pnpmScript?.replaceAll("\\", "/").endsWith("/pnpm.cjs")
 // This small actual pack/install regression isolates pnpm's mode normalization,
 // including the absent alternate-platform executable and a negative control.
 for (const declared of [true, false]) {
-  test(`pnpm installed native mode ${declared ? "honors executableFiles" : "rejects an undeclared executable"}`,
+  test(`bun installed native mode ${declared ? "honors executableFiles" : "rejects an undeclared executable"}`,
     { skip: process.platform === "win32" ? "POSIX executable-bit contract" : false }, async t => {
       const root = await mkdtemp(join(tmpdir(), "runner-executable-pack-"));
       t.after(() => rm(root, { recursive: true, force: true }));

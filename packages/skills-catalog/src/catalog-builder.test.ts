@@ -365,7 +365,7 @@ describe("skills catalog manifest", () => {
     const result = await validateCatalog(packageDir);
 
     expect(result.errors).toContain(
-      "generated/catalog.json is stale. Run pnpm --filter @paperclipai/skills-catalog build:manifest.",
+      "generated/catalog.json is stale. Run bun run --filter @paperclipai/skills-catalog build:manifest.",
     );
   });
 });

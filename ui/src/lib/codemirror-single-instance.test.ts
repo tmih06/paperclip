@@ -25,7 +25,7 @@ const editorRequire = createRequire(uiRequire.resolve("@mdxeditor/editor"));
 const languagesRequire = createRequire(editorRequire.resolve("@codemirror/language-data"));
 const languageRequire = createRequire(languagesRequire.resolve("@codemirror/language"));
 const workspaceManifest = readFileSync(
-  path.join(repoRoot, "pnpm-workspace.yaml"),
+  path.join(repoRoot, "bunfig.toml"),
   "utf8",
 );
 const rootManifest = JSON.parse(
@@ -113,7 +113,7 @@ describe("codemirror single-instance invariant", () => {
       ).toMatch(new RegExp(`^\\^${major}\\.`));
       expect(
         workspaceManifest,
-        `pnpm-workspace.yaml mirrors the pnpm.overrides block and must ` +
+        `bunfig.toml mirrors the pnpm.overrides block and must ` +
           `carry the same ${pkg} entry.`,
       ).toMatch(new RegExp(`^\\s+"${pkg}":`, "m"));
     });

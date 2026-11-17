@@ -1922,7 +1922,7 @@ describe("sandbox adapter execution targets", () => {
         expect(sessionExecs).toHaveLength(1);
         expect(sessionExecs[0]!.bypassSession).not.toBe(true);
         expect(sessionExecs[0]!.timeoutMs).toBe(4 * 60 * 60 * 1000);
-        expect(sessionExecs[0]!.script).toContain("node ");
+        expect(sessionExecs[0]!.script).toContain("bun ");
 
         // Every other exec is bridge control-plane plumbing. Each must force
         // itself off the persistent session so it never queues behind the agent

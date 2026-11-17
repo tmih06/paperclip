@@ -135,7 +135,7 @@ describe("Cursor Cloud replay bundle treatment", () => {
       if (init?.headers && new Headers(init.headers).get("Last-Event-ID") !== "shared-cursor") throw new Error("wrong resume cursor");
       return new Response('event: assistant\\nid: shared-cursor\\ndata: {"text":"private native content"}\\n\\nevent: result\\nid: terminal\\ndata: {}\\n\\n', {headers: {"content-type": "text/event-stream"}});
     };\n`);
-    const original = Buffer.from(`#!/usr/bin/env node\n;(async () => {
+    const original = Buffer.from(`#!/usr/bin/env bun\n;(async () => {
       const target = "https://api.cursor.com/v1/agents/${agent}/runs/" + process.argv[2] + "/stream";
       let cut = false;
       try { await (await fetch(target)).text(); } catch { cut = true; }
@@ -166,11 +166,11 @@ describe("Cursor Cloud replay bundle treatment", () => {
   });
   it("runs a self-contained generated prelude, preserves shebang and restores exact bytes on failure", async () => {
     const directory = await root(), bundlePath = join(directory, "proxy.cjs"), evidenceDirectory = join(directory, "evidence");
-    const original = Buffer.from(`#!/usr/bin/env node\nconst oldFetch = globalThis.fetch;\nif (oldFetch === undefined) throw new Error("missing fetch");\nprocess.stdout.write("proxy body ran");\n`);
+    const original = Buffer.from(`#!/usr/bin/env bun\nconst oldFetch = globalThis.fetch;\nif (oldFetch === undefined) throw new Error("missing fetch");\nprocess.stdout.write("proxy body ran");\n`);
     await writeFile(bundlePath, original, { mode: 0o700 });
     await expect(withCursorCloudReplayFault({ bundlePath, evidenceDirectory }, async manifest => {
       const treated = await readFile(bundlePath);
-      expect(treated.toString().startsWith("#!/usr/bin/env node\n;")).toBe(true);
+      expect(treated.toString().startsWith("#!/usr/bin/env bun\n;")).toBe(true);
       expect(manifest.originalProxySha256).toBe(digest(original)); expect(manifest.instrumentedProxySha256).toBe(digest(treated));
       const result = await new Promise<{ code: number | null; output: string }>((resolve, reject) => {
         const child = spawn(process.execPath, [bundlePath], { stdio: ["ignore", "pipe", "pipe"], env: { PATH: process.env.PATH } });
@@ -193,7 +193,7 @@ describe("Cursor Cloud replay bundle treatment", () => {
   });
   it("serializes the prelude under the same tsx loader used by the paid launcher", async () => {
     const directory = await root(), bundlePath = join(directory, "proxy.cjs"), evidenceDirectory = join(directory, "evidence");
-    const original = '#!/usr/bin/env node\nprocess.stdout.write("tsx proxy ran");\n';
+    const original = '#!/usr/bin/env bun\nprocess.stdout.write("tsx proxy ran");\n';
     await writeFile(bundlePath, original);
     const code = `import {spawnSync} from "node:child_process";
       const {withCursorCloudReplayFault} = await import(${JSON.stringify(new URL("./cursor-cloud-replay-fault.ts", import.meta.url).href)});

@@ -43,7 +43,7 @@ provider manifest, and remote controller version checks aligned.
 
 ## Build and verify
 
-Run `pnpm --filter @paperclipai/paperclip-runner test:opencode:qualification`
+Run `bun run --filter @paperclipai/paperclip-runner test:opencode:qualification`
 after installing dependencies to exercise the actual pinned OpenCode executable.
 It checks health/version, session creation and retrieval, SSE messages, an async
 prompt, and session deletion against a loopback mock provider. It uses an
@@ -61,7 +61,7 @@ docker buildx build \
   --platform linux/amd64 \
   --build-arg PAPERCLIP_RUNNER_CONTENT_ID="${content_id}" \
   --build-arg PAPERCLIP_RUNNER_SOURCE_REVISION="$(git rev-parse HEAD)" \
-  --build-arg PAPERCLIP_RUNNER_LOCK_SHA256="$(shasum -a 256 pnpm-lock.yaml | cut -d ' ' -f 1)" \
+  --build-arg PAPERCLIP_RUNNER_LOCK_SHA256="$(shasum -a 256 bun.lock | cut -d ' ' -f 1)" \
   --tag "paperclip-daytona-runner:e2e-content-${content_id}" \
   --load \
   --file docker/daytona-runner/Dockerfile \
@@ -156,7 +156,7 @@ digest: standalone builds pass the SHA-256 of the lockfile in their build
 context, and a missing or malformed value fails before installation instead of
 surfacing as a checksum mismatch. When a source change needs a fresh lockfile,
 resolve it from the clean tracked lockfile using the exact
-`pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile` command,
+`bun install --no-save` command,
 and verify a second resolution preserves the digest. A lockfile left by a
 filtered or incremental install can retain stale importer patch identities.
 Refresh exact runtime versions and qualification digests together; do not

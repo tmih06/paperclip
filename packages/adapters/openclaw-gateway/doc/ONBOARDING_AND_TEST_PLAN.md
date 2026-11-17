@@ -95,15 +95,15 @@ Use [doc/OPENCLAW_ONBOARDING.md](../../../../doc/OPENCLAW_ONBOARDING.md) as the 
 ## Regression Gates
 Required before merge:
 ```bash
-pnpm -r typecheck
-pnpm test:run
-pnpm build
+bun run --workspaces --if-present typecheck
+bun run test:run
+bun run build
 ```
 
 If full suite is too heavy locally, run at least:
 ```bash
-pnpm --filter @paperclipai/server test:run -- openclaw-gateway
-pnpm --filter @paperclipai/server typecheck
-pnpm --filter @paperclipai/ui typecheck
-pnpm --filter paperclipai typecheck
+bun run --filter @paperclipai/server test:run -- openclaw-gateway
+bun run --filter @paperclipai/server typecheck
+bun run --filter @paperclipai/ui typecheck
+bun run --filter paperclipai typecheck
 ```

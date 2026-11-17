@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // The Runner's own crate is the one thing the shared Rust dependency cache
 // leaves out: rust-cache drops workspace crates when it saves, and a fresh
 // checkout would invalidate cargo's mtime fingerprints for them anyway. So

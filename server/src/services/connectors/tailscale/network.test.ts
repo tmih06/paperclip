@@ -17,7 +17,7 @@ describe("Tailscale environment network process boundary", () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-tailnet-test-"));
     const daemon = path.join(dir, "tailscaled");
     const cli = path.join(dir, "tailscale");
-    await fs.writeFile(daemon, `#!/usr/bin/env node
+    await fs.writeFile(daemon, `#!/usr/bin/env bun
 const fs = require('node:fs');
 const path = require('node:path');
 const socket = process.argv.find(arg => arg.startsWith('--socket=')).slice('--socket='.length);
@@ -25,7 +25,7 @@ fs.writeFileSync(path.join(path.dirname(socket), 'pid'), String(process.pid), { 
 process.on('SIGTERM', () => process.exit(0));
 setInterval(() => {}, 1000);
 `, { mode: 0o700 });
-    await fs.writeFile(cli, `#!/usr/bin/env node
+    await fs.writeFile(cli, `#!/usr/bin/env bun
 const fs = require('node:fs');
 const path = require('node:path');
 const args = process.argv.slice(2);

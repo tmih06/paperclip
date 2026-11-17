@@ -10,7 +10,7 @@
       "../../cli/src/client/board-auth.ts",
       "../../cli/src/commands/client/auth.ts",
       "../../cli/src/commands/client/common.ts",
-      "../../pnpm-lock.yaml"
+      "../../bun.lock"
     ],
     "oracleVersion": "paperclip.chat-catalog.identity.v1",
     "expectedRunCount": 1,

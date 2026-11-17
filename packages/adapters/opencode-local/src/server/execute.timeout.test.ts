@@ -134,7 +134,7 @@ describe("OpenCode timeout reporting", () => {
     const actual = await vi.importActual<typeof import("@paperclipai/adapter-utils/execution-target")>("@paperclipai/adapter-utils/execution-target");
     mocks.process.mockImplementation(actual.runAdapterExecutionTargetProcess);
     const command = path.join(dir, "fixture-opencode");
-    await fs.writeFile(command, "#!/usr/bin/env node\nsetInterval(() => {}, 1000);\n", { mode: 0o755 });
+    await fs.writeFile(command, "#!/usr/bin/env bun\nsetInterval(() => {}, 1000);\n", { mode: 0o755 });
     const ctx = context(0.1, false);
     ctx.config.command = command;
     ctx.config.graceSec = 0.1;

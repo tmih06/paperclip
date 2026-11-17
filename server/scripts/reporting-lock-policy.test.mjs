@@ -21,10 +21,10 @@ it.skipIf(pendingDependabotLock)('admits the committed controller lock through t
     for (const file of ['report-lock.json', 'report-lock.patch']) {
       await copyFile(path.join(repository, relative, file), path.join(root, relative, file));
     }
-    await writeFile(path.join(root, 'pnpm-lock.yaml'), execFileSync('git', ['show', 'HEAD:pnpm-lock.yaml'], { cwd: repository }));
+    await writeFile(path.join(root, 'bun.lock'), execFileSync('git', ['show', 'HEAD:bun.lock'], { cwd: repository }));
     await prepareReportLock(root);
     const policy = JSON.parse(await readFile(path.join(root, relative, 'report-lock.json'), 'utf8'));
-    expect(createHash('sha256').update(await readFile(path.join(root, 'pnpm-lock.yaml'))).digest('hex')).toBe(policy.outputSha256);
+    expect(createHash('sha256').update(await readFile(path.join(root, 'bun.lock'))).digest('hex')).toBe(policy.outputSha256);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

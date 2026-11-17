@@ -91,7 +91,7 @@ describe("Codex CI sandbox trust boundary", () => {
     expect(step).toContain('"-n", "apparmor_parser", "-r", profilePath');
     expect(step).toContain('flag:"wx"');
     expect(step).not.toContain("secrets.");
-    expect(step).not.toContain("node scripts/");
+    expect(step).not.toContain("bun scripts/");
     expect(step).not.toContain("sysctl -w");
   });
 });

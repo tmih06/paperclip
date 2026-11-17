@@ -10,7 +10,7 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const indexJsonPath = join(repoRoot, "ui", "storybook-static", "index.json");
 
 if (!existsSync(indexJsonPath)) {
-  throw new Error(`Missing ${indexJsonPath}; run \`pnpm build-storybook\` first.`);
+  throw new Error(`Missing ${indexJsonPath}; run \`bun run build-storybook\` first.`);
 }
 
 type IndexEntry = { id: string; type: string; title: string; name: string };

@@ -5,10 +5,10 @@ A Paperclip plugin
 ## Development
 
 ```bash
-pnpm install
+bun install
 pnpm dev            # watch builds
 pnpm dev:ui         # local dev server with hot-reload events
-pnpm test
+bun run test
 ```
 
 ## Install Into Paperclip
@@ -19,5 +19,5 @@ npx paperclipai plugin install ./
 
 ## Build Options
 
-- `pnpm build` uses esbuild presets from `@paperclipai/plugin-sdk/bundlers`.
-- `pnpm build:rollup` uses rollup presets from the same SDK.
+- `bun run build` uses esbuild presets from `@paperclipai/plugin-sdk/bundlers`.
+- `bun run build:rollup` uses rollup presets from the same SDK.

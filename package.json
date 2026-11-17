@@ -163,13 +163,16 @@
     "@vitest/browser-preview": "5.1.0"
   },
   "trustedDependencies": [
-    "@embedded-postgres/linux-arm64",
-    "@embedded-postgres/linux-x64",
     "@embedded-postgres/darwin-arm64",
     "@embedded-postgres/darwin-x64",
+    "@embedded-postgres/linux-arm64",
+    "@embedded-postgres/linux-x64",
     "@swc/core",
+    "cpu-features",
     "esbuild",
+    "opencode-ai",
+    "protobufjs",
     "sharp",
-    "protobufjs"
+    "ssh2"
   ]
 }

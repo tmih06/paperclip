@@ -273,7 +273,7 @@ export const LIVE_CONSOLE_DEMO_MANIFESTS: readonly LiveConsoleDemoManifest[] = [
         method: "item/commandExecution/requestApproval",
         itemId: "command-1",
         prompt: "Run the deterministic demo command?",
-        details: { command: "node scripts/live-console-demo-check.mjs --dry-run", cwd: "<server-path>" },
+        details: { command: "bun scripts/live-console-demo-check.mjs --dry-run", cwd: "<server-path>" },
         actions: ["accept", "accept_for_session", "decline", "cancel"],
       },
       {
@@ -446,7 +446,7 @@ export const LIVE_CONSOLE_DEMO_MANIFESTS: readonly LiveConsoleDemoManifest[] = [
         kind: "tool",
         itemId: "tool-1",
         name: "run_command",
-        input: "node scripts/missing.mjs",
+        input: "bun scripts/missing.mjs",
         failure: "Command exited with status 1: cannot find module scripts/missing.mjs",
       },
       { kind: "diagnostic", message: "The demo task cannot continue after the failed command." },

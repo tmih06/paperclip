@@ -3,7 +3,7 @@
 Run the repeatable baseline from the repository root:
 
 ```sh
-pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts
+bun x playwright test --config tests/perf/issue-detail/playwright.config.ts
 ```
 
 The rig starts an isolated seeded Paperclip instance, runs five samples for each scenario/profile, and writes median-ready raw data plus a Markdown table to `test-results/issue-detail-perf/`.
@@ -21,7 +21,7 @@ Profiles:
 Override the sample count (minimum five) or port when needed:
 
 ```sh
-PAPERCLIP_ISSUE_PERF_RUNS=7 PAPERCLIP_ISSUE_PERF_PORT=3210 pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts
+PAPERCLIP_ISSUE_PERF_RUNS=7 PAPERCLIP_ISSUE_PERF_PORT=3210 bun x playwright test --config tests/perf/issue-detail/playwright.config.ts
 ```
 
 S1 clicks as soon as the list row is visible. Set
@@ -75,7 +75,7 @@ connects are its catch-up refresh and are excluded. The benchmark is opt-in:
 ```sh
 PAPERCLIP_ISSUE_PERF_BASE_URL=http://127.0.0.1:3287 \
 PAPERCLIP_ISSUE_PERF_COLD_RUNS=7 PAPERCLIP_ISSUE_PERF_LABEL=candidate \
-  pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts cold-bootstrap -g benchmark
+  bun x playwright test --config tests/perf/issue-detail/playwright.config.ts cold-bootstrap -g benchmark
 ```
 
 It writes `cold-bootstrap-<label>.{json,md}` with the median, spread, the
@@ -100,7 +100,7 @@ cleared (other app storage kept) and writes `returning-task-<label>.{json,md}`:
 ```sh
 PAPERCLIP_ISSUE_PERF_BASE_URL=http://127.0.0.1:3287 \
 PAPERCLIP_ISSUE_PERF_COLD_RUNS=5 PAPERCLIP_ISSUE_PERF_LABEL=candidate \
-  pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts cold-bootstrap -g returning
+  bun x playwright test --config tests/perf/issue-detail/playwright.config.ts cold-bootstrap -g returning
 ```
 
 Closing a page saves its read cache, so the harness clears storage from a
@@ -201,7 +201,7 @@ To run against an existing **disposable local test-drive instance**:
 
 ```sh
 PAPERCLIP_ISSUE_PERF_BASE_URL=http://127.0.0.1:3102 \
-  pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts layout-stability.spec.ts
+  bun x playwright test --config tests/perf/issue-detail/playwright.config.ts layout-stability.spec.ts
 ```
 
 The suite creates its own company and fixtures. The URL override accepts only
@@ -222,7 +222,7 @@ database whose name ends in `_test`. Use the same database as the local server:
 ```sh
 PAPERCLIP_ISSUE_PERF_BASE_URL=http://127.0.0.1:3102 \
 PAPERCLIP_ISSUE_PERF_DATABASE_URL=postgres://paperclip:paperclip@127.0.0.1:5432/task_loading_test \
-  pnpm exec playwright test --config tests/perf/issue-detail/playwright.config.ts saved-reply-startup.spec.ts
+  bun x playwright test --config tests/perf/issue-detail/playwright.config.ts saved-reply-startup.spec.ts
 ```
 
 For the live walkthrough, first assign a disposable task to a native Paperclip
@@ -232,7 +232,7 @@ and reconnects, steers a follow-up, and records through completion:
 
 ```sh
 PAPERCLIP_LAYOUT_LIVE_URL=http://127.0.0.1:3102/LAY/issues/LAY-8 \
-  node tests/perf/issue-detail/live-feed.walkthrough.mjs
+  bun tests/perf/issue-detail/live-feed.walkthrough.mjs
 ```
 
 Inspect `test-results/task-layout/live-acceptance/` for the video, screenshots,

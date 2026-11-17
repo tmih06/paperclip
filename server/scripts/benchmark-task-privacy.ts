@@ -19,7 +19,7 @@ const ref = arg("baseline-ref");
 assert.ok(ref, "Pass a pinned --baseline-ref=<pre-fix commit>");
 const baselineRevision = git("rev-parse", `${ref}^{commit}`);
 const modulePath = "server/src/services/authorization.ts";
-const changedRuntime = git("diff", "--name-only", baselineRevision, "--", "server/src/services", "packages/db/src", "packages/shared/src", "pnpm-lock.yaml").split("\n").filter(Boolean);
+const changedRuntime = git("diff", "--name-only", baselineRevision, "--", "server/src/services", "packages/db/src", "packages/shared/src", "bun.lock").split("\n").filter(Boolean);
 assert.deepEqual(changedRuntime.filter(file => file !== modulePath), [], "Baseline helpers must be isolated when other runtime dependencies change");
 const proofFiles = [modulePath, "server/src/services/issues.ts", "server/src/services/issue-participation.ts"];
 const sourceHashes = Object.fromEntries(await Promise.all(proofFiles.map(async file => [file, createHash("sha256").update(await fs.readFile(path.join(root, file))).digest("hex")])));
@@ -137,7 +137,7 @@ try {
     await db.$client.unsafe("truncate companies cascade");
   }
   const dependencyVersions = Object.fromEntries(await Promise.all(["postgres", "drizzle-orm"].map(async name => [name, JSON.parse(await fs.readFile(path.join(root,`packages/db/node_modules/${name}/package.json`),"utf8")).version])));
-  const report = { baselineRevision, dependencyVersions, maxDenseMs: Number.isFinite(maxDenseMs) ? maxDenseMs : null, treatmentRevision: git("rev-parse", "HEAD"), sourceHashes, baselineSourceSha256: createHash("sha256").update(oldSource).digest("hex"), changedRuntime, checkedInLockSha256: createHash("sha256").update(await fs.readFile(path.join(root,"pnpm-lock.yaml"))).digest("hex"), nodeVersion: process.version, settings, setupMs, totalMs: performance.now()-started, warmupsPerArm: 2, measuredSamplesPerArm: 5, results };
+  const report = { baselineRevision, dependencyVersions, maxDenseMs: Number.isFinite(maxDenseMs) ? maxDenseMs : null, treatmentRevision: git("rev-parse", "HEAD"), sourceHashes, baselineSourceSha256: createHash("sha256").update(oldSource).digest("hex"), changedRuntime, checkedInLockSha256: createHash("sha256").update(await fs.readFile(path.join(root,"bun.lock"))).digest("hex"), nodeVersion: process.version, settings, setupMs, totalMs: performance.now()-started, warmupsPerArm: 2, measuredSamplesPerArm: 5, results };
   const evidence = arg("evidence-dir");
   if (evidence) { await fs.mkdir(evidence,{ recursive: true }); await fs.writeFile(path.join(evidence,"benchmark.json"),JSON.stringify(report,null,2)); }
   console.log(JSON.stringify({ ...report, results: results.map(result => ({ ...result, cases: result.cases.map(({ plans, ...rest }) => rest) })) },null,2));

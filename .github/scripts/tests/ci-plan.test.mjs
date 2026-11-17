@@ -63,16 +63,16 @@ test("repository-wide guidance guards run uncached for every scanned UI file typ
   assert.equal(config.tasks["//#ci:typecheck"].cache, false);
   const workflow = readFileSync(new URL(".github/workflows/pr-trusted.yml", root), "utf8");
   const job = workflow.split("\n  typecheck_release_registry:\n")[1].split("\n  general_tests:\n")[0];
-  assert.match(job, /\n        run: node scripts\/ci-typecheck-lane\.mjs\n/);
-  assert.match(job, /\n        if: \$\{\{ hashFiles\('scripts\/ci-typecheck-lane\.mjs'\) != '' \}\}\n        run: node scripts\/ci-typecheck-lane\.mjs\n/);
+  assert.match(job, /\n        run: bun scripts\/ci-typecheck-lane\.mjs\n/);
+  assert.match(job, /\n        if: \$\{\{ hashFiles\('scripts\/ci-typecheck-lane\.mjs'\) != '' \}\}\n        run: bun scripts\/ci-typecheck-lane\.mjs\n/);
   const fallback = job.split("\n        if: ${{ hashFiles('scripts/ci-typecheck-lane.mjs') == '' }}\n")[1].split("\n\n")[0];
   for (const command of [
-    "pnpm run typecheck:build-gaps",
-    "node scripts/typecheck-test-programs.mjs --low-memory",
-    "pnpm --filter @paperclipai/server typecheck",
-    "node scripts/typecheck-test-projects.mjs --low-memory --reuse-declarations",
+    "bun run typecheck:build-gaps",
+    "bun scripts/typecheck-test-programs.mjs --low-memory",
+    "bun run --filter @paperclipai/server typecheck",
+    "bun scripts/typecheck-test-projects.mjs --low-memory --reuse-declarations",
     "server/src/__tests__/cli-invocation-safety.test.ts",
-    "pnpm run test:release-registry",
+    "bun run test:release-registry",
   ]) assert.ok(fallback.includes(command), command);
   const guidance = planLane({ buildGapPackages: [], testLayers: [] }).prepare.find((task) => task.name === "CLI guidance safety");
   // `bun x --no-install` is Bun's `pnpm exec`: it runs the workspace binary
@@ -88,7 +88,7 @@ test("shared contracts, runtime prompts, protocol inputs and fixtures reach cons
   }
   assert.ok(selectedTasks(plan(["server/src/onboarding-assets/default/AGENTS.md"])).has("ci:runner-vitest"));
   assert.ok(selectedTasks(plan(["packages/paperclip-runner/protocol/schema.json"])).has("ci:runner-rust"));
-  for (const file of ["tests/runner-e2e/fixtures/prompt.md", "scripts/run-vitest-stable.mjs", "pnpm-lock.yaml"]) {
+  for (const file of ["tests/runner-e2e/fixtures/prompt.md", "scripts/run-vitest-stable.mjs", "bun.lock"]) {
     assert.ok(Object.values(plan([file]).jobs).every((job) => job.selected === job.total), file);
   }
 });
@@ -104,7 +104,7 @@ test("sandbox provider tests run only for the providers, the plugin SDK, and wha
     assert.equal(selected(plan([file]), "sandbox_provider_tests"), false, file);
   }
   // The provider lockfiles, the shared install workspace and the runner script are global inputs.
-  for (const file of ["scripts/typecheck-sandbox-providers/pnpm-lock.yaml", "scripts/test-sandbox-providers.mjs",
+  for (const file of ["scripts/typecheck-sandbox-providers/bun.lock", "scripts/test-sandbox-providers.mjs",
     "packages/plugins/sandbox-providers/daytona/package.json"]) {
     assert.equal(selected(plan([file]), "sandbox_provider_tests"), true, file);
   }
@@ -203,7 +203,9 @@ test("required aggregates reject omitted, failed and cancelled selected work", (
   const workflow = readFileSync(new URL(".github/workflows/pr-trusted.yml", root), "utf8");
   for (const id of ["verify", "e2e"]) {
     const block = workflow.split(`\n  ${id}:\n`)[1].split(/\n  [a-z0-9_]+:\n/)[0];
-    const code = block.split("          node --input-type=module <<'NODE'\n")[1].split("\n          NODE")[0]
+    // Bun reads a stdin program only when `-` names it: without the operand it
+    // prints its usage instead of running the aggregate below.
+    const code = block.split("          bun --input-type=module - <<'NODE'\n")[1].split("\n          NODE")[0]
       .split("\n").map((line) => line.slice(10)).join("\n");
     const names = /needs: \[([^\]]+)\]/.exec(block)[1].split(", ");
     const resultPlan = plan(["ui/src/components/Sidebar.tsx"]);
@@ -257,7 +259,7 @@ test("the real routing step uses pinned trusted definitions and defaults to full
     const base = git("rev-parse", "HEAD");
     git("merge", "--no-ff", "pr", "-m", "tested merge");
     const merge = git("rev-parse", "HEAD");
-    writeFileSync(path.join(directory, "git"), `#!/usr/bin/env node
+    writeFileSync(path.join(directory, "git"), `#!/usr/bin/env bun
 const {spawnSync}=require('node:child_process');
 if(process.env.TEST_GIT_FAILURE==='true')process.exit(1);
 const args=process.argv.slice(2).map(a=>a==='https://github.com/paperclipai/paperclip.git'?process.env.TEST_GIT_REPOSITORY:a);
@@ -265,7 +267,7 @@ const r=spawnSync(${JSON.stringify(gitBin)},args,{stdio:'inherit'});process.exit
 `);
     chmodSync(path.join(directory, "git"), 0o755);
     const gh = path.join(directory, "gh");
-    writeFileSync(gh, `#!/usr/bin/env node
+    writeFileSync(gh, `#!/usr/bin/env bun
 const fs = require('node:fs'), path = require('node:path');
 const endpoint = process.argv.find(arg => arg.startsWith('/repos/'));
 if (endpoint?.endsWith('/git/ref/heads/master')) console.log('a'.repeat(40));

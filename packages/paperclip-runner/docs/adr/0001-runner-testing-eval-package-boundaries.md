@@ -102,8 +102,8 @@ errors must not stand in for this preflight.
 Run:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner check:package-boundaries
-pnpm --filter @paperclipai/paperclip-runner check:clean-consumers
+bun run --filter @paperclipai/paperclip-runner check:package-boundaries
+bun run --filter @paperclipai/paperclip-runner check:clean-consumers
 ```
 
 The second command builds and packs the runner, installs its tarball into a
@@ -123,7 +123,7 @@ inputs are removed after success or failure; installed sources are not modified.
 Run the focused staging regression from the repository root:
 
 ```sh
-node --test packages/paperclip-runner/scripts/installed-package-pack.test.mjs
+bun test packages/paperclip-runner/scripts/installed-package-pack.test.mjs
 ```
 
 This regression also runs in the Runner's `test:typescript:prep` gate.

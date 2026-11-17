@@ -87,7 +87,7 @@ export function fingerprintChatDependencyClosure(input: {
     if (!files.has(relative)) files.set(relative, input.normalizedMetadata?.[relative] !== undefined
       ? JSON.stringify(input.normalizedMetadata[relative]) : readFileSync(absolute, "utf8"));
   }
-  for (const name of ["package.json", "pnpm-lock.yaml"]) if (existsSync(path.join(input.root, name))) files.set(name, readFileSync(path.join(input.root, name), "utf8"));
+  for (const name of ["package.json", "bun.lock"]) if (existsSync(path.join(input.root, name))) files.set(name, readFileSync(path.join(input.root, name), "utf8"));
   const sources = [...files].sort(([a], [b]) => a.localeCompare(b)).map(([file, body]) => ({ file, sha256: hash(body) }));
   const digest = hash(JSON.stringify({ selected: input.selected, sources }));
   return { digest, definitionDigest: digest, graderDigest: digest, fingerprintKind: "complete-execution-and-oracle-closure",

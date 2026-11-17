@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-token-gates.mjs
  *
@@ -67,7 +67,7 @@
  * Exit code: 0 if all three gates are clean (prints a per-gate summary).
  * Exit code: 1 if any gate has violations (lists them, grouped by gate).
  *
- * Usage: node scripts/check-token-gates.mjs
+ * Usage: bun scripts/check-token-gates.mjs
  */
 
 import { readFileSync, readdirSync } from "node:fs";

@@ -11,7 +11,7 @@ const args = process.argv.slice(2);
 if (args[0] === "--") args.shift();
 
 if (!existsSync(vitest)) {
-  console.error(`${prefix} launcher/environment failure: Vitest is not installed. Run pnpm install before validation.`);
+  console.error(`${prefix} launcher/environment failure: Vitest is not installed. Run bun install before validation.`);
   process.exit(2);
 }
 // Load after the check: a missing install must still report the launcher failure.

@@ -35,7 +35,7 @@ const fixture = (root, { publicDependency = false } = {}) => {
   for (const [index, manifest] of packs.entries()) {
     const source = join(root, `source-${index}`); mkdirSync(source);
     writeFileSync(join(source, 'package.json'), JSON.stringify(manifest));
-    writeFileSync(join(source, 'index.js'), '#!/usr/bin/env node\nmodule.exports = 42;\n');
+    writeFileSync(join(source, 'index.js'), '#!/usr/bin/env bun\nmodule.exports = 42;\n');
     if (manifest.bundleDependencies) {
       const bundle = join(source, 'node_modules/bundled-leaf'); mkdirSync(bundle, { recursive: true });
       writeFileSync(join(bundle, 'package.json'), JSON.stringify({ name: 'bundled-leaf', version: '1.0.0', main: 'index.js' }));

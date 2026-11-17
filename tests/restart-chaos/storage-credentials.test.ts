@@ -99,7 +99,7 @@ describe("ST5R rotation failures", () => {
 
   async function fakeMinio(root: string, health: "ok" | "hang") {
     const binary = path.join(root, "fake-minio.mjs");
-    await writeFile(binary, `#!/usr/bin/env node
+    await writeFile(binary, `#!/usr/bin/env bun
 import { createServer } from "node:http";
 import { writeFileSync } from "node:fs";
 const [host, port] = process.argv[process.argv.indexOf("--address") + 1].split(":");

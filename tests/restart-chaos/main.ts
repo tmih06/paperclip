@@ -2,9 +2,9 @@
  * Control-plane restart chaos harness, Phase 1 MVP.
  * See doc/plans/2026-11-06-control-plane-restart-chaos.md and ./README.md.
  *
- *   node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local --adapters codex,claude,opencode \
+ *   bun tests/restart-chaos/main.ts --env local --adapters codex,claude,opencode \
  *     --concurrency 4 --tasks 8 --faults K1,K2,K4 --seed 42
- *   node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --replay <wave>/<task>
+ *   bun tests/restart-chaos/main.ts --replay <wave>/<task>
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -165,7 +165,7 @@ function preflight(plan: WavePlan) {
   if (missing.length) throw new Error(`Missing credentials ${missing.join(", ")}. Run: set -a; source ~/.secrets; set +a`);
   const runner = process.env.PAPERCLIP_RUNNER_BINARY
     ?? path.join(repositoryRoot, "packages/paperclip-runner/runner/target/debug/paperclip-runnerd");
-  if (!existsSync(runner)) throw new Error(`Runner binary missing at ${runner}. Run: pnpm --filter @paperclipai/paperclip-runner run build:runner-binaries`);
+  if (!existsSync(runner)) throw new Error(`Runner binary missing at ${runner}. Run: bun run --filter @paperclipai/paperclip-runner run build:runner-binaries`);
   // K14: the older checkout must be prepared (installed and built) before the wave, like this one.
   // `--server-from` runs the whole wave on another prepared checkout, prepared like an upgrade's older build.
   const upgradeFrom = plan.options.upgradeFrom ?? plan.options.serverFrom;
@@ -177,7 +177,7 @@ function preflight(plan: WavePlan) {
     for (const required of ["tests/runner-e2e/server-entry.ts", "node_modules", "packages/paperclip-runner/runner/target/debug/paperclip-runnerd"]) {
       if (!existsSync(path.join(upgradeFrom, required))) {
         throw new Error(`--upgrade-from ${upgradeFrom} is not a prepared checkout (missing ${required}). `
-          + "Create it with `git worktree add <dir> <commit>`, then run `node scripts/agent-preflight.mjs` in it.");
+          + "Create it with `git worktree add <dir> <commit>`, then run `bun scripts/agent-preflight.mjs` in it.");
       }
     }
     if (path.resolve(upgradeFrom) === repositoryRoot) throw new Error("--upgrade-from must be a different checkout than the one running the harness");

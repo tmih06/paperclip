@@ -46,9 +46,9 @@ const RUST_RESTORE_STEP = "Restore Runner Rust dependencies (read only)";
 // Every PR job that builds the Runner release binary, and the command each
 // one runs cargo through. The crate must be restored and marked before it.
 const READERS = [
-  ["typecheck_release_registry", "run: node scripts/ci-typecheck-lane.mjs"],
-  ["verify_paperclip_runner", "run: pnpm --filter @paperclipai/paperclip-runner ${{ matrix.command }}"],
-  ["build", "run: pnpm build"],
+  ["typecheck_release_registry", "run: bun scripts/ci-typecheck-lane.mjs"],
+  ["verify_paperclip_runner", "run: bun run --filter @paperclipai/paperclip-runner ${{ matrix.command }}"],
+  ["build", "run: bun run build"],
   ["canary_dry_run", "- name: Release canary dry run via release.sh internal build"],
 ];
 
@@ -409,7 +409,7 @@ test("only the master Rust lane writes the crate, after a lookup, with the reade
   // cleaned of the test-profile variants the lane's checks built.
   const build = step(body, BUILD_STEP);
   assert.match(build, /working-directory: packages\/paperclip-runner\n/);
-  assert.match(build, /set -euo pipefail\n\s+cargo clean --release --manifest-path runner\/Cargo\.toml -p paperclip-runner-core\n\s+pnpm build:binary\n/);
+  assert.match(build, /set -euo pipefail\n\s+cargo clean --release --manifest-path runner\/Cargo\.toml -p paperclip-runner-core\n\s+bun run build:binary\n/);
   const runnerScripts = JSON.parse(readFileSync(path.join(repoRoot, RUNNER_PACKAGE, "package.json"), "utf8")).scripts;
   assert.match(runnerScripts["build:binary"], /^cargo build --release --manifest-path runner\/Cargo\.toml --locked -p paperclip-runner-core --bin paperclip-runnerd && /);
 

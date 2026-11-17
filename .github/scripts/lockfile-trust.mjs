@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * lockfile-trust.mjs
  *
@@ -15,8 +15,8 @@
  * base-branch tip, so a pull request cannot rewrite the check that judges it.
  *
  * Usage:
- *   node .github/scripts/lockfile-trust.mjs pr      # PR policy job
- *   node .github/scripts/lockfile-trust.mjs merged  # refresh workflow on master
+ *   bun .github/scripts/lockfile-trust.mjs pr      # PR policy job
+ *   bun .github/scripts/lockfile-trust.mjs merged  # refresh workflow on master
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';

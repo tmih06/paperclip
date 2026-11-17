@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Disconnect-handling guard: finds UI code that renders raw query
  * errors or opts out of the shared retry policy.
@@ -21,7 +21,7 @@
  * exits 1 on any finding outside the allowlist (CI turns this on once the
  * long tail migrates).
  *
- * Usage: node scripts/check-query-error-rendering.mjs [--enforce] [--summary]
+ * Usage: bun scripts/check-query-error-rendering.mjs [--enforce] [--summary]
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";

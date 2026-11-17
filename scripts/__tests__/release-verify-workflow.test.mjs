@@ -72,7 +72,7 @@ test("source proof gates publication without occupying a publication runner", ()
   assert.match(gate, /needs: \[build-and-push, source_verification\]/);
   assert.match(publisher, /needs: \[build-and-push, source_verification, publication_verification\]/);
   assert.doesNotMatch(publisher, /--require-proof|actions: write/);
-  assert.ok(publisher.indexOf("run: node scripts/watch-release-source.mjs --check-proof") < publisher.indexOf("- name: Create manifest list and push"));
+  assert.ok(publisher.indexOf("run: bun scripts/watch-release-source.mjs --check-proof") < publisher.indexOf("- name: Create manifest list and push"));
   assert.match(publisher, /actions: read/);
   assert.match(publisher, /timeout-minutes: 20/);
   const expression = publisher.match(/^    if: \$\{\{ (.+) \}\}$/m)[1].replaceAll("needs.build-and-push", "needs.build");
@@ -138,7 +138,7 @@ test("canary can admit deferred exact-source checks while stable keeps full veri
   );
   assert.doesNotMatch(
     releaseWorkflow,
-    /verify_(?:canary|stable):[\s\S]*?pnpm test:run(?:\n|$)/,
+    /verify_(?:canary|stable):[\s\S]*?bun run test:run(?:\n|$)/,
   );
 });
 
@@ -272,7 +272,7 @@ test("source proof requires every source check and does not wait on image public
   const proof = readiness.split("  source_verified:\n")[1];
   assert.match(proof, /name: Cloud source verified v1/);
   assert.match(proof, /needs: \[verify\]/);
-  assert.match(proof, /node --test scripts\/cloud-source-verification.test.mjs/);
+  assert.match(proof, /bun test scripts\/cloud-source-verification.test.mjs/);
   assert.match(proof, /SOURCE_SHA: \$\{\{ github\.sha \}\}/);
   assert.doesNotMatch(proof, /always\(\)|continue-on-error|needs:.*(?:image|artifacts)/);
   assert.doesNotMatch(readiness, /^  (?:image|artifacts|ready):/m);
@@ -368,7 +368,7 @@ test("published canaries are gated by the exact-version onboarding browser smoke
   );
   assert.match(
     releaseWorkflow,
-    /smoke_canary_onboarding:[\s\S]*?Install test dependencies\n\s+run: pnpm install --frozen-lockfile/,
+    /smoke_canary_onboarding:[\s\S]*?Install test dependencies\n\s+run: bun install --frozen-lockfile/,
   );
   assert.doesNotMatch(
     releaseWorkflow.match(
@@ -423,7 +423,7 @@ for (const drift of ["patch", "manifest"]) {
       pnpm: { patchedDependencies: { "smoke-fixture-dependency@1.0.0": "fixture.patch" } },
     };
     writeFileSync(path.join(root, "package.json"), JSON.stringify(manifest));
-    writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages: []\n");
+    writeFileSync(path.join(root, "bunfig.toml"), "packages: []\n");
     const patch = (value) => writeFileSync(path.join(root, "fixture.patch"), [
       "diff --git a/index.js b/index.js", "index 1111111..2222222 100644",
       "--- a/index.js", "+++ b/index.js", "@@ -1 +1 @@",
@@ -434,7 +434,7 @@ for (const drift of ["patch", "manifest"]) {
     const smoke = workflow.split("  smoke_canary_onboarding:\n")[1].split("  # ----- Nightly lane")[0];
     const installArgs = (name) => {
       const job = name === "Install dependencies" ? publish : smoke;
-      const command = job.match(new RegExp(`name: ${name}\\n\\s+run: (pnpm install[^\\n]+)`))?.[1];
+      const command = job.match(new RegExp(`name: ${name}\\n\\s+run: (bun install[^\\n]+)`))?.[1];
       assert.ok(command, `missing ${name}`);
       return [...command.split(" ").slice(1), "--offline", "--ignore-scripts"];
     };
@@ -444,7 +444,7 @@ for (const drift of ["patch", "manifest"]) {
     const success = (result) => assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     patch(drift === "patch" ? "old-patch" : "published-patch");
     success(install(installArgs("Install dependencies")));
-    const staleLock = readFileSync(path.join(root, "pnpm-lock.yaml"));
+    const staleLock = readFileSync(path.join(root, "bun.lock"));
     if (drift === "patch") {
       patch("published-patch");
     } else {
@@ -461,16 +461,16 @@ for (const drift of ["patch", "manifest"]) {
     success(install(installArgs("Install dependencies")));
     const artifact = path.join(root, "publisher-lock.yaml");
     if (publish.includes("name: Save canary smoke lockfile")) {
-      copyFileSync(path.join(root, "pnpm-lock.yaml"), artifact);
+      copyFileSync(path.join(root, "bun.lock"), artifact);
     }
-    writeFileSync(path.join(root, "pnpm-lock.yaml"), staleLock);
+    writeFileSync(path.join(root, "bun.lock"), staleLock);
     rmSync(path.join(root, "node_modules"), { recursive: true, force: true });
     if (smoke.includes("name: Restore canary smoke lockfile")) {
-      copyFileSync(artifact, path.join(root, "pnpm-lock.yaml"));
+      copyFileSync(artifact, path.join(root, "bun.lock"));
     }
     success(install(installArgs("Install test dependencies")));
     assert.equal(readFileSync(path.join(root, "node_modules/smoke-fixture-dependency/index.js"), "utf8"), 'module.exports = "published-patch";\n');
-    assert.deepEqual(readFileSync(path.join(root, "pnpm-lock.yaml")), readFileSync(artifact));
+    assert.deepEqual(readFileSync(path.join(root, "bun.lock")), readFileSync(artifact));
 
     // A lockfile from the wrong source still fails closed; restoring an artifact
     // must not disable hash validation or resolve another version in the smoke job.
@@ -531,14 +531,14 @@ test("release verify workflow covers the same split test surface as stable PR ve
     verifyWorkflow,
     /node \.\/scripts\/release-package-map\.mjs check/,
   );
-  assert.match(verifyWorkflow, /pnpm -r typecheck/);
-  assert.match(verifyWorkflow, /pnpm build/);
+  assert.match(verifyWorkflow, /bun run --workspaces --if-present typecheck/);
+  assert.match(verifyWorkflow, /bun run build/);
   const runnerScripts = JSON.parse(readFileSync(path.join(repoRoot, "packages/paperclip-runner/package.json"), "utf8")).scripts;
   const runnerChecks = [...verifyWorkflow.matchAll(/^            checks: (.+)$/gm)]
     .flatMap(([, checks]) => checks.split(" "));
   assert.deepEqual(runnerChecks, runnerScripts["check:all"].split(" && ")
-    .map((command) => command.replace(/^pnpm run /, "")));
-  assert.match(verifyWorkflow, /pnpm --filter @paperclipai\/paperclip-runner "\$check"/);
+    .map((command) => command.replace(/^bun run /, "")));
+  assert.match(verifyWorkflow, /bun run --filter @paperclipai\/paperclip-runner "\$check"/);
   assert.match(verifyWorkflow, /runner_workflow_evals:/);
   assert.match(verifyWorkflow, /runner_chaos_evals:/);
   assert.match(
@@ -547,9 +547,9 @@ test("release verify workflow covers the same split test surface as stable PR ve
   );
   assert.match(
     verifyWorkflow,
-    /runner_workflow_evals:[\s\S]*?Install dependencies\n\s+run: pnpm install --no-frozen-lockfile[\s\S]*?Run deterministic Runner workflow scorer tests/,
+    /runner_workflow_evals:[\s\S]*?Install dependencies\n\s+run: bun install --no-frozen-lockfile[\s\S]*?Run deterministic Runner workflow scorer tests/,
   );
-  assert.match(verifyWorkflow, /pnpm test:runner-workflow-evals/);
+  assert.match(verifyWorkflow, /bun run test:runner-workflow-evals/);
 
   const buildJob = verifyWorkflow.match(/  build:\n[\s\S]*?(?=\n  [A-Za-z0-9_-]+:|$)/)?.[0] ?? "";
   assert.match(buildJob, /persist-credentials: false/);
@@ -578,8 +578,8 @@ test("release verify workflow covers the same split test surface as stable PR ve
     );
   }
 
-  assert.match(verifyWorkflow, /pnpm test:run:general -- --group/);
-  assert.match(verifyWorkflow, /pnpm test:run:serialized -- --shard-index/);
+  assert.match(verifyWorkflow, /bun run test:run:general -- --group/);
+  assert.match(verifyWorkflow, /bun run test:run:serialized -- --shard-index/);
 });
 
 test("release verification builds native test binaries in a required Rust-cached lane", () => {
@@ -593,8 +593,8 @@ test("release verification builds native test binaries in a required Rust-cached
   assert.match(runnerJob, /cache-bin: false/);
   assert.match(runnerJob, /save-if: \$\{\{ matrix\.lane == 'rust'/);
   assert.match(runnerJob, /Build native server test binaries\n\s+if: \$\{\{ matrix\.lane == 'server-integration' \}\}\n\s+timeout-minutes: 10/);
-  assert.match(runnerJob, /pnpm build:rust\n\s+cargo build --release --manifest-path runner\/Cargo\.toml --locked -p paperclip-runner-core --bin paperclip-runnerd --bin fake-codex-app-server/);
-  assert.match(runnerJob, /Run native server integration suites\n\s+if: \$\{\{ matrix\.lane == 'server-integration' \}\}\n\s+run: pnpm test:run:general -- --group general-server-native-runner/);
+  assert.match(runnerJob, /bun run build:rust\n\s+cargo build --release --manifest-path runner\/Cargo\.toml --locked -p paperclip-runner-core --bin paperclip-runnerd --bin fake-codex-app-server/);
+  assert.match(runnerJob, /Run native server integration suites\n\s+if: \$\{\{ matrix\.lane == 'server-integration' \}\}\n\s+run: bun run test:run:general -- --group general-server-native-runner/);
   assert.ok(runnerJob.indexOf("Cache Runner Rust dependencies") < runnerJob.indexOf("Build native server test binaries"));
   assert.ok(runnerJob.indexOf("Build native server test binaries") < runnerJob.indexOf("Run native server integration suites"));
 
@@ -609,8 +609,8 @@ test("release verification builds native test binaries in a required Rust-cached
 test("chaos verification prepares native Runner binaries before fault suites", () => {
   const workflow = readWorkflow("runner-chaos-evals.yml");
   const steps = workflow.split(/\n(?=      - )/);
-  const install = steps.find(step => /run:\s*pnpm install\b/.test(step));
-  const prepare = steps.find(step => /run:\s*pnpm --filter @paperclipai\/paperclip-runner build:rust\b/.test(step));
+  const install = steps.find(step => /run:\s*bun install\b/.test(step));
+  const prepare = steps.find(step => /run:\s*bun run --filter @paperclipai\/paperclip-runner build:rust\b/.test(step));
   const faults = steps.find(step => /src\/native-session-runtime\.test\.ts/.test(step));
   assert.ok(install && prepare && faults, "the real Runner fault suite needs its native build prerequisite");
   assert.ok(steps.indexOf(install) < steps.indexOf(prepare));
@@ -881,7 +881,7 @@ test("direct Grok qualification installs the pinned binary and scopes the select
   const workflow = readWorkflow("runner-protocol-live-evals.yml");
   assert.ok(workflow.includes("XAI_API_KEY: ${{ matrix.credentialName == 'XAI_API_KEY' && secrets.XAI_API_KEY || '' }}"));
   assert.ok(workflow.includes("if [ -f packages/paperclip-runner/scripts/provision-grok.mjs ]; then"));
-  assert.ok(workflow.indexOf("sudo node packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok") < workflow.indexOf("pnpm --filter @paperclipai/paperclip-runner deploy --prod"));
+  assert.ok(workflow.indexOf("sudo node packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok") < workflow.indexOf("bun run --filter @paperclipai/paperclip-runner deploy --prod"));
   assert.ok(workflow.includes("PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET: ${{ matrix.credentialName == 'PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET' && secrets.GROK_AUTH_JSON || '' }}"));
   assert.equal((workflow.match(/secrets\.GROK_AUTH_JSON/gu) ?? []).length, 1);
 });
@@ -1027,7 +1027,7 @@ test('native dependency caches are target-bound and unmerged master callers cann
 
 function nativePreparationScript() {
   const step = nativeProducer().split('      - name: Build TypeScript contract and host daemon concurrently\n')[1].split('\n      - ')[0];
-  const script = step.match(/node --input-type=module <<'NODE'\n([\s\S]*?)\n          NODE/)?.[1];
+  const script = step.match(/bun --input-type=module <<'NODE'\n([\s\S]*?)\n          NODE/)?.[1];
   assert.ok(script);
   return script.replace(/^ {10}/gm, '');
 }
@@ -1164,7 +1164,7 @@ test("premerge native qualification consumes the same Linux-packed npm bytes wit
   assert.match(qualification, /--mac-consumer/);
   assert.match(qualification, /--linux-arm64-consumer/);
   assert.match(qualification, /fromJSON\(needs.qualification_daemons.outputs.native_consumer_matrix\)/);
-  assert.match(qualification, /pnpm install --ignore-scripts --no-frozen-lockfile/);
+  assert.match(qualification, /bun install --ignore-scripts --no-frozen-lockfile/);
 });
 
 test("native ARM qualification prepares its scoped distro sandbox before the existing consumer", () => {
@@ -1372,7 +1372,7 @@ test("historical promotion sources keep their packaging path while new sources r
     const tools = path.join(root, 'tools'); mkdirSync(tools);
     writeFileSync(path.join(tools, 'git'), '#!/bin/sh\ncase "$1" in\nrev-parse) printf "%s\\n" "$FIXTURE_HEAD";;\nshow) cat "$FIXTURE_SOURCE";;\n*) exit 3;;\nesac\n', { mode: 0o755 });
     const source = path.join(root, 'release.sh'), output = path.join(root, 'outputs');
-    for (const [contents, required] of [['pnpm build\n', false], ['assemble-daemons "$PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR" "$SOURCE_SHA"\n', true]]) {
+    for (const [contents, required] of [['bun run build\n', false], ['assemble-daemons "$PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR" "$SOURCE_SHA"\n', true]]) {
       writeFileSync(source, contents); writeFileSync(output, '');
       const result = spawnSync('bash', ['-euo', 'pipefail', '-c', script], { encoding: 'utf8', env: {
         PATH: `${tools}:/usr/bin:/bin`, SOURCE_SHA: 'a'.repeat(40), FIXTURE_HEAD: 'a'.repeat(40), FIXTURE_SOURCE: source, GITHUB_OUTPUT: output,

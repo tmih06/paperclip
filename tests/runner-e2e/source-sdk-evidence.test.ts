@@ -24,7 +24,7 @@ async function fixture(secrets: string[] = []) {
   const repositoryRoot = path.join(root, "repo"), temporaryRoot = path.join(root, "attempt"), uploadDir = path.join(root, "uploaded");
   const put = async (file: string, value: string | Buffer) => { await mkdir(path.dirname(path.join(repositoryRoot, file)), { recursive: true }); await writeFile(path.join(repositoryRoot, file), value); };
   await put("scripts/ensure-plugin-build-deps.mjs", await readFile(new URL("../../scripts/ensure-plugin-build-deps.mjs", import.meta.url)));
-  await put("pnpm-lock.yaml", "synthetic unit lock\n");
+  await put("bun.lock", "synthetic unit lock\n");
   for (const directory of ["packages/shared", "packages/plugins/sdk"]) {
     await put(`${directory}/src/index.ts`, "export const syntheticFixture = true;\n"); await put(`${directory}/tsconfig.json`, "{}");
   }
@@ -145,14 +145,14 @@ it("seals a normal producer-certified reviewed-reference SDK, keeping key-shaped
 it("withholds real unreviewed-build SDK bytes instead of authenticating the CI-resolved lock",async()=>{
   const originalRoot=await realpath(path.resolve(import.meta.dirname,"../.."));
   let repositoryRoot=originalRoot,restoreLock:(()=>Promise<void>)|undefined;
-  const actual=await readFile(path.join(originalRoot,"pnpm-lock.yaml"));
+  const actual=await readFile(path.join(originalRoot,"bun.lock"));
   if(hash(actual)===pins.lockSha256){
     // On a reviewed local checkout, make the same refusal observable in an
     // OWN genuine-built reference by invalidating only its owning lock input.
     repositoryRoot=await realpath(await mkdtemp(path.join(os.tmpdir(),"source-sdk-unreviewed-build-")));roots.push(repositoryRoot);
     await prepareReviewedSdkReference(originalRoot,repositoryRoot);
     await prepareSourceServerDependencies(repositoryRoot,{...process.env},false);
-    const file=path.join(repositoryRoot,"pnpm-lock.yaml"),reviewed=await readFile(file);
+    const file=path.join(repositoryRoot,"bun.lock"),reviewed=await readFile(file);
     await writeFile(file,Buffer.concat([reviewed,Buffer.from("\n# unreviewed unit input mutation\n")]));
     restoreLock=()=>writeFile(file,reviewed);
   }else if(!builtSdk)throw new Error("Unreviewed CI build requires its actual normal producer outputs");

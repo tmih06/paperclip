@@ -9,7 +9,7 @@ try {
   // Dependencies install before compilation in a source workspace. Published
   // server packages omit src and cannot take this bootstrap exception.
   await access(fileURLToPath(new URL("../src/services/copilot-connection-probe.ts", import.meta.url)));
-  await access(fileURLToPath(new URL("../../pnpm-workspace.yaml", import.meta.url)));
+  await access(fileURLToPath(new URL("../../bunfig.toml", import.meta.url)));
   process.stdout.write("Copilot runtime assets: source-workspace-pending-build\n");
   process.exit(0);
 }

@@ -56,7 +56,7 @@ it.skipIf(process.platform === "win32").each(["isolated", "prepared", "preconfig
   const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   const path = [managed, real, dirname(process.execPath), "/usr/bin", "/bin"].join(":");
   await writeFile(join(managed, ".bashrc"), `export PATH='${path}'\n`);
-  const executable = `#!/usr/bin/env node
+  const executable = `#!/usr/bin/env bun
 const token = process.env.GH_TOKEN;
 const identity = token === 'fixture-operation-first' ? 'first' : token === 'fixture-operation-second' ? 'second' : 'anonymous';
 console.log(identity);

@@ -12,7 +12,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 export const PLUGIN_BUILD_STAMP = "dist/.restart-chaos-build-input.sha256";
-const INPUT_FILES = ["package.json", "pnpm-lock.yaml", "tsconfig.json"];
+const INPUT_FILES = ["package.json", "bun.lock", "tsconfig.json"];
 const INPUT_DIRECTORIES = ["src"];
 
 function listFiles(root: string, relative: string): string[] {

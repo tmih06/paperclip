@@ -872,7 +872,7 @@ for (const [group, parallelWorkers, shardArgs] of [
   const cpuFixture = path.join(directory, "cpu.cjs");
   writeFileSync(cpuFixture, "require('node:os').availableParallelism = () => 8;\n");
   const fakePnpm = path.join(directory, "pnpm");
-  writeFileSync(fakePnpm, `#!/usr/bin/env node\nrequire('node:fs').writeFileSync(${JSON.stringify(receipt)}, JSON.stringify(process.argv.slice(2)));\n`);
+  writeFileSync(fakePnpm, `#!/usr/bin/env bun\nrequire('node:fs').writeFileSync(${JSON.stringify(receipt)}, JSON.stringify(process.argv.slice(2)));\n`);
   chmodSync(fakePnpm, 0o755);
   try {
     for (const [databaseEnv, workers] of [

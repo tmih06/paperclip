@@ -241,7 +241,7 @@ describe("teams catalog manifest", () => {
     const result = await validateCatalog(packageDir);
 
     expect(result.errors).toContain(
-      "generated/catalog.json is stale. Run pnpm --filter @paperclipai/teams-catalog build:manifest.",
+      "generated/catalog.json is stale. Run bun run --filter @paperclipai/teams-catalog build:manifest.",
     );
   });
 });

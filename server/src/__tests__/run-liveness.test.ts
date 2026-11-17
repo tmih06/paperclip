@@ -187,7 +187,7 @@ describe("run liveness classifier", () => {
   it("prefers durable comments over raw transcript next-action noise", () => {
     const classification = classifyRunLiveness({
       ...baseInput,
-      issueCommentBodies: ["Next action: run pnpm test -- --runInBand."],
+      issueCommentBodies: ["Next action: run bun run test -- --runInBand."],
       stdoutExcerpt: [
         "tool_call: write",
         "command: rm -rf production-data",
@@ -196,7 +196,7 @@ describe("run liveness classifier", () => {
     });
 
     expect(classification.actionability).toBe("runnable");
-    expect(classification.nextAction).toBe("run pnpm test -- --runInBand.");
+    expect(classification.nextAction).toBe("run bun run test -- --runInBand.");
   });
 
   it("keeps approval requests out of automatic continuation", () => {

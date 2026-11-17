@@ -140,7 +140,7 @@ jobs:
           GH_REPO: paperclipai/paperclip-evals
         run: |
           set -euo pipefail
-          token="$(node .github/scripts/get-bot-token.mjs)"
+          token="$(bun .github/scripts/get-bot-token.mjs)"
           echo "::add-mask::$token"
           echo "value=$token" >> "$GITHUB_OUTPUT"
 
@@ -232,34 +232,34 @@ jobs:
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Resolve target lockfile without lifecycle scripts
         id: lock
         run: |
           set -euo pipefail
-          pnpm install --ignore-scripts --no-frozen-lockfile --lockfile-only
-          test -s pnpm-lock.yaml
-          unexpected="$(git status --short | awk '$2 != "pnpm-lock.yaml" { print }')"
+          bun install --ignore-scripts --no-frozen-lockfile --lockfile-only
+          test -s bun.lock
+          unexpected="$(git status --short | awk '$2 != "bun.lock" { print }')"
           if [ -n "$unexpected" ]; then
-            echo "Lockfile resolution changed files other than pnpm-lock.yaml:" >&2
+            echo "Lockfile resolution changed files other than bun.lock:" >&2
             echo "$unexpected" >&2
             exit 1
           fi
-          echo "sha256=$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum bun.lock | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
 
       - name: Upload resolved target lockfile
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: runner-protocol-target-pnpm-lock-${{ github.run_id }}-${{ github.run_attempt }}
-          path: pnpm-lock.yaml
+          path: bun.lock
           retention-days: 30
           if-no-files-found: error
 
@@ -349,7 +349,7 @@ jobs:
           GH_REPO: paperclipai/paperclip-evals
         run: |
           set -euo pipefail
-          token="$(node .github/scripts/get-bot-token.mjs)"
+          token="$(bun .github/scripts/get-bot-token.mjs)"
           echo "::add-mask::$token"
           echo "value=$token" >> "$GITHUB_OUTPUT"
 
@@ -451,13 +451,13 @@ jobs:
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Download resolved target lockfile
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -472,19 +472,18 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
-          lock="$RUNNER_TEMP/runner-protocol-target-lock/pnpm-lock.yaml"
+          lock="$RUNNER_TEMP/runner-protocol-target-lock/bun.lock"
           test -f "$lock"
           test "$(find "$(dirname "$lock")" -type f | wc -l | tr -d ' ')" = 1
           test "$(sha256sum "$lock" | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
-          cp "$lock" pnpm-lock.yaml
-          test "$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
+          cp "$lock" bun.lock
+          test "$(sha256sum bun.lock | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
-          cache: pnpm
 
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Materialize the pinned OpenCode executable before packaging
         run: node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
@@ -498,9 +497,9 @@ jobs:
       - name: Build runner CLI, daemon, and canonical attempt viewer
         run: |
           set -euo pipefail
-          pnpm --filter @paperclipai/paperclip-runner build:typescript
-          pnpm --filter @paperclipai/paperclip-runner build:runner-binaries
-          pnpm --filter @paperclipai/paperclip-runner build:issue-thread
+          bun run --filter @paperclipai/paperclip-runner build:typescript
+          bun run --filter @paperclipai/paperclip-runner build:runner-binaries
+          bun run --filter @paperclipai/paperclip-runner build:issue-thread
           # Older target refs must fail before paid cells, not publish an empty viewer.
           grep -q 'paperclip-eval-report' packages/paperclip-runner/dist-issue-thread/assets/*.js
           grep -q 'evalbook-site' packages/paperclip-runner/dist-issue-thread/assets/*.css
@@ -508,20 +507,24 @@ jobs:
       - name: Package a portable provider runtime
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/runner-protocol-build/package" "$RUNNER_TEMP/runner-protocol-build/portable"
-          pnpm --dir packages/paperclip-runner pack \
-            --pack-destination "$RUNNER_TEMP/runner-protocol-build/package"
-          package="$(find "$RUNNER_TEMP/runner-protocol-build/package" -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          build="$RUNNER_TEMP/runner-protocol-build"
+          mkdir -p "$build/package" "$build/portable"
+          # pnpm's `pack` and `deploy --prod` have no Bun equivalents: pack with
+          # `bun pm pack`, then install the tarball's production tree. Bun's
+          # hoisted linker writes node_modules/<name>, not node_modules/.pnpm.
+          bun pm pack --cwd packages/paperclip-runner \
+            --destination "$build/package"
+          package="$(find "$build/package" -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           test -f "$package"
-          pnpm --filter @paperclipai/paperclip-runner deploy --prod \
-            "$RUNNER_TEMP/runner-protocol-build/portable"
-          cp "$package" "$RUNNER_TEMP/runner-protocol-build/paperclip-runner.tgz"
-          cp packages/paperclip-runner/runner/target/debug/paperclip-runnerd "$RUNNER_TEMP/runner-protocol-build/paperclip-runnerd"
-          cp -R packages/paperclip-runner/dist-issue-thread "$RUNNER_TEMP/runner-protocol-build/dist-issue-thread"
-          test -f "$RUNNER_TEMP/runner-protocol-build/portable/dist/cli/eval-session.js"
-          test -d "$RUNNER_TEMP/runner-protocol-build/portable/node_modules/.pnpm"
-          test -x "$RUNNER_TEMP/runner-protocol-build/paperclip-runnerd"
-          tar --create --gzip --file runner-protocol-build.tar.gz -C "$RUNNER_TEMP/runner-protocol-build" .
+          tar -xzf "$package" -C "$build/portable" --strip-components=1
+          ( cd "$build/portable" && bun install --production --ignore-scripts )
+          cp "$package" "$build/paperclip-runner.tgz"
+          cp packages/paperclip-runner/runner/target/debug/paperclip-runnerd "$build/paperclip-runnerd"
+          cp -R packages/paperclip-runner/dist-issue-thread "$build/dist-issue-thread"
+          test -f "$build/portable/dist/cli/eval-session.js"
+          test -d "$build/portable/node_modules"
+          test -x "$build/paperclip-runnerd"
+          tar --create --gzip --file runner-protocol-build.tar.gz -C "$build" .
           sha256sum runner-protocol-build.tar.gz > runner-protocol-build.tar.gz.sha256
 
       - name: Upload immutable portable runner
@@ -566,14 +569,14 @@ jobs:
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         if: needs.authorize.outputs.accounting_mode == 'controlled'
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Build portable controller in an unprivileged job
         if: needs.authorize.outputs.accounting_mode == 'controlled'
@@ -582,8 +585,8 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           # The controller installs exactly the committed lockfile of the trusted revision.
-          git diff --quiet HEAD -- pnpm-lock.yaml
-          pnpm install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/runner-controller-pnpm-store"
+          git diff --quiet HEAD -- bun.lock
+          bun install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/runner-controller-pnpm-store"
           node packages/paperclip-runner/scripts/controlled-evals/build-runtime.mjs \
             "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" > "$RUNNER_TEMP/controller-runtime-receipt.json"
           echo "runtime_receipt_sha256=$(jq -r .receiptSha256 "$RUNNER_TEMP/controller-runtime-receipt.json")" >> "$GITHUB_OUTPUT"
@@ -611,7 +614,7 @@ jobs:
         env:
           PAPERCLIP_CONTROLLER_TRANSPORT_DIRECTORY: ${{ runner.temp }}/runner-controller-roundtrip
           PAPERCLIP_CONTROLLER_RECEIPT_SHA256: ${{ steps.build.outputs.runtime_receipt_sha256 }}
-        run: node --test .github/tests/runner-controller-artifact-transport.test.mjs
+        run: bun test .github/tests/runner-controller-artifact-transport.test.mjs
 
   prepare_controller:
     name: Prepare one shared cost and trace manifest
@@ -643,7 +646,7 @@ jobs:
           GH_REPO: paperclipai/paperclip-evals
         run: |
           set -euo pipefail
-          token="$(node .github/scripts/get-bot-token.mjs)"
+          token="$(bun .github/scripts/get-bot-token.mjs)"
           echo "::add-mask::$token"
           echo "value=$token" >> "$GITHUB_OUTPUT"
 
@@ -691,8 +694,8 @@ jobs:
           set -euo pipefail
           node packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          committed="$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)"
-          test "$(jq -r '.inputs["pnpm-lock.yaml"]' "$RUNNER_TEMP/runner-protocol-runtime/runtime.json")" = "$committed"
+          committed="$(sha256sum bun.lock | cut -d ' ' -f 1)"
+          test "$(jq -r '.inputs["bun.lock"]' "$RUNNER_TEMP/runner-protocol-runtime/runtime.json")" = "$committed"
           echo "sha256=$committed" >> "$GITHUB_OUTPUT"
 
       - name: Compile requests and derive the committed operating policy
@@ -721,7 +724,7 @@ jobs:
             --github-run-id "$GITHUB_RUN_ID" --definitions-revision "$PAPERCLIP_PROTOCOL_EVALS_SHA" \
             --output "$RUNNER_TEMP/prepared-requests.json"
           control="$RUNNER_TEMP/runner-protocol-control"
-          node "$RUNNER_TEMP/runner-protocol-runtime/controlled-evals/hosted.mjs" prepare \
+          bun "$RUNNER_TEMP/runner-protocol-runtime/controlled-evals/hosted.mjs" prepare \
             runner-protocol-catalog/runner-protocol-eval-catalog.json "$RUNNER_TEMP/prepared-requests.json" \
             runner-protocol-build/extracted "$control" > "$RUNNER_TEMP/control-preparation.json"
           echo "manifest_sha256=$(jq -r .manifestSha256 "$RUNNER_TEMP/control-preparation.json")" >> "$GITHUB_OUTPUT"
@@ -746,7 +749,7 @@ jobs:
           AWS_SESSION_TOKEN: ${{ steps.private_history_credentials.outputs.aws-session-token }}
           AWS_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
           RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET }}
-        run: node "$RUNNER_TEMP/runner-protocol-runtime/private-history.mjs" upload protocol-control "$GITHUB_RUN_ID" "$RUNNER_TEMP/runner-protocol-control"
+        run: bun "$RUNNER_TEMP/runner-protocol-runtime/private-history.mjs" upload protocol-control "$GITHUB_RUN_ID" "$RUNNER_TEMP/runner-protocol-control"
 
   eval_shard_0:
     name: Direct eval ${{ matrix.rosterId }} / ${{ matrix.caseId }}
@@ -797,7 +800,7 @@ jobs:
           GH_REPO: paperclipai/paperclip-evals
         run: |
           set -euo pipefail
-          token="$(node .github/scripts/get-bot-token.mjs)"
+          token="$(bun .github/scripts/get-bot-token.mjs)"
           echo "::add-mask::$token"
           echo "value=$token" >> "$GITHUB_OUTPUT"
 
@@ -862,7 +865,7 @@ jobs:
         env:
           CONTROLLED_RUNNER_ROOT: ${{ needs.authorize.outputs.accounting_mode == 'controlled' && format('/tmp/paperclip-runner-controlled-{0}/runner', github.run_id) || '' }}
         run: |
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import { execFileSync } from "node:child_process";
           import { createHash } from "node:crypto";
           import { readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -912,7 +915,7 @@ jobs:
           AWS_SESSION_TOKEN: ${{ steps.private_history_credentials.outputs.aws-session-token }}
           AWS_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
           RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET }}
-        run: node "/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}/runtime/private-history.mjs" download protocol-control "$GITHUB_RUN_ID" "/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}/control" "$CELL_ID"
+        run: bun "/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}/runtime/private-history.mjs" download protocol-control "$GITHUB_RUN_ID" "/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}/control" "$CELL_ID"
 
       - name: Verify current worker admission before provider credentials
         if: needs.authorize.outputs.accounting_mode == 'controlled'
@@ -922,7 +925,7 @@ jobs:
         run: |
           set -euo pipefail
           root="/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}"
-          node "$root/runtime/controlled-evals/hosted.mjs" verify "$root/control/controller-manifest.json" "$MANIFEST_SHA256" "$PAPERCLIP_RUNNER_EVAL_EXECUTION_ID"
+          bun "$root/runtime/controlled-evals/hosted.mjs" verify "$root/control/controller-manifest.json" "$MANIFEST_SHA256" "$PAPERCLIP_RUNNER_EVAL_EXECUTION_ID"
           {
             echo "PAPERCLIP_RUNNER_EVAL_CONTROL_MANIFEST=$root/control/controller-manifest.json"
             echo "PAPERCLIP_RUNNER_EVAL_ARCHIVE_CLI=$root/runtime/controlled-evals/archive.mjs"
@@ -1022,7 +1025,7 @@ jobs:
             --run-id "gha-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CELL_ID}"
           status=$?
           set -e
-          CELL_EXIT_CODE="$status" node --input-type=module <<'NODE'
+          CELL_EXIT_CODE="$status" bun --input-type=module <<'NODE'
           import { readFileSync, writeFileSync } from "node:fs";
           let authenticationMode;
           let authenticationEvidenceFailure;
@@ -1062,7 +1065,7 @@ jobs:
           CELL_ID: ${{ matrix.cellId }}
         run: |
           test -d cell-output
-          node "/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}/runtime/private-history.mjs" upload "protocol-cell-$CELL_ID" "$GITHUB_RUN_ID" cell-output
+          bun "/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}/runtime/private-history.mjs" upload "protocol-cell-$CELL_ID" "$GITHUB_RUN_ID" cell-output
 
       - name: Upload legacy cell attempt
         if: always() && needs.authorize.outputs.accounting_mode == 'legacy'
@@ -1117,7 +1120,7 @@ jobs:
           GH_REPO: paperclipai/paperclip-evals
         run: |
           set -euo pipefail
-          token="$(node .github/scripts/get-bot-token.mjs)"
+          token="$(bun .github/scripts/get-bot-token.mjs)"
           echo "::add-mask::$token"
           echo "value=$token" >> "$GITHUB_OUTPUT"
 
@@ -1133,13 +1136,13 @@ jobs:
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Download immutable campaign catalog
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -1200,11 +1203,11 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/runner-protocol-runtime/private-history.mjs"
           control="$RUNNER_TEMP/runner-protocol-control"
-          node "$archive" download protocol-control "$GITHUB_RUN_ID" "$control" report
+          bun "$archive" download protocol-control "$GITHUB_RUN_ID" "$control" report
           test "$(sha256sum "$control/controller-manifest.json" | cut -d ' ' -f 1)" = "$MANIFEST_SHA256"
           mkdir -p downloaded-runner-protocol-evals
           while IFS= read -r cell; do
-            node "$archive" download "protocol-cell-$cell" "$GITHUB_RUN_ID" "downloaded-runner-protocol-evals/runner-protocol-eval-$GITHUB_RUN_ID-1-$cell" || echo 'A private cell is unavailable; its allocation remains held.'
+            bun "$archive" download "protocol-cell-$cell" "$GITHUB_RUN_ID" "downloaded-runner-protocol-evals/runner-protocol-eval-$GITHUB_RUN_ID-1-$cell" || echo 'A private cell is unavailable; its allocation remains held.'
           done < <(jq -r '.attempts[].executionId' "$control/controller-manifest.json")
           {
             echo "PAPERCLIP_RUNNER_EVAL_CONTROL_MANIFEST=$control/controller-manifest.json"
@@ -1329,15 +1332,15 @@ jobs:
 
       - name: Set up report browser verification
         if: needs.authorize.outputs.accounting_mode == 'legacy'
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Verify the actual chat viewer before publication
         if: needs.authorize.outputs.accounting_mode == 'legacy'
         run: |
-          pnpm install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/runner-report-pnpm-store"
-          pnpm --filter @paperclipai/paperclip-runner exec playwright install --with-deps chromium
+          bun install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/runner-report-pnpm-store"
+          bun run --filter @paperclipai/paperclip-runner exec playwright install --with-deps chromium
           node packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/public-report --screenshots runner-protocol-merged/viewer-proof
           node packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/report
 
@@ -1345,7 +1348,7 @@ jobs:
         if: needs.authorize.outputs.accounting_mode == 'legacy'
         id: public_report
         run: |
-          node --input-type=module -e 'import { validatePublicProtocolEvalReport } from "./packages/paperclip-runner/scripts/publish-runner-protocol-eval-history.mjs"; await validatePublicProtocolEvalReport("runner-protocol-merged/public-report", { viewerRoot: "runner-protocol-build/extracted/dist-issue-thread" });'
+          bun --input-type=module -e 'import { validatePublicProtocolEvalReport } from "./packages/paperclip-runner/scripts/publish-runner-protocol-eval-history.mjs"; await validatePublicProtocolEvalReport("runner-protocol-merged/public-report", { viewerRoot: "runner-protocol-build/extracted/dist-issue-thread" });'
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Add campaign result to the workflow summary
@@ -1367,7 +1370,7 @@ jobs:
           RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET }}
         run: |
           test -d runner-protocol-merged
-          node "$RUNNER_TEMP/runner-protocol-runtime/private-history.mjs" upload protocol-report "$GITHUB_RUN_ID" runner-protocol-merged
+          bun "$RUNNER_TEMP/runner-protocol-runtime/private-history.mjs" upload protocol-report "$GITHUB_RUN_ID" runner-protocol-merged
 
       - name: Upload legacy canonical Evalbook and raw attempts
         if: always() && needs.authorize.outputs.accounting_mode == 'legacy'

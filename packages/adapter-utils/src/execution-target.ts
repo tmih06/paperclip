@@ -2748,7 +2748,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
 }
 
 function getProcessSessionProxySource(input: { port: number; token: string }): string {
-  return `#!/usr/bin/env node
+  return `#!/usr/bin/env bun
 import net from "node:net";
 
 const socket = net.createConnection({ host: "127.0.0.1", port: ${input.port} });

@@ -25,7 +25,7 @@ export async function verifySdkPublicSource(root: string, expectations?: SdkPubl
     const bytes = await readFile(filename);
     // The authenticated restored lock is the sole overlay on frozen Git inputs.
     if (!stat.isFile() || stat.isSymbolicLink() || await realpath(filename) !== filename
-      || (file === "pnpm-lock.yaml" ? hash(bytes) !== inputs.lockSha256 : createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex") !== expected)) throw new Error("SDK public source proof unavailable");
+      || (file === "bun.lock" ? hash(bytes) !== inputs.lockSha256 : createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex") !== expected)) throw new Error("SDK public source proof unavailable");
   }
   const actualSources: string[] = [];
   const collect = async (directory: string) => {
@@ -40,7 +40,7 @@ export async function verifySdkPublicSource(root: string, expectations?: SdkPubl
   const expectedSources = Object.keys(inputs.inputs).filter(file => file.startsWith("packages/shared/src/") || file.startsWith("packages/plugins/sdk/src/"));
   if (JSON.stringify(actualSources.sort()) !== JSON.stringify(expectedSources.sort())) throw new Error("SDK public source proof unavailable");
   const matches = async (file: string, expected: string) => { if (hash(await readFile(file)) !== expected) throw new Error("SDK public source proof unavailable"); };
-  await matches(path.join(root, "pnpm-lock.yaml"), inputs.lockSha256);
+  await matches(path.join(root, "bun.lock"), inputs.lockSha256);
   await matches(path.join(root, "node_modules/typescript/package.json"), inputs.compilerPackageSha256);
   const parserRoot = path.join(root, "node_modules/.pnpm/@babel+parser@7.29.8/node_modules/@babel/parser");
   await matches(path.join(parserRoot, "package.json"), inputs.parserPackageSha256); await matches(path.join(parserRoot, "lib/index.js"), inputs.parserEntrySha256);

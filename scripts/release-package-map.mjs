@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -301,9 +301,9 @@ function usage() {
   process.stderr.write(
     [
       "Usage:",
-      "  node scripts/release-package-map.mjs list",
-      "  node scripts/release-package-map.mjs check",
-      "  node scripts/release-package-map.mjs set-version <version>",
+      "  bun scripts/release-package-map.mjs list",
+      "  bun scripts/release-package-map.mjs check",
+      "  bun scripts/release-package-map.mjs set-version <version>",
       "",
     ].join("\n"),
   );

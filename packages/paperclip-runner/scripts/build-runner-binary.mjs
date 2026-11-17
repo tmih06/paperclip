@@ -19,12 +19,10 @@ export async function stageReleaseHostBinary({ artifactDirectory, sourceRevision
   return { target, sha256: artifact.sha256 };
 }
 
-function pnpmInvocation(env) {
-  const npmExecPath = env.npm_execpath?.trim();
-  if (npmExecPath && npmExecPath.toLowerCase().includes("pnpm")) {
-    return /\.(c|m)?js$/i.test(npmExecPath) ? { command: process.execPath, args: [npmExecPath] } : { command: npmExecPath, args: [] };
-  }
-  return { command: "pnpm", args: [] };
+// Bun runs this build chain; invoking a nested `bun run` keeps the package
+// manager that started it instead of requiring pnpm on the host.
+function packageManagerInvocation() {
+  return { command: process.platform === "win32" ? "bun.exe" : "bun", args: [] };
 }
 
 export async function main({ env = process.env, packageRoot, log = console.log } = {}) {
@@ -37,8 +35,8 @@ export async function main({ env = process.env, packageRoot, log = console.log }
     log(`Staged the verified exact-source ${staged.target} release daemon (${staged.sha256}) instead of compiling it.`);
     return { reused: true, ...staged };
   }
-  const { command, args } = pnpmInvocation(env);
-  const result = spawnSync(command, [...args, "run", "build:binary"], { cwd: root, env, stdio: "inherit", shell: process.platform === "win32" && command === "pnpm" });
+  const { command, args } = packageManagerInvocation();
+  const result = spawnSync(command, [...args, "run", "build:binary"], { cwd: root, env, stdio: "inherit", shell: process.platform === "win32" });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`build:binary exited with ${result.status ?? result.signal}`);
   return { reused: false };

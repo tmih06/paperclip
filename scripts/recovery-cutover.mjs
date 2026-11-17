@@ -1,7 +1,7 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { inventoryRecoveryFiles } from "./lib/recovery-cutover-inventory.mjs";
 
-const usage = "Usage: node scripts/recovery-cutover.mjs --instance-root /absolute/instance [--orphan-directory /absolute/override] [--max-entries 10000] [--check]";
+const usage = "Usage: bun scripts/recovery-cutover.mjs --instance-root /absolute/instance [--orphan-directory /absolute/override] [--max-entries 10000] [--check]";
 const args = process.argv.slice(2);
 try {
   let instanceRoot;

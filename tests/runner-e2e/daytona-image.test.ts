@@ -150,7 +150,7 @@ describe("runner E2E Daytona image contract", () => {
         );
         expect(passed, recipe).not.toBeNull();
         if (passed![1] === "${lock_sha}") {
-          expect(recipe).toContain(`lock_sha="$(shasum -a 256 pnpm-lock.yaml | cut -d ' ' -f 1)"`);
+          expect(recipe).toContain(`lock_sha="$(shasum -a 256 bun.lock | cut -d ' ' -f 1)"`);
         }
       }
     }
@@ -319,7 +319,7 @@ describe("runner E2E Daytona image contract", () => {
       workflow.indexOf(`--format '{{json .Image}}'`),
     );
     const providerInstall = dockerfile.indexOf(
-      "pnpm install --frozen-lockfile --filter '@paperclipai/paperclip-runner...'",
+      "bun install --frozen-lockfile --filter '@paperclipai/paperclip-runner...'",
     );
     const runnerSourceCopy = dockerfile.indexOf(
       "COPY packages ./packages",
@@ -346,7 +346,7 @@ describe("runner E2E Daytona image contract", () => {
     for (const requiredPath of [
       ".dockerignore",
       "docker/daytona-runner/Dockerfile",
-      "pnpm-lock.yaml",
+      "bun.lock",
       "patches",
       "packages/paperclip-eval-kernel/src",
       "packages/paperclip-runner/package.json",
@@ -393,7 +393,7 @@ describe("runner E2E Daytona image contract", () => {
     const inputPaths = [
       "docker/daytona-runner/Dockerfile",
       "package.json",
-      "pnpm-lock.yaml",
+      "bun.lock",
       "packages/paperclip-runner/package.json",
       "packages/paperclip-runner/src",
       "packages/paperclip-runner/runner/crates",
@@ -426,7 +426,7 @@ describe("runner E2E Daytona image contract", () => {
       );
       await writeFile(path.join(root, "package.json"), '{"private":true}\n');
       await writeFile(
-        path.join(root, "pnpm-lock.yaml"),
+        path.join(root, "bun.lock"),
         "lockfileVersion: 9\n",
       );
       await writeFile(
@@ -483,7 +483,7 @@ describe("runner E2E Daytona image contract", () => {
       for (const relativePath of [
         "docker/daytona-runner/Dockerfile",
         "package.json",
-        "pnpm-lock.yaml",
+        "bun.lock",
         "packages/paperclip-runner/package.json",
         "packages/paperclip-runner/src/runner.ts",
         "packages/paperclip-runner/scripts/materialize-pi-distribution.mjs",

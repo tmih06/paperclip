@@ -17,7 +17,7 @@ describe("linkWorkspaceFileInlineCode", () => {
   });
 
   it("leaves non-file inline code unchanged", () => {
-    expect(linkWorkspaceFileInlineCode("Run `pnpm test`.", "/issues/PAP-1", "", "")).toBe("Run `pnpm test`.");
+    expect(linkWorkspaceFileInlineCode("Run `bun run test`.", "/issues/PAP-1", "", "")).toBe("Run `bun run test`.");
   });
 
   it("links trailing-slash folder refs to the workspace browser", () => {

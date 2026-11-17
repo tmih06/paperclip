@@ -26,7 +26,7 @@ const runtimeChanges = git("diff", baselineRevision, "--name-only", "--", "serve
   .split("\n").filter(Boolean).filter(name => !name.includes("/__tests__/") && !/\.test\.[cm]?ts$/.test(name));
 assert.deepEqual(runtimeChanges.filter(name => ![servicePath, policyPath].includes(name)), [],
   "Isolate additional changed runtime dependencies before measuring");
-assert.equal(git("diff", baselineRevision, "--", "pnpm-lock.yaml"), "", "Dependencies must match the pinned baseline");
+assert.equal(git("diff", baselineRevision, "--", "bun.lock"), "", "Dependencies must match the pinned baseline");
 const requireFromServer = createRequire(new URL("../server/package.json", import.meta.url));
 const scratch = await mkdtemp(path.join(tmpdir(), "app-permission-baseline-"));
 function baselineSource(sourcePath: string) {

@@ -162,7 +162,7 @@ export async function runEvalMonitor(stateFile, get, now = Date.now()) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (process.argv.length !== 3 && !(process.argv[3] === "--ack" && process.argv.length >= 5)) {
-    throw new Error("Usage: node scripts/eval-schedule-monitor.mjs <private-state-file> [--ack <notification-id> ...]");
+    throw new Error("Usage: bun scripts/eval-schedule-monitor.mjs <private-state-file> [--ack <notification-id> ...]");
   }
   const execute = promisify(execFile);
   const get = async endpoint => {

@@ -33,7 +33,7 @@ jobs:
       - id: admission
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/cloud-release-admission.mjs image-only
+        run: bun scripts/cloud-release-admission.mjs image-only
 
   build:
     needs: admission
@@ -47,21 +47,21 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
       - name: Install migrator build dependencies
-        run: pnpm install --ignore-scripts --no-frozen-lockfile --filter @paperclipai/db... --filter @paperclipai/shared...
+        run: bun install --ignore-scripts --no-frozen-lockfile --filter @paperclipai/db... --filter @paperclipai/shared...
       - name: Build exact-source packages and dependency lockfile
         env:
           SOURCE_SHA: ${{ github.sha }}
         run: |
-          node scripts/preview-artifacts.mjs pack . migrator-artifacts "$SOURCE_SHA"
-          node scripts/cloud-migrator-artifacts.mjs build migrator-artifacts "$SOURCE_SHA"
-          node scripts/cloud-migrator-artifacts.mjs verify-install migrator-artifacts "$SOURCE_SHA"
+          bun scripts/preview-artifacts.mjs pack . migrator-artifacts "$SOURCE_SHA"
+          bun scripts/cloud-migrator-artifacts.mjs build migrator-artifacts "$SOURCE_SHA"
+          bun scripts/cloud-migrator-artifacts.mjs verify-install migrator-artifacts "$SOURCE_SHA"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cloud-migrator-bundle
@@ -98,7 +98,7 @@ jobs:
       - name: Validate the complete bundle before attestation
         env:
           SOURCE_SHA: ${{ github.sha }}
-        run: node scripts/cloud-migrator-artifacts.mjs validate migrator-artifacts "$SOURCE_SHA"
+        run: bun scripts/cloud-migrator-artifacts.mjs validate migrator-artifacts "$SOURCE_SHA"
       - name: Attest the manifest and every content hash it pins
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
@@ -111,4 +111,4 @@ jobs:
       - name: Publish immutable migrator and verify public downloads
         env:
           SOURCE_SHA: ${{ github.sha }}
-        run: node scripts/cloud-migrator-artifacts.mjs publish migrator-artifacts "$SOURCE_SHA"
+        run: bun scripts/cloud-migrator-artifacts.mjs publish migrator-artifacts "$SOURCE_SHA"

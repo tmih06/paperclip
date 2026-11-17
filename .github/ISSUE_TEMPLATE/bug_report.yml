@@ -82,7 +82,7 @@ body:
       options:
         - npm / pnpm global install
         - Docker
-        - Built from source (pnpm dev / pnpm build)
+        - Built from source (pnpm dev / bun run build)
         - Other
     validations:
       required: false

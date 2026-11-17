@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { runServer } from "./index.js";
 
 void runServer().catch((error) => {

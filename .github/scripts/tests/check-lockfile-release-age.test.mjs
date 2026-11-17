@@ -68,7 +68,7 @@ test('lists the versions each lockfile adds, once', () => {
 test('the CLI rejects unpaired lockfiles before any registry lookup', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'release-age-cli-'));
   try {
-    const file = path.join(root, 'pnpm-lock.yaml');
+    const file = path.join(root, 'bun.lock');
     writeFileSync(file, lockfile([]));
     const result = spawnSync(process.execPath, [
       path.resolve('.github/scripts/check-lockfile-release-age.mjs'),

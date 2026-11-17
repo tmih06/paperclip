@@ -2,7 +2,7 @@
 // and `paperclipai` plus every public workspace package they reach through
 // `workspace:` specs, in the depth-first order the verifier packs them. The
 // npm cache warm-up reads the same closure from source manifests before
-// `pnpm build` has produced anything, so both share this one definition.
+// `bun run build` has produced anything, so both share this one definition.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

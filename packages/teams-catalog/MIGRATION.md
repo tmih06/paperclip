@@ -49,5 +49,5 @@ Before removing `server/src/onboarding-assets/ceo/` or the `skills/paperclip-cre
 ## Coordination
 
 - Packaging-level changes (adding new manifest fields, changing the validation rules, or extending the import service) belong to the coding owner of [PAP-10236](/PAP/issues/PAP-10236) and the integration service in [PAP-10238](/PAP/issues/PAP-10238).
-- Content-only updates (new bundled or optional teams, copy edits, skill requirement tweaks) can land directly in this package after `pnpm --filter @paperclipai/teams-catalog validate` and `pnpm --filter @paperclipai/teams-catalog test` both pass.
+- Content-only updates (new bundled or optional teams, copy edits, skill requirement tweaks) can land directly in this package after `bun run --filter @paperclipai/teams-catalog validate` and `bun run --filter @paperclipai/teams-catalog test` both pass.
 - Removing any file under `server/src/onboarding-assets/` requires the compatibility tests above to land first and is gated by the onboarding-service switchover task tracked under the same parent goal.

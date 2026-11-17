@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { isWorkspacePackage, parseWorkspaceEntries } from '../build-standalone-public-packages.mjs';
+import { isWorkspacePackage, readWorkspaceEntries } from '../lib/workspace-packages.mjs';
 import { GROK_PUBLIC_INSTALL_IMAGE, GROK_PUBLIC_INSTALL_LIFECYCLE, assertInstalledCodexPlatformProvenance, assertInstalledNativeConsumerContinuity, assertNoBundledCodexPayloads, grokConsumerDockerArgs, installedClaudeProbeSource, installedCodexProbeSource, installedDaemonProbeSource, macNodeHeadersDirectory, macPublicInstallLifecycleProfile, macInstalledStartupProbeSource, runMacInitialInstallWithDiagnostics } from '../grok-public-install-sandbox.mjs';
 import { verifyPiPackagedDaemon } from '../pi-public-install-probe.mjs';
 import { publicInstallClosure } from '../public-install-closure.mjs';
@@ -321,13 +321,13 @@ test('the verifier stages only workspace packages, so it skips the standalone bu
   const repo = new URL('../../', import.meta.url);
   assert.ok(source.includes('const { packages, needed } = publicInstallClosure(repo);'));
   const { packages, needed } = publicInstallClosure(fileURLToPath(repo));
-  const workspace = parseWorkspaceEntries(readFileSync(new URL('pnpm-workspace.yaml', repo), 'utf8'));
+  const workspace = readWorkspaceEntries(fileURLToPath(repo));
   const standalone = [...packages.values()].filter(({ dir }) => !isWorkspacePackage(dir, workspace)).map(({ dir }) => dir);
   assert.ok(standalone.length > 0, 'the public package map must still carry standalone packages for this check to mean anything');
-  assert.ok(standalone.includes('packages/plugins/sandbox-providers/daytona'), 'the Daytona plugin retention packs is a standalone package, so pnpm build alone cannot produce its dist');
+  assert.ok(standalone.includes('packages/plugins/sandbox-providers/daytona'), 'the Daytona plugin retention packs is a standalone package, so bun run build alone cannot produce its dist');
   for (const name of needed) assert.ok(isWorkspacePackage(packages.get(name).dir, workspace), `${name} is staged by the verifier but is not a workspace package`);
   // The server publishes `ui-dist`, so that copy stays, before any package is
-  // staged, reusing the UI that `pnpm build` produced, and it is timed. The
+  // staged, reusing the UI that `bun run build` produced, and it is timed. The
   // gated standalone build keeps release.sh's order: after the closure is
   // known and before the UI copy and any staged source.
   assert.deepEqual(JSON.parse(readFileSync(new URL('server/package.json', repo), 'utf8')).files, ['dist', 'ui-dist', 'skills', 'scripts/install-copilot-assets.mjs']);

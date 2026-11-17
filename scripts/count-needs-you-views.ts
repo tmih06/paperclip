@@ -11,7 +11,7 @@
  * flips the default view in the UI.
  *
  * Run from the repo root (resolves server deps via the server package):
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/count-needs-you-views.ts
+ *   bun scripts/count-needs-you-views.ts
  *
  * Read-condition note: the feed is listed with no actor, i.e. full board read
  * visibility, which matches the board operator the Needs You page runs as.
@@ -49,8 +49,8 @@ async function main() {
   const tempDb = await startEmbeddedPostgresTestDatabase("needs-you-counts-");
   try {
     const seedScript = fileURLToPath(new URL("./seed-needs-you-demo.ts", import.meta.url));
-    const tsxBin = fileURLToPath(new URL("../server/node_modules/tsx/dist/cli.mjs", import.meta.url));
-    const seedRun = spawnSync(process.execPath, [tsxBin, seedScript], {
+    // Bun runs the TypeScript seed directly, so the seed stays one process.
+    const seedRun = spawnSync(process.execPath, [seedScript], {
       env: { ...process.env, DATABASE_URL: tempDb.connectionString },
       stdio: "inherit",
     });

@@ -1,7 +1,7 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 // Dev-only: link the in-repo @paperclipai/plugin-sdk into plugin packages that
-// are excluded from the pnpm workspace (see pnpm-workspace.yaml). Workspace
+// are excluded from the pnpm workspace (see bunfig.toml). Workspace
 // members get their SDK link from pnpm automatically; excluded packages do not.
 //
 // Invoked from the root postinstall. Intentionally NOT referenced from any
@@ -17,7 +17,7 @@ const repoRoot = resolve(__dirname, "..");
 const sdkDir = join(repoRoot, "packages", "plugins", "sdk");
 
 // Plugin packages excluded from the workspace that still need @paperclipai/plugin-sdk
-// linked in for local dev. Keep in sync with pnpm-workspace.yaml exclusions.
+// linked in for local dev. Keep in sync with bunfig.toml exclusions.
 function excludedPluginDirs() {
   return [
     ...readPluginsUnder(join(repoRoot, "packages", "plugins", "sandbox-providers")),
@@ -48,7 +48,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 }
 
 // Recursively collect package directories (those containing a package.json)
-// under parentDir. The matching pnpm-workspace.yaml exclusion uses a recursive
+// under parentDir. The matching bunfig.toml exclusion uses a recursive
 // glob (e.g. "!packages/plugins/sandbox-providers/**"), so a provider nested
 // deeper than one level must still be discovered here.
 export function readPluginsUnder(parentDir) {

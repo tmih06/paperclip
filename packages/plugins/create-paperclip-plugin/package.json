@@ -38,7 +38,7 @@
   "scripts": {
     "build": "bun x --bun --no-install tsc",
     "clean": "rm -rf dist",
-    "test": "bun x --bun --cwd ../../.. --no-install vitest run --root packages/plugins/create-paperclip-plugin --config vitest.config.ts",
+    "test": "bun x --bun --no-install vitest run --root packages/plugins/create-paperclip-plugin --config vitest.config.ts",
     "typecheck": "bun x --bun --no-install tsc --noEmit"
   },
   "dependencies": {

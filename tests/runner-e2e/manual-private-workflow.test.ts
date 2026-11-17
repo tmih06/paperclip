@@ -29,7 +29,7 @@ it("keeps archive authority in explicit protected jobs and the workflow-pinned t
  const runtime=step("test_manual_private","Prepare workflow-pinned private transfer runtime before archive credentials");expect(runtime.run).toContain("--ignore-scripts --cache-dir");
  expect(steps.indexOf(runtime)).toBeLessThan(steps.indexOf(step("test_manual_private","Obtain exact-key manual archive session")));
  const verified=steps.indexOf(step("test_manual_private","Verify restricted complete evidence storage before model or fixture secrets"));
- expect(verified).toBeLessThan(steps.findIndex((row:any)=>row.run==="pnpm install --frozen-lockfile --ignore-scripts"));
+ expect(verified).toBeLessThan(steps.findIndex((row:any)=>row.run==="bun install --frozen-lockfile --ignore-scripts"));
  for(const name of["Bind protected original run and compatible target evidence protocol","Verify restricted complete evidence storage before model or fixture secrets","Retain complete approved manual originals with no public fallback"]){
   const row=step("test_manual_private",name);expect(row.workingDirectory??row["working-directory"]).toBe(".manual-private-trusted");expect(row.run).toContain('bun "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-transfer.ts"');expect(row.env.NODE_OPTIONS).toBe("");expect(row.env.NODE_PATH).toBe("");
  }

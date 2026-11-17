@@ -10,8 +10,8 @@ environment.
 ```sh
 pnpm storybook-visual:baseline download
 pnpm storybook-visual:baseline verify
-pnpm test:storybook-visual
-pnpm test:storybook-visual:update
+bun run test:storybook-visual
+bun run test:storybook-visual:update
 ```
 
 `download` fetches the archive, verifies its SHA-256 and byte size, unpacks it to
@@ -53,7 +53,7 @@ baseline bucket still requires the explicit maintainer upload command below.
 
 ## Updating Baselines
 
-1. Run `pnpm test:storybook-visual:update` after reviewing intentional visual
+1. Run `bun run test:storybook-visual:update` after reviewing intentional visual
    diffs.
 2. Run `pnpm storybook-visual:baseline pack` to create
    `tests/storybook-visual/baseline-review/snapshots.tgz`.

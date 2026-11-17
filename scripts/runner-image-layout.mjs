@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Layout contract of the Runner image (ghcr.io/paperclipai/paperclip-runner).
 //
 // The image is a plain file tree with no entrypoint. Consumers copy paths out
@@ -25,9 +25,9 @@
 // reads: a slim tree with archives fails, and so does a full tree without.
 //
 // Usage:
-//   node scripts/runner-image-layout.mjs write --out DIR --workspace DIR --identity FILE
+//   bun scripts/runner-image-layout.mjs write --out DIR --workspace DIR --identity FILE
 //     [--source-revision SHA] [--publication]
-//   node scripts/runner-image-layout.mjs check DIR --variant slim|full [--allow-unstamped]
+//   bun scripts/runner-image-layout.mjs check DIR --variant slim|full [--allow-unstamped]
 //     [--expect-inputs-digest HEX] [--expect-source-revision SHA] [--expect-architecture ARCH]
 // An unknown flag, a repeated flag or a flag with an empty value is an error:
 // an expectation that was not really given must not pass as one that held.
@@ -91,7 +91,7 @@ export const RUNNER_IMAGE_PATHS = Object.freeze({
   grokPlatforms: "runner-package/src/providers/grok/platforms.json",
   runnerdCodexTransportContract: "runner-package/src/live/runnerd-codex-transport.ts",
   runnerdCodexTransportBundle: "bundles/runnerd-codex-transport.mjs",
-  lockfile: "pnpm-lock.yaml",
+  lockfile: "bun.lock",
 });
 
 /** The two variants of the image. `full` is `slim` plus the paths below. */
@@ -120,7 +120,7 @@ const WORKSPACE_SOURCES = Object.freeze({
   grokProvisioner: `${RUNNER_PACKAGE}/scripts/provision-grok.mjs`,
   grokPlatforms: `${RUNNER_PACKAGE}/src/providers/grok/platforms.json`,
   runnerdCodexTransportContract: `${RUNNER_PACKAGE}/src/live/runnerd-codex-transport.ts`,
-  lockfile: "pnpm-lock.yaml",
+  lockfile: "bun.lock",
 });
 
 /** OCI architecture name to the ELF machine and the Node architecture name of the pack. */
@@ -273,7 +273,7 @@ export function writeRunnerImageManifest({
   // cannot be trusted to match the identity.
   const stampSource = resolveIn(workspaceRoot, WORKSPACE_SOURCES.runnerBuildStamp);
   if (!existsSync(stampSource)) {
-    throw new Error("the Runner build recorded no build stamp; run `pnpm --filter @paperclipai/paperclip-runner build` first");
+    throw new Error("the Runner build recorded no build stamp; run `bun run --filter @paperclipai/paperclip-runner build` first");
   }
   const stamp = JSON.parse(readFileSync(stampSource, "utf8"));
   if (stamp.digest !== identity.buildInputs.digest) {

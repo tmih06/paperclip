@@ -108,7 +108,7 @@ describeEmbeddedPostgres("legacy harness continuation without provider-home file
         expect(fresh).toHaveBeenCalledTimes(policy === "allow_replacement_after_resume_failure" ? 1 : 0);
         const digest = `sha256:${"a".repeat(64)}`;
         const artifacts = Object.fromEntries(Object.entries({ grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node",
-          productionLock: "pnpm-lock.yaml", opencodeCommand: "node_modules/.bin/opencode", opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
+          productionLock: "bun.lock", opencodeCommand: "node_modules/.bin/opencode", opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
           opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs" }).map(([key, path]) => [key, { path, sha256: digest }]));
         const payload = { compatibility: { opencode: 1, acpx: 1 }, contractDigest: digest, target: { platform: "linux", architecture: "x64" },
           runnerSourceRevision: "a".repeat(40), pins: { nodeMinimum: "24.11.0", codex: QUALIFIED_ACPX_PROFILES.codex.agentRuntimeVersion,

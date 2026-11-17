@@ -225,20 +225,20 @@ jobs:
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
           run_install: false
 
       - name: Preflight reviewed report dependencies before paid admission
-        run: node tests/runner-e2e/prepare-report-lock.mjs
+        run: bun tests/runner-e2e/prepare-report-lock.mjs
 
       - name: Validate report dependency manifests offline
-        run: pnpm install --lockfile-only --frozen-lockfile --ignore-scripts --offline
+        run: bun install --lockfile-only --frozen-lockfile --ignore-scripts --offline
 
       - name: Classify manual evidence before any protected credential job
         id: evidence_route
@@ -254,7 +254,7 @@ jobs:
           TEST_RUNNER: ${{ steps.runner.outputs.runner }}
           NODE_OPTIONS: ''
           NODE_PATH: ''
-        run: node tests/runner-e2e/manual-private-policy.mjs
+        run: bun tests/runner-e2e/manual-private-policy.mjs
 
   target_lock:
     name: Resolve target pnpm lockfile
@@ -276,38 +276,38 @@ jobs:
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Resolve target lockfile without lifecycle scripts
         id: lock
         run: |
           set -euo pipefail
-          pnpm install --ignore-scripts --no-frozen-lockfile --lockfile-only
-          test -s pnpm-lock.yaml
-          unexpected="$(git status --short | awk '$2 != "pnpm-lock.yaml" { print }')"
+          bun install --ignore-scripts --no-frozen-lockfile --lockfile-only
+          test -s bun.lock
+          unexpected="$(git status --short | awk '$2 != "bun.lock" { print }')"
           if [ -n "$unexpected" ]; then
-            echo "Lockfile resolution changed files other than pnpm-lock.yaml:" >&2
+            echo "Lockfile resolution changed files other than bun.lock:" >&2
             echo "$unexpected" >&2
             exit 1
           fi
-          echo "sha256=$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum bun.lock | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
 
       - name: Bound scheduled lockfile upload
         if: github.event_name == 'schedule' || (inputs.cadence != '' && inputs.cadence != 'manual')
-        run: node tests/runner-e2e/artifact-budget.mjs check lock pnpm-lock.yaml
+        run: bun tests/runner-e2e/artifact-budget.mjs check lock bun.lock
 
       - name: Upload resolved target lockfile
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: runner-e2e-target-pnpm-lock-${{ github.run_id }}-${{ github.run_attempt }}
-          path: pnpm-lock.yaml
+          path: bun.lock
           retention-days: 30
           if-no-files-found: error
 
@@ -359,7 +359,7 @@ jobs:
           # Names only a bootstrap launch; a TestOps launch already has its plan's name.
           ALLURE_LAUNCH_NAME: ${{ inputs.testops_plan == 'reliability' && 'Reliability' || 'Product regression' }} · ${{ github.run_number }}
           ALLURE_LAUNCH_TAGS: ${{ inputs.testops_plan == 'reliability' && 'reliability' || 'product-regression' }},github-actions
-        run: node tests/runner-e2e/product-regression-testops-cli.mjs select product-testops/selection.json
+        run: bun tests/runner-e2e/product-regression-testops-cli.mjs select product-testops/selection.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: product-testops-selection-${{ github.run_id }}-${{ github.run_attempt }}
@@ -408,31 +408,30 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
-          lock="$RUNNER_TEMP/runner-e2e-target-lock/pnpm-lock.yaml"
+          lock="$RUNNER_TEMP/runner-e2e-target-lock/bun.lock"
           test -f "$lock"
           test "$(find "$(dirname "$lock")" -type f | wc -l | tr -d ' ')" = 1
           test "$(sha256sum "$lock" | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
-          cp "$lock" pnpm-lock.yaml
-          test "$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
+          cp "$lock" bun.lock
+          test "$(sha256sum bun.lock | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
-          cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
 
       # The v2 contract fails closed unless every Docker FROM is digest-pinned,
       # and hashes those exact base references into the immutable image tag.
@@ -466,7 +465,7 @@ jobs:
           if [ "$EVAL_EVENT" = schedule ] || [ "$EVAL_CADENCE" != manual ]; then
             test "$TARGET_SHA" = "$GITHUB_SHA"
             test -z "${SELECT_SUITE:-}${SELECT_GROUP:-}${SELECT_PROFILE:-}${SELECT_ENVIRONMENT:-}${SELECT_CASE:-}${SELECT_ID:-}"
-            catalog_json="$(node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/scheduled-operations.ts matrix)"
+            catalog_json="$(bun tests/runner-e2e/scheduled-operations.ts matrix)"
             cadence="$EVAL_CADENCE"
             if [ "$EVAL_EVENT" = schedule ]; then
               case "$EVAL_SCHEDULE" in
@@ -595,12 +594,12 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
-          lock="$RUNNER_TEMP/runner-e2e-target-lock/pnpm-lock.yaml"
+          lock="$RUNNER_TEMP/runner-e2e-target-lock/bun.lock"
           test -f "$lock"
           test "$(find "$(dirname "$lock")" -type f | wc -l | tr -d ' ')" = 1
           test "$(sha256sum "$lock" | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
-          cp "$lock" pnpm-lock.yaml
-          test "$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
+          cp "$lock" bun.lock
+          test "$(sha256sum bun.lock | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
 
       - name: No Daytona image needed
         id: local_only
@@ -755,31 +754,30 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
-          lock="$RUNNER_TEMP/runner-e2e-target-lock/pnpm-lock.yaml"
+          lock="$RUNNER_TEMP/runner-e2e-target-lock/bun.lock"
           test -f "$lock"
           test "$(find "$(dirname "$lock")" -type f | wc -l | tr -d ' ')" = 1
           test "$(sha256sum "$lock" | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
-          cp "$lock" pnpm-lock.yaml
-          test "$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
+          cp "$lock" bun.lock
+          test "$(sha256sum bun.lock | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
-          cache: pnpm
 
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: bun install --frozen-lockfile --ignore-scripts
 
       # build:typescript also builds the eval-kernel dependency, so the two
       # TypeScript trees are compiled at most once in this campaign.
@@ -790,12 +788,12 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$NEEDS_RUNNER_TYPESCRIPT" = true ]; then
-            pnpm --filter @paperclipai/paperclip-runner build:typescript
+            bun run --filter @paperclipai/paperclip-runner build:typescript
           else
-            pnpm --filter @paperclipai/paperclip-eval-kernel build
+            bun run --filter @paperclipai/paperclip-eval-kernel build
           fi
           if [ "$NEEDS_NATIVE_BINARIES" = true ]; then
-            pnpm --filter @paperclipai/paperclip-runner build:runner-binaries
+            bun run --filter @paperclipai/paperclip-runner build:runner-binaries
           fi
 
       - name: Package immutable campaign outputs
@@ -838,7 +836,7 @@ jobs:
 
       - name: Bound scheduled build upload
         if: needs.catalog.outputs.operations_cadence != ''
-        run: node tests/runner-e2e/artifact-budget.mjs check build runner-e2e-build-bundle.tar.gz runner-e2e-build-bundle.tar.gz.sha256
+        run: bun tests/runner-e2e/artifact-budget.mjs check build runner-e2e-build-bundle.tar.gz runner-e2e-build-bundle.tar.gz.sha256
 
       - name: Upload immutable shared campaign outputs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -891,12 +889,12 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
-          lock="$RUNNER_TEMP/runner-e2e-target-lock/pnpm-lock.yaml"
+          lock="$RUNNER_TEMP/runner-e2e-target-lock/bun.lock"
           test -f "$lock"
           test "$(find "$(dirname "$lock")" -type f | wc -l | tr -d ' ')" = 1
           test "$(sha256sum "$lock" | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
-          cp "$lock" pnpm-lock.yaml
-          test "$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
+          cp "$lock" bun.lock
+          test "$(sha256sum bun.lock | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
 
       - if: needs.catalog.outputs.needs_remote_provider_pack == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -904,22 +902,21 @@ jobs:
           node-version: 24
 
       - if: needs.catalog.outputs.needs_remote_provider_pack == 'true'
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - if: needs.catalog.outputs.needs_remote_provider_pack == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
-          cache: pnpm
 
       - if: needs.catalog.outputs.needs_remote_provider_pack == 'true'
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Materialize verified pinned OpenCode executable
         if: needs.catalog.outputs.needs_remote_provider_pack == 'true'
@@ -1070,24 +1067,24 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
-          lock="$RUNNER_TEMP/runner-e2e-target-lock/pnpm-lock.yaml"
+          lock="$RUNNER_TEMP/runner-e2e-target-lock/bun.lock"
           test -f "$lock"
           test "$(find "$(dirname "$lock")" -type f | wc -l | tr -d ' ')" = 1
           test "$(sha256sum "$lock" | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
-          cp "$lock" pnpm-lock.yaml
-          test "$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
+          cp "$lock" bun.lock
+          test "$(sha256sum bun.lock | cut -d ' ' -f 1)" = "$EXPECTED_LOCK_SHA256"
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Validate actual manual cell against trusted evidence routing
         id: manual_cell_route
@@ -1098,7 +1095,7 @@ jobs:
           MANUAL_PRIVATE_IDS: ${{ needs.authorize.outputs.manual_private_ids }}
           NODE_OPTIONS: ''
           NODE_PATH: ''
-        run: node "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-policy.mjs" cell
+        run: bun "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-policy.mjs" cell
 
       - name: Prepare workflow-pinned private transfer runtime before archive credentials
         if: steps.manual_cell_route.outputs.route == 'private'
@@ -1109,8 +1106,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          node tests/runner-e2e/prepare-report-lock.mjs
-          pnpm install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/manual-private-publication-store"
+          bun tests/runner-e2e/prepare-report-lock.mjs
+          bun install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/manual-private-publication-store"
 
       - name: Bind protected original run and compatible target evidence protocol
         id: manual_private
@@ -1127,7 +1124,7 @@ jobs:
           NODE_OPTIONS: ''
           NODE_PATH: ''
           AWS_EC2_METADATA_DISABLED: 'true'
-        run: node "$GITHUB_WORKSPACE/.manual-private-trusted/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-transfer.ts" prepare
+        run: bun "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-transfer.ts" prepare
 
       - name: Obtain exact-key manual archive session
         id: manual_private_credentials
@@ -1162,12 +1159,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_private_credentials.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_private_credentials.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/.manual-private-trusted/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-transfer.ts" verify
+        run: bun "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-transfer.ts" verify
 
       # This job receives provider credentials only in the final paid-test
       # step. Keep target-selected dependency lifecycle code from running in
       # the protected environment during setup.
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: bun install --frozen-lockfile --ignore-scripts
 
       # Sandbox-provider plugins are intentionally excluded from the root
       # workspace. The ordinary root postinstall links the in-repo plugin SDK,
@@ -1184,16 +1181,16 @@ jobs:
           test -d "$sdk_root"
           test ! -L "$daytona_root"
           test ! -L "$sdk_root"
-          test -f "$daytona_root/pnpm-lock.yaml"
+          test -f "$daytona_root/bun.lock"
           test "$(jq -r .name "$daytona_root/package.json")" = "@paperclipai/plugin-daytona"
           test "$(jq -r .name "$sdk_root/package.json")" = "@paperclipai/plugin-sdk"
           (
             cd "$daytona_root"
-            pnpm install --ignore-workspace --frozen-lockfile --ignore-scripts
+            bun install --ignore-workspace --frozen-lockfile --ignore-scripts
           )
-          node scripts/link-plugin-dev-sdk.mjs
+          bun scripts/link-plugin-dev-sdk.mjs
           test "$(realpath "$daytona_root/node_modules/@paperclipai/plugin-sdk")" = "$(realpath "$sdk_root")"
-          pnpm --dir "$daytona_root" build
+          bun run --cwd "$daytona_root" build
           test -f "$daytona_root/dist/manifest.js"
           test -f "$daytona_root/dist/worker.js"
           test -e "$daytona_root/node_modules/@daytonaio/sdk"
@@ -1297,7 +1294,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if pnpm exec playwright install ffmpeg; then
+            if bun x playwright install ffmpeg; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -1312,7 +1309,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if pnpm exec playwright install --with-deps --only-shell chromium; then
+            if bun x playwright install --with-deps --only-shell chromium; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -1327,7 +1324,7 @@ jobs:
       - name: Provision Codex sandbox on the disposable trusted runner
         if: matrix.environmentId == 'local' && (needs.catalog.outputs.operations_cadence == 'weekly' || matrix.profileId == 'runner-codex' || matrix.profileId == 'runner-codex-mini' || matrix.profileId == 'runner-acpx-codex' || matrix.profileId == 'runner-codex-subscription')
         run: |
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import { execFileSync } from "node:child_process";
           import { createHash } from "node:crypto";
           import { readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -1385,7 +1382,7 @@ jobs:
           AWS_SESSION_TOKEN: ${{ steps.private_history_credentials.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
           RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET }}
-        run: node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/private-history.ts verify evidence "$GITHUB_RUN_ID" bounded-runner-e2e-evidence
+        run: bun tests/runner-e2e/private-history.ts verify evidence "$GITHUB_RUN_ID" bounded-runner-e2e-evidence
 
       - name: Prepare bounded campaign before credentials
         if: needs.catalog.outputs.operations_cadence != ''
@@ -1397,7 +1394,7 @@ jobs:
           EVAL_OPERATING_OVERHEAD_JSON: ${{ needs.catalog.outputs.operating_overhead }}
           EVAL_TEST_RUNNER: ${{ needs.authorize.outputs.test_runner }}
           PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID: ${{ vars.RUNNER_E2E_BRAINTRUST_PROJECT_ID }}
-        run: node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/scheduled-operations.ts prepare
+        run: bun tests/runner-e2e/scheduled-operations.ts prepare
 
       - name: Run bounded campaign and retain feedback review
         if: needs.catalog.outputs.operations_cadence != ''
@@ -1411,9 +1408,9 @@ jobs:
           set +e
           args=(--max-parallel 1 --max-automatic-retries 0)
           while IFS= read -r id; do args+=(--id "$id"); done < <(jq -r '.executionIds[]' "$PAPERCLIP_E2E_OPERATIONS_MANIFEST")
-          pnpm test:e2e:runner -- "${args[@]}"
+          bun run test:e2e:runner -- "${args[@]}"
           run_status=$?
-          node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/scheduled-finalization.ts
+          bun tests/runner-e2e/scheduled-finalization.ts
           finalization_status=$?
           test "$run_status" = 0 && test "$finalization_status" = 0
 
@@ -1443,15 +1440,15 @@ jobs:
           selector=(-- --id "$PAPERCLIP_RUNNER_E2E_SELECTED_ID")
           if grep -q PAPERCLIP_RUNNER_E2E_SELECTED_ID tests/runner-e2e/selectors.ts 2>/dev/null; then selector=(); fi
           if [ -n "$PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT" ]; then
-            pnpm test:e2e:runner "${selector[@]}" > "$PRIVATE_EVIDENCE_ROOT/launcher-output.log" 2>&1
+            bun run test:e2e:runner "${selector[@]}" > "$PRIVATE_EVIDENCE_ROOT/launcher-output.log" 2>&1
           else
-            pnpm test:e2e:runner "${selector[@]}"
+            bun run test:e2e:runner "${selector[@]}"
           fi
 
       - name: Stage bounded campaign evidence
         id: stage_evidence
         if: always() && needs.catalog.outputs.operations_cadence != ''
-        run: node tests/runner-e2e/artifact-budget.mjs stage evidence tests/runner-e2e/results bounded-runner-e2e-evidence
+        run: bun tests/runner-e2e/artifact-budget.mjs stage evidence tests/runner-e2e/results bounded-runner-e2e-evidence
 
       - name: Upload nonprivate packaged cell evidence
         if: always() && needs.catalog.outputs.operations_cadence == '' && needs.authorize.outputs.evidence_retention == 'actions' && steps.manual_cell_route.outputs.route == 'actions'
@@ -1470,7 +1467,7 @@ jobs:
           AWS_SESSION_TOKEN: ${{ steps.private_history_credentials.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
           RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET }}
-        run: node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/private-history.ts upload evidence "$GITHUB_RUN_ID" bounded-runner-e2e-evidence
+        run: bun tests/runner-e2e/private-history.ts upload evidence "$GITHUB_RUN_ID" bounded-runner-e2e-evidence
 
       - name: Enforce complete bounded evidence retention
         if: always() && needs.catalog.outputs.operations_cadence != '' && steps.stage_evidence.outputs.complete != 'true'
@@ -1495,7 +1492,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_private_credentials.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_private_credentials.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/.manual-private-trusted/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-transfer.ts" upload-cell
+        run: bun "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-transfer.ts" upload-cell
 
   test_recurring:
     name: ${{ matrix.executionId }}
@@ -1564,19 +1561,19 @@ jobs:
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Apply reviewed reporting lock corrections
-        run: node tests/runner-e2e/prepare-report-lock.mjs
+        run: bun tests/runner-e2e/prepare-report-lock.mjs
 
       - name: Install pinned reporting dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts --store-dir "${{ runner.temp }}/eval-report-store"
+        run: bun install --frozen-lockfile --ignore-scripts --store-dir "${{ runner.temp }}/eval-report-store"
 
       - name: Prepare exact manual report storage identity
         id: manual_report
@@ -1590,7 +1587,7 @@ jobs:
           NODE_OPTIONS: ''
           NODE_PATH: ''
           AWS_EC2_METADATA_DISABLED: 'true'
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" report-session
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" report-session
 
       - name: Obtain exact current manual report archive session
         id: manual_report_credentials
@@ -1635,7 +1632,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_read_credentials_0.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_read_credentials_0.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
 
       - name: Obtain exact private cell 1 read session
         id: manual_read_credentials_1
@@ -1667,7 +1664,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_read_credentials_1.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_read_credentials_1.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
 
       - name: Obtain exact private cell 2 read session
         id: manual_read_credentials_2
@@ -1699,7 +1696,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_read_credentials_2.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_read_credentials_2.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
 
       - name: Obtain exact private cell 3 read session
         id: manual_read_credentials_3
@@ -1731,7 +1728,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_read_credentials_3.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_read_credentials_3.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
 
       - name: Obtain exact private cell 4 read session
         id: manual_read_credentials_4
@@ -1763,7 +1760,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_read_credentials_4.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_read_credentials_4.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
 
       - name: Obtain exact private cell 5 read session
         id: manual_read_credentials_5
@@ -1795,7 +1792,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_read_credentials_5.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_read_credentials_5.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
 
       - name: Obtain exact private cell 6 read session
         id: manual_read_credentials_6
@@ -1827,7 +1824,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_read_credentials_6.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_read_credentials_6.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
 
       - name: Obtain exact private cell 7 read session
         id: manual_read_credentials_7
@@ -1859,7 +1856,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.manual_read_credentials_7.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.manual_read_credentials_7.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" download-cell
 
       - name: Verify all approved private cell transfers before merging
         id: manual_cells_downloaded
@@ -1872,7 +1869,7 @@ jobs:
           PRIVATE_REPORT_ROOT: ${{ github.workspace }}
           NODE_OPTIONS: ''
           NODE_PATH: ''
-        run: node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" verify-downloads
+        run: bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" verify-downloads
 
       - name: Resolve workflow job attempts
         env:
@@ -1931,7 +1928,7 @@ jobs:
           AWS_SESSION_TOKEN: ${{ steps.private_history_credentials.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
           RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET }}
-        run: node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/private-history.ts download evidence "$GITHUB_RUN_ID" "downloaded-runner-e2e/runner-e2e-$GITHUB_RUN_ID-1-scheduled-campaign"
+        run: bun tests/runner-e2e/private-history.ts download evidence "$GITHUB_RUN_ID" "downloaded-runner-e2e/runner-e2e-$GITHUB_RUN_ID-1-scheduled-campaign"
 
       - name: Select latest workflow attempt per cell
         if: always() && needs.catalog.outputs.operations_cadence == '' && needs.authorize.outputs.evidence_retention == 'actions'
@@ -1942,7 +1939,7 @@ jobs:
           PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: ${{ needs.catalog.outputs.execution_ids }}
           PAPERCLIP_RUNNER_E2E_SOURCE_SHA: ${{ needs.authorize.outputs.target_sha }}
           PAPERCLIP_RUNNER_E2E_SOURCE_REF: ${{ needs.authorize.outputs.target_ref }}
-        run: node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/select-rerun-artifacts.ts
+        run: bun tests/runner-e2e/select-rerun-artifacts.ts
 
       - name: Preserve bounded campaign evidence and journal
         if: always() && needs.catalog.outputs.operations_cadence != ''
@@ -1982,9 +1979,9 @@ jobs:
         run: |
           if [ "${{ needs.authorize.outputs.evidence_retention }}" = private ]; then
             mkdir -p runner-e2e-merged-report
-            pnpm exec playwright merge-reports --config tests/runner-e2e/merge.config.ts merged-blob-reports > runner-e2e-merged-report/merge.log 2>&1
+            bun x playwright merge-reports --config tests/runner-e2e/merge.config.ts merged-blob-reports > runner-e2e-merged-report/merge.log 2>&1
           else
-            pnpm exec playwright merge-reports --config tests/runner-e2e/merge.config.ts merged-blob-reports
+            bun x playwright merge-reports --config tests/runner-e2e/merge.config.ts merged-blob-reports
           fi
 
       - name: Aggregate normalized campaign results
@@ -2004,9 +2001,9 @@ jobs:
           set +e
           if [ -n "$EVAL_OPERATIONS_CADENCE" ] || [ "$EVIDENCE_RETENTION" = private ]; then
             mkdir -p runner-e2e-merged-report
-            pnpm test:e2e:runner:report > runner-e2e-merged-report/report.log 2>&1
+            bun run test:e2e:runner:report > runner-e2e-merged-report/report.log 2>&1
           else
-            pnpm test:e2e:runner:report
+            bun run test:e2e:runner:report
           fi
           report_status=$?
           set -e
@@ -2018,7 +2015,7 @@ jobs:
       - name: Stage bounded merged report
         id: stage_report
         if: always() && needs.catalog.outputs.operations_cadence != ''
-        run: node tests/runner-e2e/artifact-budget.mjs stage report runner-e2e-merged-report bounded-runner-e2e-report
+        run: bun tests/runner-e2e/artifact-budget.mjs stage report runner-e2e-merged-report bounded-runner-e2e-report
 
       - name: Upload nonprivate merged report
         if: always() && needs.catalog.outputs.operations_cadence == '' && needs.authorize.outputs.evidence_retention == 'actions'
@@ -2039,7 +2036,7 @@ jobs:
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
           RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET }}
         run: |
-          node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/private-history.ts upload report "$GITHUB_RUN_ID" bounded-runner-e2e-report
+          bun tests/runner-e2e/private-history.ts upload report "$GITHUB_RUN_ID" bounded-runner-e2e-report
           echo '{"version":1,"privateReportRetained":true}' > private-report-status.json
           echo 'The recurring campaign report is retained in private AWS storage. See the eval operations runbook for authenticated retrieval.' >> "$GITHUB_STEP_SUMMARY"
 
@@ -2075,7 +2072,7 @@ jobs:
           AWS_SESSION_TOKEN: ${{ steps.manual_report_credentials.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
         run: |
-          node "$GITHUB_WORKSPACE/cli/node_modules/tsx/dist/cli.mjs" "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" upload-report
+          bun "$GITHUB_WORKSPACE/tests/runner-e2e/manual-private-transfer.ts" upload-report
           echo 'The private report archive is retained. Transfer does not certify feature PASS or required evidence completeness; see its typed receipt. No raw Actions artifact or public page was uploaded.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify normalized history source report
@@ -2142,13 +2139,13 @@ jobs:
       - name: Project original verdicts and explicitly report missing results
         if: steps.download_selection.outcome == 'success' && !cancelled()
         id: project
-        run: node tests/runner-e2e/product-regression-testops-cli.mjs project product-testops/selection.json
+        run: bun tests/runner-e2e/product-regression-testops-cli.mjs project product-testops/selection.json
       - name: Upload only the bound result projection
         if: steps.project.outcome == 'success'
         run: allurectl upload --validate-json "$ALLURE_RESULTS"
       - name: Verify server-side case identities, completeness and verdicts
         if: steps.project.outcome == 'success'
-        run: node tests/runner-e2e/product-regression-testops-cli.mjs verify product-testops/selection.json
+        run: bun tests/runner-e2e/product-regression-testops-cli.mjs verify product-testops/selection.json
       - name: Finish the original TestOps job run
         if: always()
         run: allurectl job-run stop
@@ -2180,24 +2177,24 @@ jobs:
         with:
           node-version: 24
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Use a job-local store and disable lifecycle scripts throughout install.
       # OIDC is available to every step, even before the AWS credential exchange.
       - name: Apply reviewed publication lock corrections
-        run: node tests/runner-e2e/prepare-report-lock.mjs
+        run: bun tests/runner-e2e/prepare-report-lock.mjs
 
       - name: Install pinned publication dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts --store-dir "${{ runner.temp }}/eval-publisher-store"
+        run: bun install --frozen-lockfile --ignore-scripts --store-dir "${{ runner.temp }}/eval-publisher-store"
 
       - name: Install publisher-only Chromium
-        run: pnpm exec playwright install --with-deps --only-shell chromium
+        run: bun x playwright install --with-deps --only-shell chromium
 
       - name: Download access-controlled normalized campaign
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -2217,7 +2214,7 @@ jobs:
           RUNNER_E2E_HISTORY_S3_BUCKET: ${{ vars.RUNNER_E2E_HISTORY_S3_BUCKET }}
           RUNNER_E2E_HISTORY_PREFIX: ${{ vars.RUNNER_E2E_HISTORY_PREFIX || 'runner-e2e' }}
           RUNNER_E2E_HISTORY_PUBLIC_BASE_URL: ${{ vars.RUNNER_E2E_HISTORY_PUBLIC_BASE_URL }}
-        run: pnpm test:e2e:runner:history:publish
+        run: bun run test:e2e:runner:history:publish
 
       - name: Resolve Pages artifact name
         id: pages_artifact_name

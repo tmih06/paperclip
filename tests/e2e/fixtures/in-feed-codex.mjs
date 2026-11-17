@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Deterministic provider only. The production Rust runner, tool authority, and
 // authenticated MCP gateway still execute every tool and enforce access.
 import { randomUUID } from 'node:crypto';

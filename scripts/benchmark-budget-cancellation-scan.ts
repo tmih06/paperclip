@@ -2,7 +2,7 @@
 // `heartbeat_runs_pending_budget_cancellation_idx`. The SQL is the same in both
 // treatments; only that index is toggled, in a disposable database.
 //
-//   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-budget-cancellation-scan.ts [--runs=20000] [--payload-kib=16] [--reverse]
+//   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-budget-cancellation-scan.ts [--runs=20000] [--payload-kib=16] [--reverse]
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";

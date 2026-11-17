@@ -132,7 +132,7 @@ if [ -d "$home_dir" ]; then
     if [ "$needs_repair" -eq 1 ]; then
         log "repairing ownership of $home_dir to node:node"
         repair_started=$(date +%s)
-        chown -R node:node "$home_dir"
+        chown -R node:bun "$home_dir"
         log "ownership repair finished in $(( $(date +%s) - repair_started ))s"
     fi
 
@@ -149,4 +149,4 @@ if [ -d "$home_dir" ]; then
 fi
 
 log "starting app as node"
-exec gosu node "$@"
+exec gosu bun "$@"

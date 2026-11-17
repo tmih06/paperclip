@@ -101,7 +101,7 @@ describe("TaskChatLiveTail", () => {
       { kind: "stdout", ts: TS, text: "STDOUTNOISE raw log line" },
       { kind: "stderr", ts: TS, text: "STDERRNOISE warning" },
       { kind: "assistant", ts: TS, text: "Here is the real reply." },
-      { kind: "tool_call", ts: TS, name: "Bash", toolUseId: "t1", input: { command: "pnpm test" } },
+      { kind: "tool_call", ts: TS, name: "Bash", toolUseId: "t1", input: { command: "bun run test" } },
       {
         kind: "result",
         ts: TS,
@@ -124,7 +124,7 @@ describe("TaskChatLiveTail", () => {
     flushSync(() => toggle().click());
     const text = container.textContent ?? "";
     expect(text).toContain("Here is the real reply.");
-    expect(text).toContain("pnpm test");
+    expect(text).toContain("bun run test");
     // No debug plumbing, no RunTranscriptView chrome.
     for (const noise of [
       "INITMARKER",
@@ -173,9 +173,9 @@ describe("TaskChatLiveTail", () => {
     expect(viewport().textContent).toContain("$ git status");
     expect(container.querySelector(".runner-activity-roll-in")).toBeNull();
 
-    entries.push({ kind: "tool_call", ts: TS, name: "Bash", toolUseId: "t2", input: { command: "pnpm test" } });
+    entries.push({ kind: "tool_call", ts: TS, name: "Bash", toolUseId: "t2", input: { command: "bun run test" } });
     render(parse(entries));
-    expect(container.querySelector(".runner-activity-roll-in")?.textContent).toContain("Running$ pnpm test");
+    expect(container.querySelector(".runner-activity-roll-in")?.textContent).toContain("Running$ bun run test");
     const outgoing = container.querySelector(".runner-activity-roll-out")!;
     expect(outgoing.getAttribute("aria-hidden")).toBe("true");
     flushSync(() => outgoing.dispatchEvent(new Event("webkitAnimationEnd", { bubbles: true })));
@@ -192,7 +192,7 @@ describe("TaskChatLiveTail", () => {
     flushSync(() => toggle().click());
     expect(container.querySelectorAll("li")).toHaveLength(3);
     expect(container.textContent).toContain("git status");
-    expect(container.textContent).toContain("pnpm test");
+    expect(container.textContent).toContain("bun run test");
 
     entries.push({ kind: "tool_result", ts: TS, toolUseId: "t3", content: "created", isError: false });
     render(parse(entries));

@@ -6,14 +6,14 @@ reads and edits its registered private copy and completes a task through the
 run-scoped API. No provider calls are made.
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/e2e/instruction-working-copy/launch.ts
+bun tests/e2e/instruction-working-copy/launch.ts
 ```
 
 Use its printed ready URL:
 
 ```sh
 INSTRUCTION_COPY_TEST_URL=http://127.0.0.1:3100 \
-pnpm exec playwright test --config tests/e2e/instruction-working-copy/playwright.config.ts
+bun x playwright test --config tests/e2e/instruction-working-copy/playwright.config.ts
 ```
 
 The browser checks completed tasks across two turns, exact saved bytes through

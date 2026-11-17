@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { StorybookConfig } from "@storybook/react-vite";
 import tailwindcss from "@tailwindcss/vite";
-import { mergeConfig } from "vite";
+import { mergeConfig } from "vite-plus";
 import { storybookAgentAvatarAssets } from "../../../scripts/storybook-agent-avatar-assets.mjs";
 import { generateStorybook } from "../../../scripts/storybook-catalog.mjs";
 import { storybookButtonUsage } from "../../../scripts/storybook-button-usage.mjs";

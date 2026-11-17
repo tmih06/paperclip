@@ -117,7 +117,7 @@ const hookContext = governance("hook-context", "hook", "completed", [
 const hookFeedback = governance("hook-feedback", "hook", "completed", [
   d("Event", "Stop"),
   d("Outcome", "feedback"),
-], "Tests have not run since the last edit. Run pnpm test before finishing.");
+], "Tests have not run since the last edit. Run bun run test before finishing.");
 
 const hookFailed = governance("hook-failed", "hook", "failed", [
   d("Event", "sessionStart"),
@@ -164,7 +164,7 @@ const codexRawItems: TaskChatItem[] = [
   codexTool("exec-add", "shell", "pnpm add -D tsx"),
   reviewNetwork,
   codexTool("exec-patch", "apply_patch", "src/delivery/worker.ts"),
-  codexTool("exec-test", "shell", "pnpm test src/delivery"),
+  codexTool("exec-test", "shell", "bun run test src/delivery"),
 ];
 
 const codexRunActivity = phase(
@@ -180,7 +180,7 @@ const claudeRunActivity = phase("claude-phase", [
   tool("c2", "Bash", "pnpm db:generate"),
   tool("c3", "Write", "packages/db/migrations/0043_webhook_event_dedupe.sql"),
   hookFeedback,
-  tool("c4", "Bash", "pnpm test"),
+  tool("c4", "Bash", "bun run test"),
 ]);
 
 const liveRunItems: TaskChatItem[] = foldApprovedAutoReviews([

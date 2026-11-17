@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * codemod-extract-type.mjs
  *
@@ -42,7 +42,7 @@
  * pattern no longer matches, so re-running is a no-op. The inline-style
  * FIND is likewise the literal `fontSize: "11px"` string form.
  *
- * Usage: node scripts/codemod-extract-type.mjs [--check]
+ * Usage: bun scripts/codemod-extract-type.mjs [--check]
  *   --check   Report what WOULD change without writing files (dry run).
  */
 

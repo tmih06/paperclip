@@ -34,8 +34,8 @@ The skill/reference inventory and eval cases are the only normative behavior sou
 
 ## Regeneration
 
-- `pnpm --dir packages/paperclip-runner generate:capability-inventory` imports the canonical baselines and rewrites every generated file.
-- `pnpm --dir packages/paperclip-runner check:capability-inventory` validates counts, uniqueness, normative dispositions, one-to-one MCP folds, required fields, and generated-file drift without requiring the external eval repository.
+- `bun run --cwd packages/paperclip-runner generate:capability-inventory` imports the canonical baselines and rewrites every generated file.
+- `bun run --cwd packages/paperclip-runner check:capability-inventory` validates counts, uniqueness, normative dispositions, one-to-one MCP folds, required fields, and generated-file drift without requiring the external eval repository.
 
 ## Skill / Reference Rows
 

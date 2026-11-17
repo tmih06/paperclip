@@ -13,7 +13,7 @@ const baselineRef = process.argv.find(arg => arg.startsWith("--baseline-ref="))?
 assert.ok(baselineRef, "Pass an explicit pre-fix --baseline-ref");
 const baselineRevision = execFileSync("git", ["rev-parse", "--verify", `${baselineRef}^{commit}`], { encoding: "utf8" }).trim();
 const modulePath = "server/src/services/task-interruption-presentation.ts";
-const changedRuntime = execFileSync("git", ["diff", "--name-only", baselineRevision, "--", "server/src/services", "packages/db/src", "packages/shared/src", "pnpm-lock.yaml"], { encoding: "utf8" }).trim().split("\n").filter(Boolean);
+const changedRuntime = execFileSync("git", ["diff", "--name-only", baselineRevision, "--", "server/src/services", "packages/db/src", "packages/shared/src", "bun.lock"], { encoding: "utf8" }).trim().split("\n").filter(Boolean);
 assert.deepEqual(changedRuntime.filter(file => file !== modulePath), [], "Changed baseline dependency requires explicit isolation");
 const keepAlive = setInterval(() => {}, 1000);
 let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;

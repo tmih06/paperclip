@@ -102,7 +102,7 @@ describe("isPaperclipDevRunnerCommand", () => {
   it("does not match unrelated commands that merely use --bind", () => {
     expect(isPaperclipDevRunnerCommand('python3 -m http.server "$PORT" --bind 127.0.0.1')).toBe(false);
     expect(isPaperclipDevRunnerCommand("node -e 'listen()'")).toBe(false);
-    expect(isPaperclipDevRunnerCommand("pnpm build")).toBe(false);
+    expect(isPaperclipDevRunnerCommand("bun run build")).toBe(false);
     expect(isPaperclipDevRunnerCommand("pnpm develop")).toBe(false);
     expect(isPaperclipDevRunnerCommand("./my-dev-runnerish --bind lan")).toBe(false);
   });

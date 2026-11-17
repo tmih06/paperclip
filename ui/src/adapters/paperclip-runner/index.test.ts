@@ -122,7 +122,7 @@ describe("paperclip runner transcript projection", () => {
       .toEqual([{ kind: "assistant", ts: expect.any(String), text: "Here is", delta: true, channel: "unknown", itemId: "message-1" }]);
     expect(event("item.started", {
       kind: "commandExecution",
-      item: { id: "exec-1", type: "commandExecution", command: "pnpm test", status: "inProgress" },
+      item: { id: "exec-1", type: "commandExecution", command: "bun run test", status: "inProgress" },
     }, "exec-1")).toEqual([
       expect.objectContaining({ kind: "tool_call", name: "command", toolUseId: "exec-1" }),
     ]);

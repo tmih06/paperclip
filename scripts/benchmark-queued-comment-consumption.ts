@@ -13,7 +13,7 @@ assert.ok(baselineRef, "Pass an explicit pre-change --baseline-ref=<commit>");
 const baselineRevision = execFileSync("git", ["rev-parse", "--verify", `${baselineRef}^{commit}`], { encoding: "utf8" }).trim();
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sourcePath = "server/src/services/execution-blocker.ts";
-const changedRuntime = execFileSync("git", ["diff", "--name-only", baselineRevision, "--", "server/src/services", "packages/db/src", "packages/shared/src", "pnpm-lock.yaml"], { encoding: "utf8" }).trim().split("\n").filter(Boolean);
+const changedRuntime = execFileSync("git", ["diff", "--name-only", baselineRevision, "--", "server/src/services", "packages/db/src", "packages/shared/src", "bun.lock"], { encoding: "utf8" }).trim().split("\n").filter(Boolean);
 assert.deepEqual(changedRuntime.filter(source => source !== sourcePath), [], "The baseline must not import changed runtime helpers");
 const baselineSource = execFileSync("git", ["show", `${baselineRevision}:${sourcePath}`], { encoding: "utf8" });
 const baselineDir = await fs.mkdtemp(path.join(root, "server/scripts/.queued-comment-baseline-"));

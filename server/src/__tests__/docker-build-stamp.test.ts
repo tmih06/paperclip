@@ -64,7 +64,7 @@ describe("docker build-stamp wiring", () => {
   it("declares PAPERCLIP_BUILD_COMMIT in the build stage before the server build", () => {
     const build = stageBody(dockerfile, "build");
     const argIdx = build.search(/^ARG PAPERCLIP_BUILD_COMMIT\b/m);
-    const serverBuildIdx = build.search(/^RUN pnpm --filter @paperclipai\/server build\b/m);
+    const serverBuildIdx = build.search(/^RUN bun run --filter @paperclipai\/server build\b/m);
     expect(argIdx, "build stage must declare ARG PAPERCLIP_BUILD_COMMIT").toBeGreaterThanOrEqual(0);
     expect(serverBuildIdx, "build stage must run the server build").toBeGreaterThanOrEqual(0);
     expect(
@@ -108,7 +108,7 @@ describe("Application image Runner", () => {
     const argument = build.search(/^ARG PAPERCLIP_RUNNER_EXPECT_INPUTS_DIGEST=""$/m);
     const check = build.indexOf(
       "RUN --mount=type=bind,from=runner-artifacts,source=/runner-image.json,target=/tmp/runner-image.json \\\n"
-        + "  node scripts/check-runner-image-expectation.mjs /tmp/runner-image.json\n",
+        + "  bun scripts/check-runner-image-expectation.mjs /tmp/runner-image.json\n",
     );
     const vendor = build.search(/^ENV PAPERCLIP_RUNNER_VENDOR_REQUIRE_CURRENT=1$/m);
     expect(stamp).toBeGreaterThanOrEqual(0);

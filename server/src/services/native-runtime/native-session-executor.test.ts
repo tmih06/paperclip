@@ -2960,7 +2960,7 @@ describe("remote provider pack manifest", () => {
     const digest = "sha256:" + "a".repeat(64);
     const artifacts = Object.fromEntries(Object.entries({
       grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node",
-      productionLock: "pnpm-lock.yaml", opencodeCommand: "node_modules/.bin/opencode",
+      productionLock: "bun.lock", opencodeCommand: "node_modules/.bin/opencode",
       opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
       opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs",
     }).map(([key, path]) => [key, { path, sha256: digest }])) as Record<"nodeCommand" | "opencodeCommand" | "opencodeExecutable" | "opencodeProxy", { path: string; sha256: string }>;
@@ -3502,7 +3502,7 @@ describe("remote provider pack manifest", () => {
       sidecar,
     );
     await writeFile(join(root, "node_modules", "node", "bin", "node"), node);
-    await writeFile(join(root, "pnpm-lock.yaml"), lockfile);
+    await writeFile(join(root, "bun.lock"), lockfile);
     await writeFile(
       join(root, "node_modules", ".bin", "opencode"),
       opencodeCommand,
@@ -3542,7 +3542,7 @@ describe("remote provider pack manifest", () => {
           path: "node_modules/node/bin/node",
           sha256: digest(node),
         },
-        productionLock: { path: "pnpm-lock.yaml", sha256: digest(lockfile) },
+        productionLock: { path: "bun.lock", sha256: digest(lockfile) },
         opencodeCommand: {
           path: "node_modules/.bin/opencode",
           sha256: digest(opencodeCommand),
@@ -8417,7 +8417,7 @@ describe("native startup cancellation fence", () => {
     await writeFile(daemonPath, daemon);
     const sha = "sha256:" + "a".repeat(64);
     const artifacts = Object.fromEntries(Object.entries({ grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node",
-      productionLock: "pnpm-lock.yaml", opencodeCommand: "node_modules/.bin/opencode", opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
+      productionLock: "bun.lock", opencodeCommand: "node_modules/.bin/opencode", opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
       opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs" }).map(([name, path]) => [name, { path, sha256: sha }]));
     const payload = { compatibility: { opencode: 1, acpx: 1 }, contractDigest: sha, target: { platform: "linux", architecture: "x64" }, runnerSourceRevision: "a".repeat(40),
       pins: { nodeMinimum: "24.11.0", codex: QUALIFIED_ACPX_PROFILES.codex.agentRuntimeVersion, opencode: "1.18.34", acpx: "0.22.0",
@@ -18476,7 +18476,7 @@ describe("runnerd provider runtime wiring", () => {
           `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(",")}}` : JSON.stringify(value);
       const artifacts = Object.fromEntries(Object.entries({
         grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node",
-        productionLock: "pnpm-lock.yaml", opencodeCommand: "node_modules/.bin/opencode",
+        productionLock: "bun.lock", opencodeCommand: "node_modules/.bin/opencode",
         opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
         opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs",
       }).map(([key, path]) => [key, { path, sha256: digest }]));
@@ -18591,7 +18591,7 @@ describe("runnerd provider runtime wiring", () => {
           `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(",")}}` : JSON.stringify(value);
       const artifacts = Object.fromEntries(Object.entries({
         grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node",
-        productionLock: "pnpm-lock.yaml", opencodeCommand: "node_modules/.bin/opencode",
+        productionLock: "bun.lock", opencodeCommand: "node_modules/.bin/opencode",
         opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
         opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs",
       }).map(([key, path]) => [key, { path, sha256: digest }]));

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // The persona character is the ClipLab studio export at
 // ui/src/assets/cliplab/onboarding.character.json. The shared package cannot
 // import JSON from ui, and its build is plain tsc, so this writes the export
@@ -20,7 +20,7 @@ export const PAPERCLIP_CHARACTER: Definition = ${JSON.stringify(definition, null
 if (process.argv.includes("--check")) {
   let current = "";
   try { current = readFileSync(target, "utf8"); } catch { /* missing counts as drift */ }
-  if (current !== body) { console.error(`packages/shared/src/cliplab/character.ts is out of date; run node scripts/sync-cliplab-character.mjs`); process.exit(1); }
+  if (current !== body) { console.error(`packages/shared/src/cliplab/character.ts is out of date; run bun scripts/sync-cliplab-character.mjs`); process.exit(1); }
   console.log("cliplab character in sync");
 } else {
   writeFileSync(target, body);

@@ -10,7 +10,7 @@
  * it without and with the new index (no index, index, no index again). It
  * fails unless the service's lease IDs and the complete query rows match.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-environment-lease-backup-lookup.ts
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-environment-lease-backup-lookup.ts
  *
  * Optional sizes: LEASES (default 100000), STAMPED_PERCENT (30),
  * METADATA_KIB (4), OTHER_COMPANY_LEASES (20000).

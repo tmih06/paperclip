@@ -745,7 +745,7 @@ async function readPackageJson(
 function buildLocalPluginBuildCommand(pkgJson: Record<string, unknown>): string | null {
   const packageName = pkgJson["name"];
   if (typeof packageName !== "string" || packageName.trim().length === 0) return null;
-  return `pnpm --filter ${packageName} build`;
+  return `bun run --filter ${packageName} build`;
 }
 
 function readPackageDependencyNames(
@@ -855,11 +855,11 @@ function formatLocalPluginManualBuildHint(
 function buildStandaloneBundledPluginInstallArgs(
   packageRoot: string,
 ): string[] {
-  const packageLockfilePath = path.join(packageRoot, "pnpm-lock.yaml");
+  const packageLockfilePath = path.join(packageRoot, "bun.lock");
   // Never let plugin-supplied workspace settings broaden dependency resolution
   // or script execution. When a plugin declares a local install policy, disable
   // dependency lifecycle scripts instead of loading that workspace configuration.
-  const scriptArgs = existsSync(path.join(packageRoot, "pnpm-workspace.yaml")) ? ["--ignore-scripts"] : [];
+  const scriptArgs = existsSync(path.join(packageRoot, "bunfig.toml")) ? ["--ignore-scripts"] : [];
   return ["install", "--ignore-workspace", ...scriptArgs, existsSync(packageLockfilePath) ? "--frozen-lockfile" : "--no-lockfile"];
 }
 
@@ -878,7 +878,7 @@ function buildLocalPluginRecoveryCommand(
     const repoRoot = options.repoRoot ?? REPO_ROOT;
     const relativePath = path.relative(repoRoot, packageRoot) || ".";
     const installCommand = buildStandaloneBundledPluginInstallCommand(packageRoot);
-    return `cd ${relativePath} && ${installCommand} && pnpm build`;
+    return `cd ${relativePath} && ${installCommand} && bun run build`;
   }
 
   return buildLocalPluginBuildCommand(pkgJson);

@@ -7,7 +7,7 @@ name: Runner image
 # doc/runner-image-contract.md is the contract.
 #
 # Every master push computes the digest from the commit's own build context,
-# with the committed pnpm-lock.yaml. The build runs only when no image has
+# with the committed bun.lock. The build runs only when no image has
 # that digest yet. When the committed lockfile is behind the manifests the
 # Runner build reads, the run says so, publishes nothing and stays green: the
 # repository's lockfile refresh brings the commit that publishes.
@@ -34,8 +34,8 @@ on:
       - .dockerignore
       - .npmrc
       - package.json
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
+      - bun.lock
+      - bunfig.toml
       - tsconfig.base.json
       - patches/**
       - packages/paperclip-runner/**
@@ -89,10 +89,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
           run_install: false
 
       # No dependency cache: the Actions cache must not reach a published image.
@@ -102,11 +102,11 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      # A contributor cannot edit pnpm-lock.yaml, so a pull request that
+      # A contributor cannot edit bun.lock, so a pull request that
       # changes the Runner's dependencies is built against a lockfile resolved
       # here. The image build installs from it frozen.
       #
-      # Never on a master push. The lockfile refresh owns pnpm-lock.yaml on
+      # Never on a master push. The lockfile refresh owns bun.lock on
       # master and holds new package versions until they are old enough, so
       # the published image installs from the committed file and its digest
       # is a function of the commit alone.
@@ -114,16 +114,16 @@ jobs:
         if: github.event_name != 'push'
         run: |
           set -euo pipefail
-          pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
+          bun install --no-save
 
           changed="$(git status --porcelain)"
-          if [ -n "$changed" ] && printf '%s\n' "$changed" | grep -Fvq ' pnpm-lock.yaml'; then
+          if [ -n "$changed" ] && printf '%s\n' "$changed" | grep -Fvq ' bun.lock'; then
             echo "Unexpected files changed during lockfile resolution:"
             echo "$changed"
             exit 1
           fi
           {
-            echo "This run built from a \`pnpm-lock.yaml\` resolved for it${changed:+ (it differs from the committed file)}."
+            echo "This run built from a \`bun.lock\` resolved for it${changed:+ (it differs from the committed file)}."
             echo "A master push publishes only from the committed lockfile."
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -148,7 +148,7 @@ jobs:
       # which no build reads: the builds read the checkout.
       - name: Check the lockfile against the Runner's manifests
         id: lock
-        run: node scripts/runner-image-publish.mjs lock-state --context "$RUNNER_TEMP/runner-image-context"
+        run: bun scripts/runner-image-publish.mjs lock-state --context "$RUNNER_TEMP/runner-image-context"
 
       # On master this is expected between a dependency change and the next
       # lockfile refresh. It is not a failure, and there is nothing to build.
@@ -156,7 +156,7 @@ jobs:
         if: steps.lock.outputs.state == 'behind'
         run: |
           set -euo pipefail
-          message="pnpm-lock.yaml is behind the Runner's manifests at $GITHUB_SHA; no Runner image for this commit; the next lockfile refresh will publish one."
+          message="bun.lock is behind the Runner's manifests at $GITHUB_SHA; no Runner image for this commit; the next lockfile refresh will publish one."
           echo "::notice title=No Runner image for this commit::$message"
           echo "$message" >> "$GITHUB_STEP_SUMMARY"
           # A run that resolved its own lockfile cannot be behind it.
@@ -192,7 +192,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: runner-image-lockfile
-          path: pnpm-lock.yaml
+          path: bun.lock
           if-no-files-found: error
           retention-days: 1
 
@@ -207,7 +207,7 @@ jobs:
           RUNNER_IMAGE_REGISTRY_USERNAME: ${{ github.actor }}
           RUNNER_IMAGE_REGISTRY_PASSWORD: ${{ github.token }}
           DIGEST: ${{ steps.identity.outputs.digest }}
-        run: node scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST"
+        run: bun scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST"
 
   # Multi-arch by native runner, not QEMU, as in docker.yml. GitHub-hosted
   # runners: the protected release fleets admit only docker.yml on master.
@@ -267,7 +267,7 @@ jobs:
         env:
           RUNNER_IMAGE_REGISTRY_USERNAME: ${{ github.actor }}
           RUNNER_IMAGE_REGISTRY_PASSWORD: ${{ github.token }}
-        run: node scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST"
+        run: bun scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST"
 
       - name: Download the resolved lockfile
         if: github.event_name != 'push'
@@ -280,7 +280,7 @@ jobs:
       # second resolution that a registry change could make different.
       - name: Use the resolved lockfile
         if: github.event_name != 'push'
-        run: cp "$RUNNER_TEMP/runner-image-lockfile/pnpm-lock.yaml" pnpm-lock.yaml
+        run: cp "$RUNNER_TEMP/runner-image-lockfile/bun.lock" bun.lock
 
       - name: Free runner disk
         if: steps.published.outputs.exists != 'true'
@@ -348,7 +348,7 @@ jobs:
         run: |
           set -euo pipefail
           for variant in full slim; do
-            node scripts/runner-image-oci.mjs unpack "$RUNNER_TEMP/runner-image/$variant.oci.tar" \
+            bun scripts/runner-image-oci.mjs unpack "$RUNNER_TEMP/runner-image/$variant.oci.tar" \
               --out "$RUNNER_TEMP/runner-image/$variant"
           done
 
@@ -365,7 +365,7 @@ jobs:
         run: |
           set -euo pipefail
           for variant in full slim; do
-            node scripts/runner-image-layout.mjs check "$RUNNER_TEMP/runner-image/$variant" \
+            bun scripts/runner-image-layout.mjs check "$RUNNER_TEMP/runner-image/$variant" \
               --variant "$variant" \
               --expect-inputs-digest "$DIGEST" \
               --expect-source-revision "$GITHUB_SHA" \
@@ -382,7 +382,7 @@ jobs:
           set -euo pipefail
           {
             echo '```'
-            node scripts/runner-image-oci.mjs check-layers \
+            bun scripts/runner-image-oci.mjs check-layers \
               --slim "$RUNNER_TEMP/runner-image/slim.oci.tar" \
               --full "$RUNNER_TEMP/runner-image/full.oci.tar"
             echo '```'
@@ -415,7 +415,7 @@ jobs:
         if: steps.published.outputs.exists != 'true'
         timeout-minutes: 10
         run: |
-          node scripts/runner-image-publish.mjs record \
+          bun scripts/runner-image-publish.mjs record \
             --arch "$ARCH" \
             --slim-archive "$RUNNER_TEMP/runner-image/slim.oci.tar" \
             --slim-metadata "$RUNNER_TEMP/runner-image/slim.metadata.json" \
@@ -493,7 +493,7 @@ jobs:
         env:
           RUNNER_IMAGE_REGISTRY_USERNAME: ${{ github.actor }}
           RUNNER_IMAGE_REGISTRY_PASSWORD: ${{ github.token }}
-        run: node scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST"
+        run: bun scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST"
 
       - name: Download the verified amd64 images
         if: steps.early.outputs.exists != 'true'
@@ -513,7 +513,7 @@ jobs:
         id: legs
         if: steps.early.outputs.exists != 'true'
         run: |
-          node scripts/runner-image-publish.mjs verify-legs \
+          bun scripts/runner-image-publish.mjs verify-legs \
             --dir "$RUNNER_TEMP/runner-image" \
             --inputs-digest "$DIGEST" \
             --source-revision "$GITHUB_SHA"
@@ -538,7 +538,7 @@ jobs:
         env:
           RUNNER_IMAGE_REGISTRY_USERNAME: ${{ github.actor }}
           RUNNER_IMAGE_REGISTRY_PASSWORD: ${{ github.token }}
-        run: node scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST"
+        run: bun scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST"
 
       # By digest and untagged. --preserve-digests fails rather than re-encode,
       # so the registry holds exactly the images the build legs verified. Each
@@ -572,7 +572,7 @@ jobs:
         env:
           RUNNER_IMAGE_REGISTRY_USERNAME: ${{ github.actor }}
           RUNNER_IMAGE_REGISTRY_PASSWORD: ${{ github.token }}
-        run: node scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST" --strict
+        run: bun scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST" --strict
 
       # Candidate tags first, so a final tag appears only after its digest is
       # attested. Candidate tags are internal and may be overwritten.
@@ -597,7 +597,7 @@ jobs:
         env:
           RUNNER_IMAGE_REGISTRY_USERNAME: ${{ github.actor }}
           RUNNER_IMAGE_REGISTRY_PASSWORD: ${{ github.token }}
-        run: node scripts/runner-image-publish.mjs verify-index "candidate-$DIGEST-slim" --variant slim --dir "$RUNNER_TEMP/runner-image"
+        run: bun scripts/runner-image-publish.mjs verify-index "candidate-$DIGEST-slim" --variant slim --dir "$RUNNER_TEMP/runner-image"
 
       # The full index names the slim index of this same run by digest, so a
       # consumer can tell that the two belong together.
@@ -626,7 +626,7 @@ jobs:
           RUNNER_IMAGE_REGISTRY_USERNAME: ${{ github.actor }}
           RUNNER_IMAGE_REGISTRY_PASSWORD: ${{ github.token }}
         run: |
-          node scripts/runner-image-publish.mjs verify-index "candidate-$DIGEST" --variant full \
+          bun scripts/runner-image-publish.mjs verify-index "candidate-$DIGEST" --variant full \
             --slim-digest "$SLIM_INDEX" --dir "$RUNNER_TEMP/runner-image"
 
       - name: Attest the slim Runner image
@@ -659,10 +659,10 @@ jobs:
           set -euo pipefail
           layout="$RUNNER_TEMP/runner-image"
           docker buildx imagetools create -t "$IMAGE:inputs-$DIGEST-slim" "$IMAGE@$SLIM_INDEX"
-          node scripts/runner-image-publish.mjs verify-index "inputs-$DIGEST-slim" --variant slim --dir "$layout" --expect "$SLIM_INDEX"
+          bun scripts/runner-image-publish.mjs verify-index "inputs-$DIGEST-slim" --variant slim --dir "$layout" --expect "$SLIM_INDEX"
           docker buildx imagetools create -t "$IMAGE:inputs-$DIGEST" "$IMAGE@$FULL_INDEX"
-          node scripts/runner-image-publish.mjs verify-index "inputs-$DIGEST" --variant full --slim-digest "$SLIM_INDEX" --dir "$layout" --expect "$FULL_INDEX"
-          node scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST" --strict | grep -Fx "state=published"
+          bun scripts/runner-image-publish.mjs verify-index "inputs-$DIGEST" --variant full --slim-digest "$SLIM_INDEX" --dir "$layout" --expect "$FULL_INDEX"
+          bun scripts/runner-image-publish.mjs publication-state --inputs-digest "$DIGEST" --strict | grep -Fx "state=published"
           {
             echo "Published from \`$GITHUB_SHA\`:"
             echo "- full: \`$IMAGE:inputs-$DIGEST\` at \`$IMAGE@$FULL_INDEX\`"

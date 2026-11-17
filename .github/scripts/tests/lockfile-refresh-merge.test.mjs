@@ -83,7 +83,7 @@ test("a refresh that renews only the reporting-lock proof still opens a pull req
   try {
     const git = (...args) => execFileSync("git", args, { cwd: root });
     execFileSync("mkdir", ["-p", path.join(root, "tests/runner-e2e")]);
-    const files = { "pnpm-lock.yaml": "lock\n", "tests/runner-e2e/report-lock.json": "{}\n", "tests/runner-e2e/report-lock.patch": "old\n" };
+    const files = { "bun.lock": "lock\n", "tests/runner-e2e/report-lock.json": "{}\n", "tests/runner-e2e/report-lock.patch": "old\n" };
     for (const [file, contents] of Object.entries(files)) writeFileSync(path.join(root, file), contents);
     git("init", "-q");
     git("add", ".");
@@ -102,11 +102,13 @@ test("the workflow owns the same lockfiles that the trust policy guards", () => 
   const env = workflow.match(/^      LOCKFILES: (.+)$/m)?.[1];
   assert.ok(env, "the refresh job must define LOCKFILES");
   assert.deepEqual(env.trim().split(/\s+/), LOCKFILES);
-  assert.match(step("Refresh sandbox provider lockfiles"),
-    /pnpm --dir scripts\/typecheck-sandbox-providers install --resolution-only --ignore-scripts --no-frozen-lockfile/);
-  assert.match(step("Refresh sandbox provider lockfiles"),
-    /pnpm --dir packages\/plugins\/sandbox-providers\/daytona install --ignore-workspace --resolution-only --ignore-scripts --no-frozen-lockfile/);
-  assert.ok(stepNames.indexOf("Refresh sandbox provider lockfiles") < stepNames.indexOf("Fail on unexpected file changes"));
+  // Bun's `--lockfile-only` replaces pnpm's `--resolution-only`: the providers
+  // stay outside the root workspace already, so no extra isolation flag is needed.
+  assert.match(step("Refresh the sandbox provider lockfiles"),
+    /bun install --cwd scripts\/typecheck-sandbox-providers --lockfile-only --ignore-scripts --no-frozen-lockfile/);
+  assert.match(step("Refresh the sandbox provider lockfiles"),
+    /bun install --cwd packages\/plugins\/sandbox-providers\/daytona --lockfile-only --ignore-scripts --no-frozen-lockfile/);
+  assert.ok(stepNames.indexOf("Refresh the sandbox provider lockfiles") < stepNames.indexOf("Fail on unexpected file changes"));
   assert.match(step("Check release age of added package versions"), /for lock in \$LOCKFILES; do[\s\S]*?pairs\+=\(--base "\$base\/\$lock" --head "\$lock"\)/);
 });
 
@@ -175,10 +177,10 @@ test("the refresh commit resyncs and checks the SDK public source pins before pu
   const upsert = step("Create or update pull request");
   const order = [
     'git commit -m "chore(lockfile): refresh pnpm lockfiles"',
-    'node tests/runner-e2e/source-sdk-public-inputs.mjs "$(git rev-parse HEAD)" --write',
+    'bun tests/runner-e2e/source-sdk-public-inputs.mjs "$(git rev-parse HEAD)" --write',
     "git add tests/runner-e2e/source-sdk-public-inputs.json",
     "git commit --amend --no-edit",
-    'node tests/runner-e2e/source-sdk-public-inputs.mjs "$(git rev-parse HEAD)" --check',
+    'bun tests/runner-e2e/source-sdk-public-inputs.mjs "$(git rev-parse HEAD)" --check',
     'git push --force origin "$BRANCH"',
     'echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"',
   ].map((line) => upsert.indexOf(line));

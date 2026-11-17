@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { scanAgentLifecycleBoundaries } from "./check-agent-lifecycle-boundaries.mjs";
 import { readdirSync, readFileSync } from "node:fs";

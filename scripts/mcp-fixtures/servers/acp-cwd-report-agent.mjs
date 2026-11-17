@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // A minimal ACP agent fixture that reports, on its stderr, the working
 // directory the host actually spawned it in (`process.cwd()`) and the `cwd`
 // advertised on the `session/new` request. Used by the remote-lane host-spawn

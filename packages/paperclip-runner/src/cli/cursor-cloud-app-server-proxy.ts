@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { constants } from "node:fs";
 import { open as openFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";

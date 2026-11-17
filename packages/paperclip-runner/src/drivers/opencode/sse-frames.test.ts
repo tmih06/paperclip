@@ -44,7 +44,7 @@ function completedToolPart(output: string) {
         tool: "bash",
         state: {
           status: "completed",
-          input: { command: "pnpm test", description: "Run tests" },
+          input: { command: "bun run test", description: "Run tests" },
           output,
           title: "Run tests",
           metadata: { exit: 1, output, description: "Run tests" },
@@ -130,7 +130,7 @@ describe("parseOpenCodeSseFrames", () => {
       tool: "bash",
       state: {
         status: "completed",
-        input: { command: "pnpm test", description: "Run tests" },
+        input: { command: "bun run test", description: "Run tests" },
         title: "Run tests",
         metadata: { exit: 1, description: "Run tests" },
         time: { start: 1, end: 2 },

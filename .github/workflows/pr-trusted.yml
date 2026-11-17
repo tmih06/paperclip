@@ -53,31 +53,39 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Check source-diff eligibility
-        id: eligible
-        run: |
-          if [[ -f scripts/ci/select-tests.mjs ]]; then
-            node scripts/ci/select-tests.mjs --eligible
-          else
-            echo 'enabled=false' >> "$GITHUB_OUTPUT"
-          fi
-      # Same trusted bootstrap as every other pnpm setup in this workflow:
-      # Node immediately first, and no npm audit, fund or update-notifier calls.
-      - name: Setup Node.js for pnpm bootstrap
-        if: steps.eligible.outputs.enabled == 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 24
-          package-manager-cache: false
-      - name: Setup pnpm
-        if: steps.eligible.outputs.enabled == 'true'
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
+      - name: Check source-diff eligibility
+        id: eligible
+        run: |
+          if [[ -f scripts/ci/select-tests.mjs ]]; then
+            bun scripts/ci/select-tests.mjs --eligible
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+          fi
+      # Same trusted bootstrap as every other Bun setup in this workflow:
+      # Node immediately first, and no npm audit, fund or update-notifier calls.
+      - name: Setup Node.js for Bun bootstrap
+        if: steps.eligible.outputs.enabled == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Setup Bun
+        if: steps.eligible.outputs.enabled == 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
+        env:
+          NPM_CONFIG_AUDIT: "false"
+          NPM_CONFIG_FUND: "false"
+          NPM_CONFIG_UPDATE_NOTIFIER: "false"
+        with:
+          bun-version: 1.4.4
       - name: Restore dependencies for graph analysis
         if: steps.eligible.outputs.enabled == 'true'
         uses: ./.github/actions/setup-ci-dependencies
@@ -85,7 +93,7 @@ jobs:
         id: select
         if: steps.eligible.outputs.enabled == 'true'
         timeout-minutes: 5
-        run: node scripts/ci/select-tests.mjs
+        run: bun scripts/ci/select-tests.mjs
       - name: Upload validated selection and audit
         id: upload_selection
         if: steps.select.outputs.selected == 'true'
@@ -106,7 +114,7 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.upload_selection.outputs.artifact-id }}
         run: |
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
           import { appendFileSync, readFileSync } from 'node:fs';
           const plan = JSON.parse(readFileSync('.ci-test-selection/plan.json', 'utf8'));
@@ -136,7 +144,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Select compatible Node test command
         run: |
@@ -172,7 +180,7 @@ jobs:
           fi
           policy="$RUNNER_TEMP/lockfile-trust.mjs"
           if git show "$trusted_base:.github/scripts/lockfile-trust.mjs" > "$policy" 2>/dev/null; then
-            BASE_SHA="$trusted_base" node "$policy" pr
+            BASE_SHA="$trusted_base" bun "$policy" pr
             # Fail closed if the policy did not run.
             if ! grep -q '^writer=' "$GITHUB_OUTPUT"; then
               echo "::error title=Lockfile policy::lockfile-trust.mjs did not report a lockfile writer."
@@ -186,8 +194,8 @@ jobs:
             exit 0
           fi
           changed="$(git diff --name-only "$trusted_base...$HEAD_SHA")"
-          if printf '%s\n' "$changed" | grep -qx 'pnpm-lock.yaml'; then
-            echo "Do not commit pnpm-lock.yaml in pull requests. CI owns lockfile updates."
+          if printf '%s\n' "$changed" | grep -qx 'bun.lock'; then
+            echo "Do not commit bun.lock in pull requests. CI owns lockfile updates."
             exit 1
           fi
 
@@ -197,59 +205,66 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
           run_install: false
 
       - name: Validate migration ordering against target branch
         run: >-
-          node .github/scripts/check-pr-migration-order.mjs
+          bun .github/scripts/check-pr-migration-order.mjs
           "${{ github.event.pull_request.base.sha }}"
           "${{ github.event.pull_request.head.sha }}"
 
       - name: Validate Dockerfile deps stage
         run: |
           node ./scripts/check-docker-deps-stage.mjs
-          node "$CI_NODE_TEST" ./scripts/docker-deps-postinstall.test.mjs
+          bun "$CI_NODE_TEST" ./scripts/docker-deps-postinstall.test.mjs
 
-      - name: Validate Node version policy
-        run: pnpm check:node-version
+      - name: Validate Bun runtime and scoped Node.js version policy
+        run: bun run check:node-version
+
+      - name: Test Bun runtime version policy check
+        # A rerun can use this trusted workflow with a pre-feature checkout.
+        run: |
+          if [[ -f ./scripts/check-node-version-policy.test.mjs ]]; then
+            bun "$CI_NODE_TEST" ./scripts/check-node-version-policy.test.mjs
+          fi
 
       - name: Reject git push in adapter/runtime code
         run: node ./scripts/check-no-git-push.mjs
 
       - name: Test no-git-push check
-        run: node "$CI_NODE_TEST" ./scripts/check-no-git-push.test.mjs
+        run: bun "$CI_NODE_TEST" ./scripts/check-no-git-push.test.mjs
 
       - name: Validate feature module boundaries
-        run: pnpm check:module-boundaries
+        run: bun run check:module-boundaries
 
       - name: Test feature module boundary check
-        run: node "$CI_NODE_TEST" ./scripts/check-module-boundaries.test.mjs
+        run: bun "$CI_NODE_TEST" ./scripts/check-module-boundaries.test.mjs
 
       - name: Reject raw query-error rendering
-        run: node scripts/check-query-error-rendering.mjs --enforce --summary
+        run: bun scripts/check-query-error-rendering.mjs --enforce --summary
 
       - name: Test query-error rendering check
-        run: node --test ./scripts/check-query-error-rendering.test.mjs
+        run: bun test ./scripts/check-query-error-rendering.test.mjs
 
       - name: Test PR quality-gate scripts
-        run: node "$CI_NODE_TEST" '.github/scripts/tests/*.test.mjs'
+        run: bun "$CI_NODE_TEST" '.github/scripts/tests/*.test.mjs'
 
       - name: Test general-server shard partition
-        run: node "$CI_NODE_TEST" ./scripts/__tests__/run-vitest-stable-shard.test.mjs
+        run: bun "$CI_NODE_TEST" ./scripts/__tests__/run-vitest-stable-shard.test.mjs
 
       - name: Test e2e shard partition
-        run: node "$CI_NODE_TEST" ./scripts/__tests__/e2e-shard.test.mjs
+        run: bun "$CI_NODE_TEST" ./scripts/__tests__/e2e-shard.test.mjs
 
       - name: Test release verify workflow wiring
-        run: node "$CI_NODE_TEST" ./scripts/__tests__/release-verify-workflow.test.mjs ./scripts/__tests__/eval-schedule-monitor.test.mjs ./scripts/__tests__/prepare-runner-release-image.test.mjs ./scripts/cloud-source-verification.test.mjs ./scripts/cloud-readiness-runner-loss.test.mjs ./scripts/standard-image-contract.test.mjs ./scripts/reuse-canary-image.test.mjs
+        run: bun "$CI_NODE_TEST" ./scripts/__tests__/release-verify-workflow.test.mjs ./scripts/__tests__/eval-schedule-monitor.test.mjs ./scripts/__tests__/prepare-runner-release-image.test.mjs ./scripts/cloud-source-verification.test.mjs ./scripts/cloud-readiness-runner-loss.test.mjs ./scripts/standard-image-contract.test.mjs ./scripts/reuse-canary-image.test.mjs
 
       - name: Test merge-queue workflow wiring
         # This workflow loads from master and tests the caller's checkout. A
@@ -259,10 +274,10 @@ jobs:
           for test in ./scripts/merge-group-image.test.mjs ./scripts/__tests__/merge-queue-checks-workflow.test.mjs; do
             if [[ -f "$test" ]]; then tests+=("$test"); fi
           done
-          if (( ${#tests[@]} > 0 )); then node "$CI_NODE_TEST" "${tests[@]}"; fi
+          if (( ${#tests[@]} > 0 )); then bun "$CI_NODE_TEST" "${tests[@]}"; fi
 
       - name: Test standalone package build concurrency
-        run: node "$CI_NODE_TEST" ./scripts/__tests__/build-standalone-concurrency.test.mjs
+        run: bun "$CI_NODE_TEST" ./scripts/__tests__/build-standalone-concurrency.test.mjs
 
       - name: Validate release package manifest
         run: node ./scripts/release-package-map.mjs check
@@ -276,7 +291,7 @@ jobs:
       # Each lane resolves a stale lockfile inline; this early check still
       # fails fast when the merge tree cannot resolve at all.
       - name: Validate dependency resolution
-        run: pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
+        run: bun install --no-save
 
       - name: Upload CI profile timings
         continue-on-error: true
@@ -309,7 +324,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -317,14 +332,14 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Share the checked-in lockfile key with master. PR merge refs must not
       # save full copies of the store or evict the post-merge build caches.
@@ -344,21 +359,21 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
           restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        # Manifest-changing and stacked PRs can hold a pnpm-lock.yaml that is
+        # Manifest-changing and stacked PRs can hold a bun.lock that is
         # stale for the merge tree. Resolve it inline instead of waiting on a
         # policy-job artifact: that dependency put the policy job's queue and
         # runtime (~60s) on every lane's critical path, and policy still
         # validates resolution as a required check in parallel.
         run: |
-          if ! pnpm install --frozen-lockfile; then
+          if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
-            pnpm install --frozen-lockfile
+            bun install --no-save
+            bun install --frozen-lockfile
           fi
 
       # The typecheck lane builds @paperclipai/server, whose build script
@@ -450,7 +465,7 @@ jobs:
       # and must match the writer's; a guard test holds them together.
       - name: Compute the Runner release crate cache key
         id: runner_release_crate_key
-        run: echo "scope=$(node scripts/runner-release-crate-cache.mjs scope)" >> "$GITHUB_OUTPUT"
+        run: echo "scope=$(bun scripts/runner-release-crate-cache.mjs scope)" >> "$GITHUB_OUTPUT"
 
       - name: Restore the Runner release crate (read only)
         id: runner_release_crate
@@ -470,23 +485,23 @@ jobs:
 
       - name: Mark the restored Runner release crate current
         if: ${{ steps.runner_release_crate.outputs.cache-hit == 'true' }}
-        run: node scripts/runner-release-crate-cache.mjs mark-current
+        run: bun scripts/runner-release-crate-cache.mjs mark-current
 
       - name: Typecheck, CLI guidance safety and release registry tests
         if: ${{ hashFiles('scripts/ci-typecheck-lane.mjs') != '' }}
-        run: node scripts/ci-typecheck-lane.mjs
+        run: bun scripts/ci-typecheck-lane.mjs
 
       - name: Typecheck a checkout that predates the typecheck lane script
         if: ${{ hashFiles('scripts/ci-typecheck-lane.mjs') == '' }}
         env:
           PAPERCLIP_TYPECHECK_LOW_MEMORY: "1"
         run: |
-          pnpm run typecheck:build-gaps
-          node scripts/typecheck-test-programs.mjs --low-memory
-          pnpm --filter @paperclipai/server typecheck
-          node scripts/typecheck-test-projects.mjs --low-memory --reuse-declarations
-          pnpm exec vitest run --project @paperclipai/server server/src/__tests__/cli-invocation-safety.test.ts
-          pnpm run test:release-registry
+          bun run typecheck:build-gaps
+          bun scripts/typecheck-test-programs.mjs --low-memory
+          bun run --filter @paperclipai/server typecheck
+          bun scripts/typecheck-test-projects.mjs --low-memory --reuse-declarations
+          bun x vitest run --project @paperclipai/server server/src/__tests__/cli-invocation-safety.test.ts
+          bun run test:release-registry
 
       - name: Upload CI profile timings
         continue-on-error: true
@@ -535,7 +550,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -543,14 +558,14 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Share the checked-in lockfile key with master. PR merge refs must not
       # save full copies of the store or evict the post-merge build caches.
@@ -570,21 +585,21 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
           restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        # Manifest-changing and stacked PRs can hold a pnpm-lock.yaml that is
+        # Manifest-changing and stacked PRs can hold a bun.lock that is
         # stale for the merge tree. Resolve it inline instead of waiting on a
         # policy-job artifact: that dependency put the policy job's queue and
         # runtime (~60s) on every lane's critical path, and policy still
         # validates resolution as a required check in parallel.
         run: |
-          if ! pnpm install --frozen-lockfile; then
+          if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
-            pnpm install --frozen-lockfile
+            bun install --no-save
+            bun install --frozen-lockfile
           fi
 
       - name: Run grouped general test suites through Turbo
@@ -600,10 +615,10 @@ jobs:
         if: hashFiles('turbo.json') == ''
         run: |
           if [ -n "${{ matrix.shard_count }}" ]; then
-            pnpm test:run:general -- --group '${{ matrix.group }}' \
+            bun run test:run:general -- --group '${{ matrix.group }}' \
               --shard-index ${{ matrix.shard_index }} --shard-count ${{ matrix.shard_count }}
           else
-            pnpm test:run:general -- --group '${{ matrix.group }}'
+            bun run test:run:general -- --group '${{ matrix.group }}'
           fi
 
       - name: Upload CI profile timings
@@ -645,7 +660,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
@@ -656,7 +671,7 @@ jobs:
           version: v5.5.1
 
       - name: Verify Compose signing secret forwarding
-        run: node --test scripts/docker-compose-secrets.test.mjs
+        run: bun test scripts/docker-compose-secrets.test.mjs
 
       # Same .dockerignore semantics as the real image builds: a
       # context-slimming change that strips a committed build input must
@@ -705,7 +720,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -713,14 +728,14 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Share the checked-in lockfile key with master. PR merge refs must not
       # save full copies of the store or evict the post-merge build caches.
@@ -735,7 +750,7 @@ jobs:
       - name: Run sandbox provider tests
         run: |
           ulimit -c 0
-          node scripts/test-sandbox-providers.mjs
+          bun scripts/test-sandbox-providers.mjs
 
       - name: Upload CI profile timings
         continue-on-error: true
@@ -772,7 +787,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -780,14 +795,14 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Share the checked-in lockfile key with master. PR merge refs must not
       # save full copies of the store or evict the post-merge build caches.
@@ -796,7 +811,7 @@ jobs:
 
       # Builds the plugin SDK first, then runs Vitest and the node:test files.
       - name: Run the Runner support suite
-        run: pnpm test:e2e:runner:unit
+        run: bun run test:e2e:runner:unit
 
       - name: Upload CI profile timings
         continue-on-error: true
@@ -822,7 +837,7 @@ jobs:
           CI_PLAN: ${{ needs.test_selection.outputs.plan || needs.gate.outputs.plan }}
           CI_RESULTS: ${{ toJSON(needs) }}
         run: |
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
           const results = JSON.parse(process.env.CI_RESULTS);
           assert.equal(results.gate.result, 'success', 'CI routing must succeed');
@@ -862,7 +877,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -870,14 +885,14 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Share the checked-in lockfile key with master. PR merge refs must not
       # save full copies of the store or evict the post-merge build caches.
@@ -897,21 +912,21 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
           restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        # Manifest-changing and stacked PRs can hold a pnpm-lock.yaml that is
+        # Manifest-changing and stacked PRs can hold a bun.lock that is
         # stale for the merge tree. Resolve it inline instead of waiting on a
         # policy-job artifact: that dependency put the policy job's queue and
         # runtime (~60s) on every lane's critical path, and policy still
         # validates resolution as a required check in parallel.
         run: |
-          if ! pnpm install --frozen-lockfile; then
+          if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
-            pnpm install --frozen-lockfile
+            bun install --no-save
+            bun install --frozen-lockfile
           fi
 
       # Same restore-only contract as the pnpm store above, for the Rust
@@ -1012,7 +1027,7 @@ jobs:
       - name: Compute the Runner release crate cache key
         id: runner_release_crate_key
         if: ${{ matrix.release_crate == true }}
-        run: echo "scope=$(node scripts/runner-release-crate-cache.mjs scope)" >> "$GITHUB_OUTPUT"
+        run: echo "scope=$(bun scripts/runner-release-crate-cache.mjs scope)" >> "$GITHUB_OUTPUT"
 
       - name: Restore the Runner release crate (read only)
         id: runner_release_crate
@@ -1033,12 +1048,12 @@ jobs:
 
       - name: Mark the restored Runner release crate current
         if: ${{ steps.runner_release_crate.outputs.cache-hit == 'true' }}
-        run: node scripts/runner-release-crate-cache.mjs mark-current
+        run: bun scripts/runner-release-crate-cache.mjs mark-current
 
       - name: Compute the Runner debug crate cache key
         id: runner_debug_crate_key
         if: hashFiles('scripts/runner-debug-crate-cache.mjs') != ''
-        run: node scripts/runner-debug-crate-cache.mjs plan
+        run: bun scripts/runner-debug-crate-cache.mjs plan
 
       - name: Restore the Runner debug crate (read only)
         id: runner_debug_crate
@@ -1050,7 +1065,7 @@ jobs:
 
       - name: Mark the restored Runner debug crate current
         if: ${{ steps.runner_debug_crate.outputs.cache-hit == 'true' }}
-        run: node scripts/runner-debug-crate-cache.mjs mark-current
+        run: bun scripts/runner-debug-crate-cache.mjs mark-current
 
       - name: Verify Runner Rust through Turbo
         if: matrix.command == 'check:runner' && hashFiles('turbo.json') != ''
@@ -1067,7 +1082,7 @@ jobs:
         # so the vitest lanes' --shard lands on `vitest run`. Do not add a
         # `--` separator: pnpm forwards it literally and vitest would then
         # read the shard flag as a test filter.
-        run: pnpm --filter @paperclipai/paperclip-runner ${{ matrix.command }}
+        run: bun run --filter @paperclipai/paperclip-runner ${{ matrix.command }}
 
       - name: Upload CI profile timings
         continue-on-error: true
@@ -1100,7 +1115,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -1108,14 +1123,14 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Share the checked-in lockfile key with master. PR merge refs must not
       # save full copies of the store or evict the post-merge build caches.
@@ -1135,21 +1150,21 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
           restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        # Manifest-changing and stacked PRs can hold a pnpm-lock.yaml that is
+        # Manifest-changing and stacked PRs can hold a bun.lock that is
         # stale for the merge tree. Resolve it inline instead of waiting on a
         # policy-job artifact: that dependency put the policy job's queue and
         # runtime (~60s) on every lane's critical path, and policy still
         # validates resolution as a required check in parallel.
         run: |
-          if ! pnpm install --frozen-lockfile; then
+          if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
-            pnpm install --frozen-lockfile
+            bun install --no-save
+            bun install --frozen-lockfile
           fi
 
       # The public-install verifier at the end of this lane downloads the whole
@@ -1157,7 +1172,7 @@ jobs:
       # took 119-129s of the 226-241s step, more than half of this ~415-446s
       # lane, in runs 38426120144, 38432086560 and 38423713537 (2026-10-13).
       # That graph is fixed by source manifests, so this fetches it in the
-      # background while the Rust restore, Evalbook and `pnpm build` run, about
+      # background while the Rust restore, Evalbook and `bun run build` run, about
       # 150s before the verifier installs anything. Only the cache is handed
       # over, and the verify step waits for this first. A failed or partial
       # warm-up leaves the verifier to fetch what is missing as before.
@@ -1167,11 +1182,11 @@ jobs:
           (
             # The default `bash -e` would skip the status line on a failure.
             set +e
-            PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache" node scripts/warm-public-install-npm-cache.mjs
+            PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache" bun scripts/warm-public-install-npm-cache.mjs
             echo $? > "$RUNNER_TEMP/public-install-npm-cache.status"
           ) > "$RUNNER_TEMP/public-install-npm-cache.log" 2>&1 &
 
-      # pnpm build reaches the Runner package's build:binary step; without the
+      # bun run build reaches the Runner package's build:binary step; without the
       # shared Rust cache that is a ~3m40s cold compile of all third-party
       # crates (run 35036001734, 2026-09-15). Same restore-only contract as
       # Verify Paperclip Runner.
@@ -1260,7 +1275,7 @@ jobs:
       # and must match the writer's; a guard test holds them together.
       - name: Compute the Runner release crate cache key
         id: runner_release_crate_key
-        run: echo "scope=$(node scripts/runner-release-crate-cache.mjs scope)" >> "$GITHUB_OUTPUT"
+        run: echo "scope=$(bun scripts/runner-release-crate-cache.mjs scope)" >> "$GITHUB_OUTPUT"
 
       - name: Restore the Runner release crate (read only)
         id: runner_release_crate
@@ -1280,33 +1295,33 @@ jobs:
 
       - name: Mark the restored Runner release crate current
         if: ${{ steps.runner_release_crate.outputs.cache-hit == 'true' }}
-        run: node scripts/runner-release-crate-cache.mjs mark-current
+        run: bun scripts/runner-release-crate-cache.mjs mark-current
 
       - name: Build Runner Evalbook viewer
-        run: pnpm --filter @paperclipai/paperclip-runner build:issue-thread
+        run: bun run --filter @paperclipai/paperclip-runner build:issue-thread
 
       - name: Build
-        run: pnpm build
+        run: bun run build
 
       # The production image starts the server from this bundle with plain
       # node (Dockerfile CMD), so prove it boots before the image is built:
-      # bundle the `pnpm build` output, start it against a throwaway embedded
+      # bundle the `bun run build` output, start it against a throwaway embedded
       # instance, and wait for /api/health to report ok.
       - name: Boot the production runtime bundle
         run: |
-          pnpm --filter @paperclipai/server build:runtime
+          bun run --filter @paperclipai/server build:runtime
           scripts/server-boot-smoke.sh node server/dist-runtime/index.mjs
 
-      # This verification only needs `pnpm build` output (the verifier stages
+      # This verification only needs `bun run build` output (the verifier stages
       # the public packages' dist and reuses ui/dist itself), yet it ran at the
       # end of Canary Dry Run, serially after the ~210-295s release.sh dry run.
       # That made Canary Dry Run the slowest check in every green PR run:
       # 484s, 572s and 483s in runs 37310951026, 37309272947 and 37308895471
       # (2026-10-05), with this step alone at 210-223s of each. The Build lane
-      # finished its `pnpm build` in ~206s total in those same runs, so it
+      # finished its `bun run build` in ~206s total in those same runs, so it
       # absorbs the step at ~416s while Canary Dry Run drops to ~275-350s and
       # neither remains the critical path (server 2/12 at ~437-467s is).
-      # docker-runner-check.yml runs the same verifier after `pnpm build`.
+      # docker-runner-check.yml runs the same verifier after `bun run build`.
       - name: Verify built-in Grok from a clean public npm install
         if: ${{ hashFiles('scripts/verify-grok-npm-install.mjs') != '' }}
         run: |
@@ -1322,7 +1337,7 @@ jobs:
             fi
             export PAPERCLIP_PUBLIC_INSTALL_NPM_CACHE="$RUNNER_TEMP/public-install-npm-cache"
           fi
-          node scripts/verify-grok-npm-install.mjs
+          bun scripts/verify-grok-npm-install.mjs
 
       - name: Upload CI profile timings
         continue-on-error: true
@@ -1368,7 +1383,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -1376,14 +1391,14 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Share the checked-in lockfile key with master. PR merge refs must not
       # save full copies of the store or evict the post-merge build caches.
@@ -1403,21 +1418,21 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
           restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        # Manifest-changing and stacked PRs can hold a pnpm-lock.yaml that is
+        # Manifest-changing and stacked PRs can hold a bun.lock that is
         # stale for the merge tree. Resolve it inline instead of waiting on a
         # policy-job artifact: that dependency put the policy job's queue and
         # runtime (~60s) on every lane's critical path, and policy still
         # validates resolution as a required check in parallel.
         run: |
-          if ! pnpm install --frozen-lockfile; then
+          if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
-            pnpm install --frozen-lockfile
+            bun install --no-save
+            bun install --frozen-lockfile
           fi
 
       - name: Run serialized server test shard through Turbo
@@ -1431,7 +1446,7 @@ jobs:
 
       - name: Run serialized server test shard
         if: hashFiles('turbo.json') == ''
-        run: pnpm test:run:serialized -- --shard-index ${{ matrix.shard_index }} --shard-count ${{ matrix.shard_count }}
+        run: bun run test:run:serialized -- --shard-index ${{ matrix.shard_index }} --shard-count ${{ matrix.shard_count }}
 
       - name: Upload CI profile timings
         continue-on-error: true
@@ -1464,7 +1479,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -1472,14 +1487,14 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Share the checked-in lockfile key with master. PR merge refs must not
       # save full copies of the store or evict the post-merge build caches.
@@ -1499,21 +1514,21 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
           restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        # Manifest-changing and stacked PRs can hold a pnpm-lock.yaml that is
+        # Manifest-changing and stacked PRs can hold a bun.lock that is
         # stale for the merge tree. Resolve it inline instead of waiting on a
         # policy-job artifact: that dependency put the policy job's queue and
         # runtime (~60s) on every lane's critical path, and policy still
         # validates resolution as a required check in parallel.
         run: |
-          if ! pnpm install --frozen-lockfile; then
+          if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
-            pnpm install --frozen-lockfile
+            bun install --no-save
+            bun install --frozen-lockfile
           fi
 
       # release.sh's Step 2/7 workspace build reaches the Runner package's
@@ -1605,7 +1620,7 @@ jobs:
       # and must match the writer's; a guard test holds them together.
       - name: Compute the Runner release crate cache key
         id: runner_release_crate_key
-        run: echo "scope=$(node scripts/runner-release-crate-cache.mjs scope)" >> "$GITHUB_OUTPUT"
+        run: echo "scope=$(bun scripts/runner-release-crate-cache.mjs scope)" >> "$GITHUB_OUTPUT"
 
       - name: Restore the Runner release crate (read only)
         id: runner_release_crate
@@ -1625,7 +1640,7 @@ jobs:
 
       - name: Mark the restored Runner release crate current
         if: ${{ steps.runner_release_crate.outputs.cache-hit == 'true' }}
-        run: node scripts/runner-release-crate-cache.mjs mark-current
+        run: bun scripts/runner-release-crate-cache.mjs mark-current
 
       # `release.sh` always executes its Step 2/7 workspace build, even when
       # `--skip-verify` bypasses the initial verification gate. release.sh
@@ -1637,10 +1652,10 @@ jobs:
       - name: Release canary dry run via release.sh internal build
         run: |
           git checkout -B master HEAD
-          if git diff --quiet pnpm-lock.yaml; then
-            git checkout -- pnpm-lock.yaml
+          if git diff --quiet bun.lock; then
+            git checkout -- bun.lock
           else
-            git add pnpm-lock.yaml
+            git add bun.lock
             git -c user.email=ci@paperclip.local -c user.name=CI \
               commit --no-verify -m "ci(canary): stage regenerated lockfile"
           fi
@@ -1686,7 +1701,7 @@ jobs:
       - name: Initialize CI profile
         continue-on-error: true
         if: env.PAPERCLIP_CI_PROFILE == 'true'
-        run: node scripts/ci-profile/initialize.mjs
+        run: bun scripts/ci-profile/initialize.mjs
 
       - name: Setup Node.js for pnpm bootstrap
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -1694,14 +1709,14 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         env:
           NPM_CONFIG_AUDIT: "false"
           NPM_CONFIG_FUND: "false"
           NPM_CONFIG_UPDATE_NOTIFIER: "false"
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       # Share the checked-in lockfile key with master. PR merge refs must not
       # save full copies of the store or evict the post-merge build caches.
@@ -1721,21 +1736,21 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm_store.outputs.path }}
-          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          key: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-${{ hashFiles('bun.lock') }}
           restore-keys: node-cache-${{ runner.os }}-${{ steps.pnpm_store.outputs.arch }}-pnpm-
 
       - name: Install dependencies
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') == ''
-        # Manifest-changing and stacked PRs can hold a pnpm-lock.yaml that is
+        # Manifest-changing and stacked PRs can hold a bun.lock that is
         # stale for the merge tree. Resolve it inline instead of waiting on a
         # policy-job artifact: that dependency put the policy job's queue and
         # runtime (~60s) on every lane's critical path, and policy still
         # validates resolution as a required check in parallel.
         run: |
-          if ! pnpm install --frozen-lockfile; then
+          if ! bun install --frozen-lockfile; then
             echo '::notice title=Lockfile::checked-in lockfile is stale for this merge tree; resolving it inline'
-            pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
-            pnpm install --frozen-lockfile
+            bun install --no-save
+            bun install --frozen-lockfile
           fi
 
       - name: Verify runner Chrome
@@ -1772,7 +1787,7 @@ jobs:
           echo "shard ${{ matrix.shard_label }} specs: $specs"
           # specs is an intentional argument list.
           # shellcheck disable=SC2086
-          pnpm run test:e2e $specs
+          bun run test:e2e $specs
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -1808,7 +1823,7 @@ jobs:
           CI_PLAN: ${{ needs.gate.outputs.plan }}
           CI_RESULTS: ${{ toJSON(needs) }}
         run: |
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
           const results = JSON.parse(process.env.CI_RESULTS);
           assert.equal(results.gate.result, 'success', 'CI routing must succeed');

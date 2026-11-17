@@ -178,7 +178,7 @@ export default {
 JS
 
 docker run --rm -v "$PWD/docker/kubernetes-local/package:/plugin" \
-  --entrypoint node "$PAPERCLIP_IMAGE" -e '
+  --entrypoint bun "$PAPERCLIP_IMAGE" -e '
     const fs = require("fs");
     const j = JSON.parse(fs.readFileSync("/plugin/package.json"));
     j.paperclipPlugin = {

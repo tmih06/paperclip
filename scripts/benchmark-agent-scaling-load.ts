@@ -36,7 +36,7 @@
  * recovery sweeps, and network round-trip time to a hosted database. So the
  * figures are a floor for the modelled sources, not a whole-server prediction.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-agent-scaling-load.ts
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-agent-scaling-load.ts
  *
  * PROFILE sets the per-agent rates: `recorded` (default) is the median of
  * recorded hosted native runs, 0.2 deltas/s and 0.5 other events/s; `burst`

@@ -49,13 +49,21 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
+      - &bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
+        env:
+          NPM_CONFIG_AUDIT: 'false'
+          NPM_CONFIG_FUND: 'false'
+          NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+        with:
+          bun-version: 1.4.4
       - &guard
         name: Verify actual main-only dispatch and both actors
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
           TESTOPS_ALLOWED_ACTOR_IDS: ${{ vars.RUNNER_E2E_ALLOWED_ACTOR_IDS }}
-        run: node tests/runner-e2e/chat-completion-testops-cli.mjs guard
+        run: bun tests/runner-e2e/chat-completion-testops-cli.mjs guard
 
   select:
     name: Register the dedicated plan or validate its real TestOps selection
@@ -77,6 +85,7 @@ jobs:
     steps:
       - *checkout
       - *node
+      - *bun
       - *guard
       - if: needs.authorize.outputs.operation != 'launch-plan'
         uses: allure-framework/setup-allurectl@2d89ee0b7ba2f59dbe9849b6df5763cab78e14db # v1
@@ -97,8 +106,8 @@ jobs:
           CHAT_TESTOPS_INTEGRATION_ID: ${{ vars.CHAT_TESTOPS_INTEGRATION_ID }}
         run: |
           mkdir -m 700 "$ALLURE_RESULTS"
-          allurectl watch -- node tests/runner-e2e/chat-completion-testops-cli.mjs bootstrap
-          node tests/runner-e2e/chat-completion-testops-cli.mjs bootstrap-context
+          allurectl watch -- bun tests/runner-e2e/chat-completion-testops-cli.mjs bootstrap
+          bun tests/runner-e2e/chat-completion-testops-cli.mjs bootstrap-context
       - name: Validate case, plan, job, launch and same-run source before provider access
         id: selection
         if: needs.authorize.outputs.operation == 'evaluate'
@@ -113,7 +122,7 @@ jobs:
           CHAT_FULL_CATALOG_TESTOPS_BINDING: ${{ vars.CHAT_FULL_CATALOG_TESTOPS_BINDING }}
         run: |
           mkdir -m 700 "$ALLURE_RESULTS"
-          allurectl watch -- node tests/runner-e2e/chat-completion-testops-cli.mjs selection
+          allurectl watch -- bun tests/runner-e2e/chat-completion-testops-cli.mjs selection
       - name: Retain token-free registration receipts
         if: always() && needs.authorize.outputs.operation != 'evaluate'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -144,15 +153,8 @@ jobs:
     steps:
       - *checkout
       - *node
+      - *bun
       - *guard
-      - &pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        env:
-          NPM_CONFIG_AUDIT: 'false'
-          NPM_CONFIG_FUND: 'false'
-          NPM_CONFIG_UPDATE_NOTIFIER: 'false'
-        with:
-          version: 9.15.4
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.authorize.outputs.target_sha }}
@@ -167,22 +169,22 @@ jobs:
           persist-credentials: false
       - name: Resolve the fixed candidate graph with lifecycle scripts disabled
         run: |
-          pnpm install --lockfile-only --ignore-scripts
-          pnpm install --frozen-lockfile --ignore-scripts
+          bun install --lockfile-only --ignore-scripts
+          bun install --frozen-lockfile --ignore-scripts
       - name: Build existing TypeScript and native Runner outputs
         run: |
-          pnpm --filter @paperclipai/paperclip-runner build:typescript
+          bun run --filter @paperclipai/paperclip-runner build:typescript
       - name: Exercise the real workflow and pinned source host contract before model access
-        run: node --import ./cli/node_modules/tsx/dist/loader.mjs .testops-trusted/tests/runner-e2e/chat-completion-testops-host-control.mjs
+        run: bun .testops-trusted/tests/runner-e2e/chat-completion-testops-host-control.mjs
       - name: Build native Runner outputs
-        run: pnpm --filter @paperclipai/paperclip-runner build:runner-binaries
+        run: bun run --filter @paperclipai/paperclip-runner build:runner-binaries
       - name: Package the resolved lock and exact source outputs
         env:
           TARGET_SHA: ${{ needs.authorize.outputs.target_sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
-          tar -czf chat-completion-build.tar.gz pnpm-lock.yaml packages/paperclip-eval-kernel/dist packages/paperclip-runner/dist packages/paperclip-runner/runner/target/debug/paperclip-runnerd packages/paperclip-runner/runner/target/debug/conformance-tracer packages/paperclip-runner/runner/target/debug/fake-harness packages/paperclip-runner/runner/target/debug/fake-codex-app-server packages/paperclip-runner/runner/target/debug/fake-acpx-sidecar
+          tar -czf chat-completion-build.tar.gz bun.lock packages/paperclip-eval-kernel/dist packages/paperclip-runner/dist packages/paperclip-runner/runner/target/debug/paperclip-runnerd packages/paperclip-runner/runner/target/debug/conformance-tracer packages/paperclip-runner/runner/target/debug/fake-harness packages/paperclip-runner/runner/target/debug/fake-codex-app-server packages/paperclip-runner/runner/target/debug/fake-acpx-sidecar
           sha256sum chat-completion-build.tar.gz > chat-completion-build.tar.gz.sha256
       - name: Retain credential-free immutable outputs
         id: bundle
@@ -260,12 +262,12 @@ jobs:
     steps:
       - *checkout
       - *node
+      - *bun
       - *guard
-      - *pnpm
       - name: Install trusted reporting dependencies without lifecycle scripts
         run: |
-          node tests/runner-e2e/prepare-report-lock.mjs
-          pnpm install --frozen-lockfile --ignore-scripts
+          bun tests/runner-e2e/prepare-report-lock.mjs
+          bun install --frozen-lockfile --ignore-scripts
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           artifact-ids: ${{ needs.select.outputs.artifact_id }}
@@ -290,7 +292,7 @@ jobs:
           ALLURE_JOB_RUN_ID: ${{ inputs.ALLURE_JOB_RUN_ID }}
           EXPECTED_SELECTION_SHA256: ${{ needs.select.outputs.selection_sha256 }}
           CHAT_TESTOPS_BUNDLES: ${{ github.workspace }}/catalog-bundles
-        run: node tests/runner-e2e/chat-completion-testops-cli.mjs gather-case-projections catalog-projections
+        run: bun tests/runner-e2e/chat-completion-testops-cli.mjs gather-case-projections catalog-projections
       - name: Authenticate selection and validate all singleton exports before aggregation
         env:
           GH_TOKEN: ${{ github.token }}
@@ -299,8 +301,8 @@ jobs:
           EXPECTED_SELECTION_SHA256: ${{ needs.select.outputs.selection_sha256 }}
           TESTOPS_CATALOG_SELECTION: chat-completion-testops-selection/testops-pilot-selection.json
         run: |
-          node tests/runner-e2e/chat-completion-testops-cli.mjs verify-selection "$TESTOPS_CATALOG_SELECTION"
-          node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/chat-full-catalog-testops-merge.ts
+          bun tests/runner-e2e/chat-completion-testops-cli.mjs verify-selection "$TESTOPS_CATALOG_SELECTION"
+          bun tests/runner-e2e/chat-full-catalog-testops-merge.ts
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         id: projection
         with:
@@ -319,6 +321,7 @@ jobs:
     steps:
       - *checkout
       - *node
+      - *bun
       - *guard
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -366,7 +369,7 @@ jobs:
           EXPECTED_SELECTION_SHA256: ${{ needs.select.outputs.selection_sha256 }}
           CHAT_TESTOPS_BUNDLES: ${{ github.workspace }}/catalog-bundles
           CHAT_TESTOPS_PUBLICATIONS: ${{ github.workspace }}/catalog-publications
-        run: node tests/runner-e2e/chat-completion-testops-cli.mjs verify-stream runner-e2e-testops
+        run: bun tests/runner-e2e/chat-completion-testops-cli.mjs verify-stream runner-e2e-testops
       - name: Retain closed final coverage verification
         if: always() && !cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

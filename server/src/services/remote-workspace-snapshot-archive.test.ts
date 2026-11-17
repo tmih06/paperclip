@@ -909,7 +909,7 @@ describe("portable remote workspace archives", () => {
     await fs.writeFile(path.join(cwd, "saved.txt"), "review evidence\n");
     await fs.mkdir(path.join(cwd, "node_modules", "tool"), { recursive: true });
     await fs.mkdir(path.join(cwd, "node_modules", ".bin"));
-    await fs.writeFile(path.join(cwd, "node_modules", "tool", "cli.js"), "#!/usr/bin/env node\n", { mode: 0o755 });
+    await fs.writeFile(path.join(cwd, "node_modules", "tool", "cli.js"), "#!/usr/bin/env bun\n", { mode: 0o755 });
     await fs.symlink("../tool/cli.js", path.join(cwd, "node_modules", ".bin", "tool"));
     await fs.mkdir(path.join(cwd, ".review-chrome"));
     await fs.symlink(path.join(outside, "secret.txt"), path.join(cwd, ".review-chrome", "SingletonSocket"));
@@ -932,7 +932,7 @@ describe("portable remote workspace archives", () => {
     const restored = await restore(snapshot);
     expect(await fs.readFile(path.join(restored, "saved.txt"), "utf8")).toBe("review evidence\n");
     expect(await fs.readlink(path.join(restored, "node_modules", ".bin", "tool"))).toBe("../tool/cli.js");
-    expect(await fs.readFile(path.join(restored, "node_modules", ".bin", "tool"), "utf8")).toBe("#!/usr/bin/env node\n");
+    expect(await fs.readFile(path.join(restored, "node_modules", ".bin", "tool"), "utf8")).toBe("#!/usr/bin/env bun\n");
     expect(await fs.readdir(path.join(restored, ".review-chrome"))).toEqual([]);
     await expect(fs.lstat(path.join(restored, "escape"))).rejects.toMatchObject({ code: "ENOENT" });
   });

@@ -12,15 +12,15 @@ Install the workspace dependencies and prepare the same shared build outputs
 used by CI:
 
 ```sh
-pnpm install --frozen-lockfile
-node scripts/ensure-plugin-build-deps.mjs
-node --test scripts/ci/vitest-impact-report.integration.test.mjs
+bun install --frozen-lockfile
+bun scripts/ensure-plugin-build-deps.mjs
+bun test scripts/ci/vitest-impact-report.integration.test.mjs
 ```
 
 Probe a hypothetical change (the file need not actually be modified):
 
 ```sh
-node scripts/ci/vitest-impact-report.mjs \
+bun scripts/ci/vitest-impact-report.mjs \
   --project @paperclipai/ui --file ui/src/pages/Inbox.tsx \
   --output /tmp/inbox-impact.json
 ```
@@ -30,7 +30,7 @@ tracked working tree. For a PR, check out the tested merge commit and supply
 the event's base SHA, as the existing CI planner does:
 
 ```sh
-node scripts/ci/vitest-impact-report.mjs \
+bun scripts/ci/vitest-impact-report.mjs \
   --project @paperclipai/ui --project @paperclipai/server \
   --base BASE_SHA --output /tmp/pr-impact.json
 ```

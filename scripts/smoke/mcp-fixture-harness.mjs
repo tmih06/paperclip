@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
@@ -29,7 +29,7 @@ function parseArgs(argv) {
     else if (arg === "--require-paperclip") args.requirePaperclip = true;
     else if (arg === "--json") args.json = true;
     else if (arg === "--help") {
-      console.log(`Usage: node scripts/smoke/mcp-fixture-harness.mjs [--paperclip-url URL] [--require-paperclip] [--json]`);
+      console.log(`Usage: bun scripts/smoke/mcp-fixture-harness.mjs [--paperclip-url URL] [--require-paperclip] [--json]`);
       process.exit(0);
     } else {
       throw new Error(`Unknown argument: ${arg}`);

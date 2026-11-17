@@ -27,7 +27,7 @@ export async function installCopilotAssets() {
     // Published packages exclude src, so a malformed npm artifact cannot use
     // this path. build:typescript performs installation after compilation.
     await access(join(packageRoot, vendored ? "src/services/copilot-connection-probe.ts" : "src/drivers/acpx/copilot-installation.ts"));
-    await access(resolve(packageRoot, vendored ? "../pnpm-workspace.yaml" : "../../pnpm-workspace.yaml"));
+    await access(resolve(packageRoot, vendored ? "../bunfig.toml" : "../../bunfig.toml"));
     return { status: "source-workspace-pending-build", target };
   }
   const assets = join(packageRoot, "provider-assets", "copilot");

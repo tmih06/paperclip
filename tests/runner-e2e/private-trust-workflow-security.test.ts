@@ -45,7 +45,7 @@ describe("private archive and TestOps workflow trust", () => {
     // before any key; the pinned candidate never sees the TestOps token.
     expect(other).toContain("  workflow_call:");
     expect(other).not.toMatch(/^\s+(?:workflow_dispatch|push|pull_request(?:_target)?|schedule):/mu);
-    expect(other).toContain("\n          node tests/runner-e2e/chat-completion-testops-cli.mjs guard\n");
+    expect(other).toContain("\n          bun tests/runner-e2e/chat-completion-testops-cli.mjs guard\n");
     expect(other).toContain("ref: ${{ github.sha }}");
     expect(other).toContain("TESTOPS_ALLOWED_ACTOR_IDS: ${{ vars.RUNNER_E2E_ALLOWED_ACTOR_IDS }}");
     const chat = other.split("\n  chat:")[1]!.split("\n  report:")[0]!;
@@ -73,7 +73,7 @@ describe("private archive and TestOps workflow trust", () => {
     const dispatcher = callers[0]![1];
     expect(dispatcher).toMatch(/^on:\n {2}workflow_dispatch:/mu);
     expect(dispatcher).toContain("github.workflow_ref == 'paperclipai/paperclip/.github/workflows/chat-catalog-testops.yml@refs/heads/master'");
-    expect(dispatcher.split("\n  authorize:")[1]!.split("\n  select:")[0]).toContain("run: node tests/runner-e2e/chat-completion-testops-cli.mjs guard");
+    expect(dispatcher.split("\n  authorize:")[1]!.split("\n  select:")[0]).toContain("run: bun tests/runner-e2e/chat-completion-testops-cli.mjs guard");
     const cellJobs = dispatcher.split(/\n(?= {2}[a-z_]+:\n)/u).filter(job => job.includes("uses: ./.github/workflows/chat-catalog-testops-case.yml"));
     expect(cellJobs).toHaveLength(2);
     for (const job of cellJobs) {
@@ -91,7 +91,7 @@ describe("private archive and TestOps workflow trust", () => {
       expect(trusted, job).toContain("ref: ${{ github.sha }}");
       expect(trusted, job).not.toContain("ref: ${{ needs.authorize.outputs.target_sha }}");
       expect(trusted, job).not.toContain("Download resolved target lockfile");
-      expect(trusted, job).not.toMatch(/pnpm install|secrets\.(?!ALLURE_TOKEN\b)/u);
+      expect(trusted, job).not.toMatch(/bun install|secrets\.(?!ALLURE_TOKEN\b)/u);
     }
   });
 });

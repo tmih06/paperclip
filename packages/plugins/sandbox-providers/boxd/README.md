@@ -35,17 +35,17 @@ Requires Node 24.11+, pnpm, and an installed Paperclip checkout.
 
 ```sh
 cd packages/plugins/sandbox-providers/boxd
-pnpm install --ignore-workspace --no-lockfile
-pnpm typecheck
-pnpm test
-pnpm build
+bun install --no-save
+bun run typecheck
+bun run test
+bun run build
 ```
 
 From the Paperclip checkout, with your instance running:
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts plugin install /absolute/path/to/paperclip/packages/plugins/sandbox-providers/boxd
-node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts plugin inspect paperclip.boxd-sandbox-provider
+bun cli/src/index.ts plugin install /absolute/path/to/paperclip/packages/plugins/sandbox-providers/boxd
+bun cli/src/index.ts plugin inspect paperclip.boxd-sandbox-provider
 ```
 
 ## Configure an environment
@@ -127,7 +127,7 @@ Default tests use a mocked SDK and do not contact boxd. To run against boxd,
 export `BOXD_API_KEY` (and optionally `BOXD_ORG`), then run:
 
 ```sh
-BOXD_LIVE_TEST=1 pnpm test
+BOXD_LIVE_TEST=1 bun run test
 ```
 
 The live tests run every hook against boxd. They check:

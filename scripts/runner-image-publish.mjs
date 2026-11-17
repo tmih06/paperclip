@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Publication checks for the Runner image (.github/workflows/runner-image.yml).
 //
 // The build legs run without write access to the registry. Each one records
@@ -6,12 +6,13 @@
 // pushes exactly those bytes, names each variant under one multi-platform
 // tag and attests both.
 //
-//   lock-state    whether pnpm-lock.yaml matches the manifests in an exported
+//   lock-state    whether bun.lock matches the manifests in an exported
 //                 `runner-artifacts-context` tree: `current` or `behind`. It
-//                 runs the image build's own frozen install as a lockfile-only,
-//                 offline check. Any other failure is an error. pnpm can
-//                 rewrite the lockfile of the tree it checks, so the command
-//                 refuses a checkout
+//                 asks Bun the image build's own question: a frozen,
+//                 lockfile-only, scripts-disabled check that writes nothing.
+//                 Any other failure is an error. A checkout is refused
+//                 because the check runs against a tree no build should
+//                 rewrite
 //   record        a build leg, after its checks passed: joins the OCI archives
 //                 of the two variants into one OCI layout, in which their
 //                 shared layers are stored once, and binds it to the image
@@ -330,35 +331,59 @@ export async function runnerPublicationState(inputsDigest, read) {
   };
 }
 
-/** pnpm reports a lockfile that the manifests have moved past with one of these codes. */
-const LOCK_BEHIND_CODES = ["ERR_PNPM_OUTDATED_LOCKFILE", "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH"];
+/**
+ * Bun reports a lockfile the manifests have moved past with these lines. The
+ * first is the frozen-install refusal itself; the second names the dependency
+ * or workspace that drifted, and Bun omits it when it cannot attribute the
+ * change (for example, a newly added workspace package).
+ */
+const LOCK_BEHIND_MARKERS = [
+  "lockfile had changes, but lockfile is frozen",
+  "dependencies in package.json changed since bun.lock was saved",
+];
 
 /**
- * Whether pnpm-lock.yaml in an exported `runner-artifacts-context` tree
- * matches the manifests in that tree. This is the image build's frozen,
- * filtered install with --lockfile-only and --offline: it downloads nothing
- * and installs nothing. pnpm can still write `pnpm-lock.yaml` in that tree
- * again, so `context` must be a copy no build reads: the workflow gives it an
- * export of the build context, and a checkout is refused. `behind` means the
- * manifests the Runner build reads were changed after the lockfile was. Every
- * other failure throws.
+ * Whether bun.lock in an exported `runner-artifacts-context` tree
+ * matches the manifests in that tree. This is the question the Dockerfile's
+ * `runner-lockfile` stage asks: `bun install --frozen-lockfile
+ * --lockfile-only --ignore-scripts`. It resolves nothing into node_modules and
+ * writes no lockfile, so a successful check leaves the tree byte-identical.
+ *
+ * It deliberately carries no `--filter` and no `--offline`. Bun's `--filter`
+ * narrows which workspaces are installed, never which manifests the lockfile
+ * is compared against, so it cannot scope this check to the Runner. `--offline`
+ * would report a drifted-but-uncached dependency as an uncached-manifest
+ * failure instead of the lockfile drift it is, which is a false negative on a
+ * cold cache.
+ *
+ * `context` must still be a copy no build reads: the workflow gives it an
+ * export of the build context and a checkout is refused, so a future change to
+ * this check cannot rewrite the trusted source lockfile.
+ *
+ * `behind` means the manifests the Runner build reads were changed after the
+ * lockfile was. Every other failure throws.
  * @param {string} context
  * @param {{ run?: (command: string, args: string[], options: object) => { status: number | null, stdout: string, stderr: string, error?: Error } }} [options]
  * @returns {{ state: "current" | "behind", detail: string }}
  */
 export function runnerLockState(context, { run = (command, args, options) => spawnSync(command, args, options) } = {}) {
-  assert.ok(existsSync(path.join(context, "pnpm-lock.yaml")), `${context} has no pnpm-lock.yaml`);
+  assert.ok(existsSync(path.join(context, "bun.lock")), `${context} has no bun.lock`);
   assert.ok(existsSync(path.join(context, "packages", "paperclip-runner", "package.json")), `${context} is not a Runner build context`);
-  assert.ok(!existsSync(path.join(context, ".git")), `${context} is a checkout: pnpm can rewrite its pnpm-lock.yaml. Check an exported build context`);
-  const result = run("pnpm", ["install", "--frozen-lockfile", "--lockfile-only", "--offline", "--ignore-scripts",
-    "--filter", "@paperclipai/paperclip-runner..."], { cwd: context, encoding: "utf8" });
+  assert.ok(!existsSync(path.join(context, ".git")), `${context} is a checkout: the lockfile check must run against an exported build context`);
+  const result = run("bun", ["install", "--frozen-lockfile", "--lockfile-only", "--ignore-scripts"],
+    { cwd: context, encoding: "utf8" });
   if (result.error) throw result.error;
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
-  if (result.status === 0) return { state: "current", detail: "pnpm-lock.yaml matches the Runner's manifests" };
-  const code = LOCK_BEHIND_CODES.find((candidate) => output.includes(candidate));
-  if (code) {
-    const line = output.split("\n").find((candidate) => candidate.includes(code)) ?? code;
-    return { state: "behind", detail: line.trim().slice(0, 500) };
+  if (result.status === 0) return { state: "current", detail: "bun.lock matches the Runner's manifests" };
+  const marker = LOCK_BEHIND_MARKERS.find((candidate) => output.includes(candidate));
+  if (marker) {
+    // Prefer the line that names the drifted dependency, when Bun attributed it.
+    const detail = LOCK_BEHIND_MARKERS
+      .map((candidate) => output.split("\n").find((line) => line.includes(candidate)))
+      .filter(Boolean)
+      .map((line) => line.replace(/^\s*(?:error|note):\s*/, "").trim())
+      .join("; ");
+    return { state: "behind", detail: detail.slice(0, 500) };
   }
   throw new Error(`The lockfile check failed for another reason (exit ${result.status}):\n${output.trim().slice(-2000)}`);
 }

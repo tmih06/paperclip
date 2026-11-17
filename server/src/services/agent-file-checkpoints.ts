@@ -101,7 +101,7 @@ export async function captureAgentFileCheckpoint(input: {
         workspaceLocalDir: directory, workspaceRemoteDir: remoteDirectory!, syncWorkspace: false, assets: [{ key: "cache", localDir: cacheDir, followSymlinks: false }] });
       const script = await fs.readFile(new URL("./scripts/agent-file-checkpoint.mjs", import.meta.url), "utf8");
       const options = { root: input.executionRoot, output: remoteDirectory, cacheFile: path.posix.join(prepared.assetDirs.cache!, "manifest.json"), cacheHash: createHash("sha256").update(cache).digest("hex") };
-      const result = await runAdapterExecutionTargetShellCommand(input.runId, target, `node --input-type=module -e ${quote(script)} -- --checkpoint ${quote(JSON.stringify(options))}`,
+      const result = await runAdapterExecutionTargetShellCommand(input.runId, target, `bun --input-type=module -e ${quote(script)} -- --checkpoint ${quote(JSON.stringify(options))}`,
         { cwd: target.remoteCwd, env: {}, timeoutSec: 120 });
       if (result.exitCode !== 0 || result.timedOut) throw new Error(`Agent file checkpoint failed: ${result.stderr.trim()}`);
       stats = JSON.parse(result.stdout.trim()) as AgentFileCheckpointStats;

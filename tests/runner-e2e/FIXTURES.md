@@ -144,7 +144,7 @@ OpenRouter breadth profiles are generated from `openrouter-models.json`, not
 written by hand. That reviewed snapshot must contain exactly five unique,
 available, tool-capable models with rank, canonical ID, display name, supported
 parameters, source URL, capture time, and verified content hash. Refresh it
-manually with `pnpm test:e2e:runner:models:update`; nightly campaigns never
+manually with `bun run test:e2e:runner:models:update`; nightly campaigns never
 change fixture definitions.
 
 Agent `adapterConfig.env` values must be `{type:"secret_ref", secretId,
@@ -351,9 +351,9 @@ sanitized metadata; never retain raw secret values.
 Run before a fixture change is reviewed:
 
 ```bash
-pnpm test:e2e:runner:unit
-pnpm test:e2e:runner:typecheck
-pnpm test:e2e:runner -- --list
+bun run test:e2e:runner:unit
+bun run test:e2e:runner:typecheck
+bun run test:e2e:runner -- --list
 ```
 
 Then run the narrowest paid cell that exercises the fixture. A full matrix is a
@@ -1138,7 +1138,7 @@ This case proves explicit submission and persistence, not spontaneous feedback
 quality or survival after an abrupt worker kill.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite feedback-persistence
-pnpm test:e2e:runner -- --list --suite feedback-persistence --environment daytona
-pnpm test:e2e:runner -- --id feedback-persistence.runner-acpx-claude.local.complaint-and-suggestion --max-automatic-retries 0 --max-parallel 1
+bun run test:e2e:runner -- --list --suite feedback-persistence
+bun run test:e2e:runner -- --list --suite feedback-persistence --environment daytona
+bun run test:e2e:runner -- --id feedback-persistence.runner-acpx-claude.local.complaint-and-suggestion --max-automatic-retries 0 --max-parallel 1
 ```

@@ -29,16 +29,16 @@ jobs:
       # providers' own lockfiles. Keep it equal to LOCKFILES in
       # .github/scripts/lockfile-trust.mjs, which blocks contributor edits to
       # the same files. A test checks that the two lists match.
-      LOCKFILES: pnpm-lock.yaml scripts/typecheck-sandbox-providers/pnpm-lock.yaml packages/plugins/sandbox-providers/daytona/pnpm-lock.yaml
+      LOCKFILES: bun.lock scripts/typecheck-sandbox-providers/bun.lock packages/plugins/sandbox-providers/daytona/bun.lock
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
           run_install: false
 
       - name: Setup Node.js
@@ -85,15 +85,15 @@ jobs:
           done
           echo "Resolving from the lockfiles held by run $run_id."
 
-      - name: Refresh pnpm lockfile
-        run: pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
+      - name: Refresh the Bun lockfile
+        run: bun install --no-save
 
       # Sandbox providers stay out of the root workspace. The shared typecheck
-      # workspace has its own pnpm-workspace.yaml, and Daytona installs alone.
-      - name: Refresh sandbox provider lockfiles
+      # workspace has its own bunfig.toml, and Daytona installs alone.
+      - name: Refresh the sandbox provider lockfiles
         run: |
-          pnpm --dir scripts/typecheck-sandbox-providers install --resolution-only --ignore-scripts --no-frozen-lockfile
-          pnpm --dir packages/plugins/sandbox-providers/daytona install --ignore-workspace --resolution-only --ignore-scripts --no-frozen-lockfile
+          bun run --cwd scripts/typecheck-sandbox-providers install --lockfile-only --ignore-scripts --no-frozen-lockfile
+          bun run --cwd packages/plugins/sandbox-providers/daytona install --ignore-workspace --lockfile-only --ignore-scripts --no-frozen-lockfile
 
       # A verified Dependabot lockfile merged to master is trusted lock content.
       # Report its hash so the proof refresh can admit it.
@@ -101,16 +101,16 @@ jobs:
         id: trusted_lock
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node .github/scripts/lockfile-trust.mjs merged
+        run: bun .github/scripts/lockfile-trust.mjs merged
 
       - name: Refresh reviewed eval report dependency proof
         env:
           TRUSTED_LOCK_SHA256: ${{ steps.trusted_lock.outputs.trusted_lock_sha256 }}
         run: |
           if [ -n "$TRUSTED_LOCK_SHA256" ]; then
-            node tests/runner-e2e/prepare-report-lock.mjs --refresh --trusted-lock-sha256 "$TRUSTED_LOCK_SHA256"
+            bun tests/runner-e2e/prepare-report-lock.mjs --refresh --trusted-lock-sha256 "$TRUSTED_LOCK_SHA256"
           else
-            node tests/runner-e2e/prepare-report-lock.mjs --refresh
+            bun tests/runner-e2e/prepare-report-lock.mjs --refresh
           fi
 
       - name: Fail on unexpected file changes
@@ -154,10 +154,10 @@ jobs:
           # The SDK public source proof pins the committed lock blob and the
           # report-lock output hash. This PR merges without CI, so resync those
           # pins from the commit above and check them before pushing (#20615).
-          node tests/runner-e2e/source-sdk-public-inputs.mjs "$(git rev-parse HEAD)" --write
+          bun tests/runner-e2e/source-sdk-public-inputs.mjs "$(git rev-parse HEAD)" --write
           git add tests/runner-e2e/source-sdk-public-inputs.json
           git commit --amend --no-edit
-          node tests/runner-e2e/source-sdk-public-inputs.mjs "$(git rev-parse HEAD)" --check
+          bun tests/runner-e2e/source-sdk-public-inputs.mjs "$(git rev-parse HEAD)" --check
           git push --force origin "$BRANCH"
 
           # Only reuse an open PR from this repository owner, not a fork with the same branch name.
@@ -246,7 +246,7 @@ jobs:
             git show "$GITHUB_SHA:$lock" > "$base/$lock" 2>/dev/null || : > "$base/$lock"
             pairs+=(--base "$base/$lock" --head "$lock")
           done
-          node .github/scripts/check-lockfile-release-age.mjs \
+          bun .github/scripts/check-lockfile-release-age.mjs \
             "${pairs[@]}" \
             --min-age-days 3 \
             --report "$RUNNER_TEMP/release-age-report.md"

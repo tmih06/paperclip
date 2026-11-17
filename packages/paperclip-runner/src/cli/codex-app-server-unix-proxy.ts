@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { createHash, randomBytes } from "node:crypto";
 import { createConnection } from "node:net";
 

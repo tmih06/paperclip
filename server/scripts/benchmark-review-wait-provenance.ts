@@ -15,7 +15,7 @@
  * both versions return the same waits and the same inherited wait for each
  * run.
  *
- *   pnpm --filter @paperclipai/server exec tsx scripts/benchmark-review-wait-provenance.ts --baseline-ref=<pre-fix commit>
+ *   bun run --filter @paperclipai/server exec tsx scripts/benchmark-review-wait-provenance.ts --baseline-ref=<pre-fix commit>
  *
  * Optional sizes: WAITS (default 250), CONTINUED_EVERY (10: every tenth wait
  * continues an earlier run), CONTINUATIONS (3: the length of that lineage),

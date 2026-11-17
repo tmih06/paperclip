@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { createInterface } from "node:readline";
 import {
   MCP_FIXTURE_PROTOCOL_VERSION,

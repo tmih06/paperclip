@@ -221,7 +221,7 @@ describe("ensureLocalPluginBuilt", () => {
     const fixture = await createBundledPluginFixture("standalone", { rootDir: standaloneRepoPluginRoot });
     cleanupPaths.add(fixture.packageRoot);
 
-    if (localPolicy) await writeFile(path.join(fixture.packageRoot, "pnpm-workspace.yaml"), localPolicy);
+    if (localPolicy) await writeFile(path.join(fixture.packageRoot, "bunfig.toml"), localPolicy);
     const installArgs = ["install", "--ignore-workspace", ...(localPolicy ? ["--ignore-scripts"] : []), "--no-lockfile"];
     const execStub = vi.fn(async (_file: string, args: readonly string[]) => {
       if (args.join(" ") === installArgs.join(" ")) {
@@ -383,7 +383,7 @@ describeEmbeddedPostgres("plugin install auto-build route", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toContain("does not appear to be a Paperclip plugin (no manifest found)");
-    expect(res.body.error).toContain(`pnpm --filter ${fixture.packageName} build`);
+    expect(res.body.error).toContain(`bun run --filter ${fixture.packageName} build`);
     expect(existsSync(path.join(fixture.distDir, "manifest.js"))).toBe(false);
     expect(mockLifecycle.load).not.toHaveBeenCalled();
   }, 20_000);
@@ -401,7 +401,7 @@ describeEmbeddedPostgres("plugin install auto-build route", () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toContain("does not appear to be a Paperclip plugin (no manifest found)");
     expect(res.body.error).toContain(path.relative(REPO_ROOT, fixture.packageRoot));
-    expect(res.body.error).toContain("pnpm install --ignore-workspace --no-lockfile && pnpm build");
+    expect(res.body.error).toContain("bun install --no-save && bun run build");
     expect(existsSync(path.join(fixture.distDir, "manifest.js"))).toBe(false);
     expect(mockLifecycle.load).not.toHaveBeenCalled();
   }, 20_000);

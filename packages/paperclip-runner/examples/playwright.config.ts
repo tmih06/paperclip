@@ -12,7 +12,7 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
   },
   webServer: {
-    command: "pnpm exec vite --config vite.sdk.config.ts --host 127.0.0.1 --port 4192",
+    command: "bun x vite --config vite.sdk.config.ts --host 127.0.0.1 --port 4192",
     env: {
       PAPERCLIP_LIVE_CONSOLE_CHUNK_DELAY_MS: "250",
       PAPERCLIP_LIVE_CONSOLE_MAX_SESSIONS: "64",

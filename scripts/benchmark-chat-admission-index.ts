@@ -7,7 +7,7 @@
  * The SQL does not change; this script runs both statements with and without
  * the new index and fails unless the complete rows match.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-admission-index.ts
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-admission-index.ts
  *
  * Optional sizes: OTHER_ACTIONS (default 60000), OTHER_PAYLOAD_KIB (6),
  * ISSUES (2000), WAKEUPS_PER_ISSUE (20), WAKEUP_PAYLOAD_KIB (3), RETRIES (1000).

@@ -63,10 +63,10 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
           run_install: false
 
       - name: Start cold setup measurement
@@ -82,7 +82,7 @@ jobs:
         id: qualification
         run: |
           echo "CI_COLD_SECONDS=$(($(date +%s) - CI_COLD_STARTED))" >> "$GITHUB_ENV"
-          node scripts/ci-dependency-cache.mjs
+          bun scripts/ci-dependency-cache.mjs
 
       - name: Save PR-scoped qualification dependencies
         if: steps.qualification.outputs.cacheable == 'true'
@@ -101,7 +101,7 @@ jobs:
       - name: Remove materialized outputs before restore
         if: steps.qualification.outputs.cacheable == 'true'
         run: |
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import { execFileSync } from 'node:child_process';
           import { rmSync } from 'node:fs';
           const plan = JSON.parse(execFileSync(process.execPath, ['scripts/ci-dependency-cache.mjs'], {
@@ -146,24 +146,24 @@ jobs:
           base_sha=$(git rev-parse HEAD^1)
           git worktree add --detach ../baseline "$base_sha"
           cd ../baseline
-          if ! pnpm install --frozen-lockfile; then
-            pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
-            pnpm install --frozen-lockfile
+          if ! bun install --frozen-lockfile; then
+            bun install --no-save
+            bun install --frozen-lockfile
           fi
-          pnpm run preflight:workspace-links
-          pnpm --filter @paperclipai/plugin-sdk ensure-build-deps
+          bun run preflight:workspace-links
+          bun run --filter @paperclipai/plugin-sdk ensure-build-deps
 
       - name: Compare complete commands and executed case inventories
         if: steps.test_scope.outputs.run == 'true'
         env:
           BENCHMARK_OUTPUT: ${{ runner.temp }}/ci-work-benchmark
         run: |
-          node scripts/benchmark-ci-work.mjs ../baseline "$BENCHMARK_OUTPUT"
+          bun scripts/benchmark-ci-work.mjs ../baseline "$BENCHMARK_OUTPUT"
           cat "$BENCHMARK_OUTPUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Exercise restored dependencies for cache-only changes
         if: steps.test_scope.outputs.run != 'true' && steps.qualification.outputs.cacheable == 'true'
-        run: pnpm exec vitest run --project @paperclipai/shared
+        run: bun x vitest run --project @paperclipai/shared
 
       - name: Retain timings, inventories and failure logs
         if: always()
@@ -212,7 +212,7 @@ jobs:
         run: cargo build --manifest-path runner/Cargo.toml --locked --workspace --bins
       - name: Compute workspace artifact identity
         id: debug
-        run: node scripts/runner-debug-crate-cache.mjs plan
+        run: bun scripts/runner-debug-crate-cache.mjs plan
       - name: Save workspace artifacts in this PR only
         id: artifacts
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -254,7 +254,7 @@ jobs:
           save-if: 'false'
       - name: Compute workspace artifact identity
         id: debug
-        run: node scripts/runner-debug-crate-cache.mjs plan
+        run: bun scripts/runner-debug-crate-cache.mjs plan
       - name: Restore workspace artifacts in this PR only
         id: artifacts
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -268,12 +268,12 @@ jobs:
         run: |
           test "$DEPENDENCIES_HIT" = true
           test "$ARTIFACTS_HIT" = true
-          node scripts/runner-debug-crate-cache.mjs mark-current
+          bun scripts/runner-debug-crate-cache.mjs mark-current
           cd packages/paperclip-runner
           started=$(date +%s)
           cargo build --manifest-path runner/Cargo.toml --locked --workspace --bins --message-format=json > "$RUNNER_TEMP/rust-restored-build.jsonl"
           echo "Restored Rust build: $(($(date +%s) - started)) seconds." >> "$GITHUB_STEP_SUMMARY"
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           const artifacts = readFileSync(`${process.env.RUNNER_TEMP}/rust-restored-build.jsonl`, 'utf8')
             .trim().split('\n').map(line => JSON.parse(line)).filter(row => row.reason === 'compiler-artifact');

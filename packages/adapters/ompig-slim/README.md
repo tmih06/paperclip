@@ -53,7 +53,7 @@ passing tests or approval.
 ## Opt-in binary integration test
 
 Set `PAPERCLIP_OMPIG_BINARY` to a pinned executable and run
-`pnpm exec vitest run packages/adapters/ompig-slim/src/server/durable-binary.test.ts`.
+`bun x vitest run packages/adapters/ompig-slim/src/server/durable-binary.test.ts`.
 The skipped-by-default test creates an isolated temporary `models.json`, local
 mock streaming model, profile, workspace and Durable state; it removes ambient
 broker/API credentials, verifies interrupted new-run resume and duplicate

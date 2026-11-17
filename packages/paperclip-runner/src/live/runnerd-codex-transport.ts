@@ -3587,6 +3587,61 @@ function resolveBuildOwnedCliArtifact(
 // receive the workspace dependency root used by JS-package providers.
 const NATIVE_ASSET_ACPX_AGENTS: ReadonlySet<QualifiedAcpxAgent> = new Set(NATIVE_ASSET_PROVIDERS);
 
+/** Read a package manifest, or null when it is absent or not a usable object. */
+function manifestIdentity(directory: string): Record<string, unknown> | null {
+  try {
+    const metadata = lstatSync(resolve(directory, "package.json"));
+    if (!metadata.isFile() || metadata.isSymbolicLink()) return null;
+    return record(JSON.parse(readFileSync(resolve(directory, "package.json"), "utf8")));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether `directory` is the root of an installed dependency tree: a real
+ * installed package sits in its node_modules. An empty or stale node_modules is
+ * not, which is what distinguishes a real install from a leftover directory.
+ *
+ * A workspace link is not an installed dependency either: it points at a sibling
+ * source tree, so a development checkout with only workspace links must not look
+ * like a deployment that owns its closure. Scoped packages install one level
+ * deeper, so both shapes count.
+ */
+function ownsInstalledDependency(directory: string): boolean {
+  const modules = resolve(directory, "node_modules");
+  const installed = (path: string): boolean => {
+    try {
+      const entry = lstatSync(path);
+      if (!entry.isDirectory() || entry.isSymbolicLink()) return false;
+      const manifest = lstatSync(resolve(path, "package.json"));
+      return manifest.isFile() && !manifest.isSymbolicLink();
+    } catch {
+      return false;
+    }
+  };
+  try {
+    const metadata = lstatSync(modules);
+    if (!metadata.isDirectory() || metadata.isSymbolicLink()) return false;
+    for (const entry of readdirSync(modules)) {
+      if (entry.startsWith(".")) continue;
+      if (installed(resolve(modules, entry))) return true;
+      if (!entry.startsWith("@")) continue;
+      const scope = resolve(modules, entry);
+      try {
+        const scopeEntry = lstatSync(scope);
+        if (!scopeEntry.isDirectory() || scopeEntry.isSymbolicLink()) continue;
+        if (readdirSync(scope).some((child) => installed(resolve(scope, child)))) return true;
+      } catch {
+        continue;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function acpxProviderPackageAuthority(
   sidecarScript: string,
   ownerPackageRoot = packageRoot,
@@ -3604,16 +3659,19 @@ function acpxProviderPackageAuthority(
       basename(resolve(cliDirectory, "../../..")) === "dist") {
     const serverRoot = resolve(cliDirectory, "../../../..");
     const workspaceRoot = dirname(serverRoot);
-    // Source/Docker builds share the workspace's pnpm store. Published npm
-    // bundles and self-rooted pnpm deployments retain their server authority.
-    if ((agent === undefined || !NATIVE_ASSET_ACPX_AGENTS.has(agent)) && basename(serverRoot) === "server" &&
-        !existsSync(resolve(serverRoot, "node_modules/.pnpm")) &&
-        existsSync(resolve(workspaceRoot, "node_modules/.pnpm")) &&
-        existsSync(resolve(workspaceRoot, "pnpm-workspace.yaml")) &&
-        existsSync(resolve(workspaceRoot, "package.json"))) {
-      const workspace = JSON.parse(readFileSync(resolve(workspaceRoot, "package.json"), "utf8"));
-      const server = JSON.parse(readFileSync(resolve(serverRoot, "package.json"), "utf8"));
-      if (workspace.name === "paperclip" && workspace.private === true && server.name === "@paperclipai/server") {
+    // A source checkout shares the workspace dependency root; a published npm
+    // bundle and a self-rooted copy keep their own. Decide from what is actually
+    // installed: an empty leftover node_modules proves nothing, and no store
+    // directory name is trusted as a sentinel.
+    const serverOwnsDependencies = ownsInstalledDependency(serverRoot);
+    const workspaceOwnsServer = serverRoot === resolve(workspaceRoot, "server") &&
+      ownsInstalledDependency(workspaceRoot) &&
+      existsSync(resolve(workspaceRoot, "bunfig.toml"));
+    if ((agent === undefined || !NATIVE_ASSET_ACPX_AGENTS.has(agent)) &&
+        !serverOwnsDependencies && workspaceOwnsServer) {
+      const workspace = manifestIdentity(workspaceRoot);
+      const server = manifestIdentity(serverRoot);
+      if (workspace?.name === "paperclip" && workspace.private === true && server?.name === "@paperclipai/server") {
         return { root: workspaceRoot, manifest: resolve(serverRoot, "package.json") };
       }
     }
@@ -3638,30 +3696,52 @@ function acpxProviderPackageAuthority(
       manifest: resolve(sidecarPackageRoot, "package.json"),
     };
   }
-  // A local source build lives at <workspace>/packages/paperclip-runner and
-  // resolves dependencies from <workspace>/node_modules. `pnpm deploy` makes
-  // the package itself the deployment root and owns <deploy>/node_modules/.pnpm.
-  // The older npm-installed portable shape nests the scoped package at
-  // <deploy>/node_modules/@paperclipai/paperclip-runner. The verifier always
-  // receives the directory that owns node_modules, regardless of which
-  // portable shape launched the already-authenticated sidecar.
+  // The verifier always receives the directory that owns the dependency tree,
+  // whatever produced it. Three shapes reach this point:
+  //   source             <workspace>/packages/paperclip-runner  -> <workspace>
+  //   copied pack        <pack>/                                -> <pack>
+  //   scoped npm install <root>/node_modules/@paperclipai/...    -> <root>
+  // The package itself is the authority when it owns dependencies; otherwise the
+  // parent that does is. Only installed packages decide this, so a stale empty
+  // node_modules can never be mistaken for a deployment root.
   const sourceDependencyRoot = resolve(ownerPackageRoot, "../..");
-  const localDependencyRoot = existsSync(
-    resolve(ownerPackageRoot, "node_modules", ".pnpm"),
-  )
+  const parentOfSource = basename(sourceDependencyRoot) === "node_modules"
+    ? resolve(sourceDependencyRoot, "..")
+    : sourceDependencyRoot;
+  if (sidecarPackageRoot !== ownerPackageRoot) {
+    // The sidecar already sits in the package that will be bound, so the answer
+    // is pure path arithmetic on the authenticated sidecar path. The verifier
+    // re-reads the manifest it is given and fails closed on its own.
+    return { root: sidecarPackageRoot, manifest: resolve(sidecarPackageRoot, "package.json") };
+  }
+  // Choose the dependency root from what is actually installed. The package owns
+  // its dependencies in a copied pack (whatever hoisting layout produced it) and
+  // otherwise the parent that ships a real install does. Only two ancestry shapes
+  // are legitimate, and the fallback is confined to them:
+  //   source              <workspace>/packages/paperclip-runner -> <workspace>
+  //   nested scoped npm   <root>/node_modules/@scope/pkg        -> <root>
+  // A parent reached by a longer or unrelated climb is never the authority, even
+  // when it holds packages and a manifest; the package stays self-rooted and the
+  // verifier checks that root on its own.
+  const parentIsSourceWorkspace = basename(dirname(ownerPackageRoot)) === "packages";
+  const parentIsDeployRoot = basename(sourceDependencyRoot) === "node_modules";
+  const adoptableParent = parentIsSourceWorkspace || parentIsDeployRoot;
+  const root = ownsInstalledDependency(ownerPackageRoot)
     ? ownerPackageRoot
-    : basename(sourceDependencyRoot) === "node_modules"
-      ? resolve(sourceDependencyRoot, "..")
-      : sourceDependencyRoot;
-  return sidecarPackageRoot === ownerPackageRoot
-    ? {
-        root: localDependencyRoot,
-        manifest: resolve(ownerPackageRoot, "package.json"),
-      }
-    : {
-        root: sidecarPackageRoot,
-        manifest: resolve(sidecarPackageRoot, "package.json"),
-      };
+    : adoptableParent && ownsInstalledDependency(parentOfSource) && manifestIdentity(parentOfSource)
+      ? parentOfSource
+      : ownerPackageRoot;
+  if (!manifestIdentity(root)) {
+    // Fail closed: the bound root must identify the package it belongs to, so the
+    // verifier is never pointed at an undescribed directory.
+    throw new Error(
+      "runner_provider_package_root_incompatible: provider dependency root has no package manifest",
+    );
+  }
+  return {
+    root,
+    manifest: resolve(ownerPackageRoot, "package.json"),
+  };
 }
 
 function acpxRunnerLaunchProfile(

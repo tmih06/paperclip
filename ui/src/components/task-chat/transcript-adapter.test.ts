@@ -359,7 +359,7 @@ describe("deriveRunStatusLabel", () => {
 
   it("uses family verbs per tool", () => {
     expect(
-      deriveRunStatusLabel([toolCall("Bash", { command: "pnpm test" })]).label,
+      deriveRunStatusLabel([toolCall("Bash", { command: "bun run test" })]).label,
     ).toBe("Running a command");
     expect(
       deriveRunStatusLabel([toolCall("Edit", { file_path: "a.ts" })]).label,
@@ -436,7 +436,7 @@ describe("transcriptToTaskChatItems tool_call updates", () => {
   it("keeps the initial real name and target when a generic update arrives", () => {
     const items = transcriptToTaskChatItems(
       [
-        toolCall("Terminal", { command: "pnpm test" }),
+        toolCall("Terminal", { command: "bun run test" }),
         update("tool-Terminal", "completed"),
         {
           kind: "tool_result",
@@ -454,7 +454,7 @@ describe("transcriptToTaskChatItems tool_call updates", () => {
     if (tool.kind !== "tool") return;
     expect(tool.name).toBe("Terminal");
     expect(tool.rawName).toBe("Terminal");
-    expect(tool.target).toBe("pnpm test");
+    expect(tool.target).toBe("bun run test");
     expect(tool.status).toBe("completed");
   });
 
@@ -1698,13 +1698,13 @@ describe("deriveRunStatusLabel with generic tail updates", () => {
       {
         kind: "tool_call",
         ts: TS,
-        name: "pnpm test",
+        name: "bun run test",
         toolUseId: "tc-3",
       } as TranscriptEntry,
     ]);
     expect(status.label).toBe("Running a command");
     expect(status.toolName).toBe("Terminal");
-    expect(status.detail).toBe("Terminal · pnpm test");
+    expect(status.detail).toBe("Terminal · bun run test");
   });
 });
 
@@ -1801,7 +1801,7 @@ describe("interstitial self-talk classification (PAP-355)", () => {
 
   it("marks no message streaming when the tail is a tool call", () => {
     const items = transcriptToTaskChatItems(
-      [...stream, toolCall("Bash", { command: "pnpm test" })],
+      [...stream, toolCall("Bash", { command: "bun run test" })],
       { runId: "run-1", running: true },
     );
     for (const m of items) {

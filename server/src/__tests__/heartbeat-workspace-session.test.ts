@@ -1531,7 +1531,7 @@ function buildWorkspaceConfigMetadata(
     repoUrl: "https://github.com/example/repo.git",
     repoRef: "origin/main",
     configSnapshot: {
-      provisionCommand: "pnpm install",
+      provisionCommand: "bun install",
       teardownCommand: "pnpm stop",
       cleanupCommand: "pnpm clean",
       desiredState: "running",
@@ -1589,7 +1589,7 @@ describe("effective run execution workspace config freshness", () => {
     const base = buildWorkspaceConfigMetadata();
     const next = buildWorkspaceConfigMetadata({
       configSnapshot: {
-        provisionCommand: "pnpm install",
+        provisionCommand: "bun install",
         teardownCommand: "pnpm stop",
         cleanupCommand: "pnpm clean",
         desiredState: "running",
@@ -1724,7 +1724,7 @@ describe("effective run execution workspace config freshness", () => {
         worktreeParentDir: ".paperclip/worktrees",
       },
       configSnapshot: {
-        provisionCommand: "pnpm install --frozen-lockfile",
+        provisionCommand: "bun install --frozen-lockfile",
       },
     });
 
@@ -1748,7 +1748,7 @@ describe("effective run execution workspace config freshness", () => {
     const metadata = mergeExecutionWorkspaceMetadataForPersistence({
       existingMetadata: {
         config: {
-          provisionCommand: "pnpm install",
+          provisionCommand: "bun install",
         },
         ...persistedWorkspaceConfigFingerprint(base),
       },
@@ -1756,7 +1756,7 @@ describe("effective run execution workspace config freshness", () => {
       createdByRuntime: false,
       strategyType: "project_primary",
       configSnapshot: {
-        provisionCommand: "pnpm install --frozen-lockfile",
+        provisionCommand: "bun install --frozen-lockfile",
       },
       shouldReuseExisting: policy.shouldRestoreExistingWorkspace,
       shouldRefreshConfigSnapshot: policy.shouldRefreshWorkspaceConfigSnapshot,
@@ -1766,7 +1766,7 @@ describe("effective run execution workspace config freshness", () => {
     });
 
     expect(metadata?.config).toEqual({
-      provisionCommand: "pnpm install",
+      provisionCommand: "bun install",
     });
     expect(metadata?.configFingerprint).toMatchObject({
       workspaceHash: base.fingerprint,

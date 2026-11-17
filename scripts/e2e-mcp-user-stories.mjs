@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { spawnSync } from "node:child_process";
 
 const args = process.argv.slice(2).filter((arg) => arg !== "--");

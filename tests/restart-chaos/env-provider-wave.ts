@@ -2,7 +2,7 @@
  * Environment-provider fault waves (EP1). See env-provider-faults.ts for the
  * oracle and SCENARIOS.md ("Environment-provider faults") for usage.
  *
- *   node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/env-provider-wave.ts \
+ *   bun tests/restart-chaos/env-provider-wave.ts \
  *     --fault EP1 --adapters codex --tasks 2 --seed 71
  *
  * One fault per wave: the server seam reads one control file, and every task's
@@ -182,7 +182,7 @@ async function main(): Promise<number> {
   const missing = [...new Set(options.adapters.map(adapter => CREDENTIAL_FOR_ADAPTER[adapter]))].filter(key => !process.env[key]);
   if (missing.length) throw new Error(`Missing credentials ${missing.join(", ")}. Run: set -a; source ~/.secrets; set +a`);
   const runner = process.env.PAPERCLIP_RUNNER_BINARY ?? path.join(repositoryRoot, "packages/paperclip-runner/runner/target/debug/paperclip-runnerd");
-  if (!existsSync(runner)) throw new Error(`Runner binary missing at ${runner}. Run: node scripts/agent-preflight.mjs`);
+  if (!existsSync(runner)) throw new Error(`Runner binary missing at ${runner}. Run: bun scripts/agent-preflight.mjs`);
   const waveId = `${waveIdFor(options.seed)}-ep`;
   const waveDir = path.join(resultsRoot, waveId);
   await mkdir(waveDir, { recursive: true, mode: 0o700 });

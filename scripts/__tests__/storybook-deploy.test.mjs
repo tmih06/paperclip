@@ -115,7 +115,7 @@ test("workflow keeps branch build read-only and reauthorizes the protected deplo
   assert.match(build, /permissions: \{\}/);
   assert.doesNotMatch(build, /actions\/checkout|cache: pnpm/);
   assert.match(build, /package-manager-cache: false/);
-  assert.match(build, /pnpm install --frozen-lockfile --ignore-scripts/);
+  assert.match(build, /bun install --frozen-lockfile --ignore-scripts/);
   assert.match(deploy, /name: storybook-deploy/);
   assert.match(deploy, /authorize-storybook-deploy.cjs/);
   assert.match(deploy, /name: \$\{\{ needs.build.outputs.artifact_name \}\}/);

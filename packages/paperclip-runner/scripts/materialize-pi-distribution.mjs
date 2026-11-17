@@ -314,7 +314,7 @@ if (import.meta.url.endsWith("/materialize-pi-distribution.mjs") && process.argv
   const args = process.argv.slice(2).filter((arg) => arg !== "--");
   const outputArgs = args.filter((arg) => !arg.startsWith("--node="));
   const nodeArgs = args.filter((arg) => arg.startsWith("--node="));
-  if (outputArgs.length !== 1 || nodeArgs.length > 1) throw new Error("Usage: node scripts/materialize-pi-distribution.mjs /absolute/output-directory [--node=/absolute/portable-node]");
+  if (outputArgs.length !== 1 || nodeArgs.length > 1) throw new Error("Usage: bun scripts/materialize-pi-distribution.mjs /absolute/output-directory [--node=/absolute/portable-node]");
   materializePiDistribution({ outputRoot: outputArgs[0], ...(nodeArgs.length ? { nodeExecutable: nodeArgs[0].slice("--node=".length) } : {}) }).then(result => {
     process.stdout.write(`${JSON.stringify({ outputRoot: result.outputRoot, manifestPath: result.manifestPath, manifestDigest: result.manifestDigest, packageCount: result.metadata.packageCount })}\n`);
   }).catch(error => { console.error(error.message); process.exitCode = 1; });

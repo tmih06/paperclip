@@ -41,7 +41,7 @@ for (const extra of [{}, { bundleDependencies: false }, { bundleDependencies: []
     const { root, source } = await fixture(t, extra);
     await mkdir(join(source, "node_modules"));
     await writeFile(join(source, "node_modules/foreign"), "must not copy");
-    await writeFile(join(source, "bin.js"), "#!/usr/bin/env node\n");
+    await writeFile(join(source, "bin.js"), "#!/usr/bin/env bun\n");
     await chmod(join(source, "bin.js"), 0o755);
     await writeFile(join(source, ".npmignore"), "excluded.txt\n");
     await symlink("bin.js", join(source, "link"));
@@ -95,7 +95,7 @@ for (const useFiles of [true, false]) {
     const { root, source } = await fixture(t, { ...(useFiles ? { files: ["lib", "bin.js"] } : {}), bin: { fixture: "bin.js" },
       devEngines: { runtime: { name: "node", version: ">=999.0.0", onFail: "error" } } });
     await mkdir(join(source, "lib"));
-    await writeFile(join(source, "bin.js"), "#!/usr/bin/env node\nconsole.log('fixture');\n");
+    await writeFile(join(source, "bin.js"), "#!/usr/bin/env bun\nconsole.log('fixture');\n");
     await chmod(join(source, "bin.js"), 0o755);
     await writeFile(join(source, "lib/kept.js"), "export const value = 'unchanged';\n");
     await writeFile(join(source, "lib/ignored.js"), "not published");

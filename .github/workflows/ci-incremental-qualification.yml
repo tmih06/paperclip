@@ -35,18 +35,18 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
       - uses: ./.github/actions/setup-ci-dependencies
       - name: Prove conservative graphs, exact partitions, manifests and failure fallbacks
-        run: node --test scripts/ci/test-selection*.test.mjs scripts/ci/vitest-impact-report.integration.test.mjs
+        run: bun test scripts/ci/test-selection*.test.mjs scripts/ci/vitest-impact-report.integration.test.mjs
       - name: Qualify selection against the real Paperclip workspace
         env:
           NODE_ENV: test
           VITEST: 'true'
         run: |
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
           import { readFileSync } from 'node:fs';
           import { execFileSync } from 'node:child_process';
@@ -87,16 +87,16 @@ jobs:
       - name: Install isolated qualification tools
         run: npm install --prefix "$RUNNER_TEMP/ci-tools" --no-audit --no-fund turbo@2.11.10
       - name: Prove planning and required checks
-        run: node --test .github/scripts/tests/ci-plan.test.mjs .github/scripts/tests/ci-routing.test.mjs
+        run: bun test .github/scripts/tests/ci-plan.test.mjs .github/scripts/tests/ci-routing.test.mjs
       - name: Prove real cache reuse and invalidation
         env:
           PAPERCLIP_CI_TEST_TURBO: ${{ runner.temp }}/ci-tools/node_modules/.bin/turbo
-        run: PATH="$RUNNER_TEMP/ci-tools/node_modules/.bin:$PATH" node --test scripts/ci/cache.integration.test.mjs
+        run: PATH="$RUNNER_TEMP/ci-tools/node_modules/.bin:$PATH" bun test scripts/ci/cache.integration.test.mjs
       - name: Check the real repository task graph
         env:
           CI_TURBO_BIN: ${{ runner.temp }}/ci-tools/node_modules/.bin/turbo
         run: |
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import { readFileSync, writeFileSync } from 'node:fs';
           import { execFileSync } from 'node:child_process';
           import assert from 'node:assert/strict';
@@ -116,4 +116,4 @@ jobs:
           CI_INCREMENTAL_MODE: shadow
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           MERGE_SHA: ${{ github.sha }}
-        run: node .github/scripts/ci-plan.mjs "$BASE_SHA" "$MERGE_SHA"
+        run: bun .github/scripts/ci-plan.mjs "$BASE_SHA" "$MERGE_SHA"

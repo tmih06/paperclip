@@ -14140,7 +14140,9 @@ const REMOTE_PROVIDER_PACK_PROFILE_DIGESTS = {
 const REMOTE_PROVIDER_PACK_ARTIFACT_PATHS = {
   grokLauncher: "dist/providers/grok/launcher.cjs",
   nodeCommand: "node_modules/node/bin/node",
-  productionLock: "pnpm-lock.yaml",
+  bunCommand: "node_modules/bun/bin/bun",
+  bunExecutable: "node_modules/.bin/bun",
+  productionLock: "bun.lock",
   opencodeCommand: "node_modules/.bin/opencode",
   opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
   opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs",
@@ -14171,6 +14173,8 @@ type RemoteProviderPackManifest = {
     artifacts: {
       grokLauncher: { path: string; sha256: string };
       nodeCommand: { path: string; sha256: string };
+      bunCommand: { path: string; sha256: string };
+      bunExecutable: { path: string; sha256: string };
       productionLock: { path: string; sha256: string };
       opencodeCommand: { path: string; sha256: string };
       opencodeExecutable: { path: string; sha256: string };
@@ -17249,7 +17253,7 @@ async function createRunnerdBackendWithinSessionClaim(
     if (!bootstrap) throw new Error("native_provider_artifacts_bootstrap_unavailable");
     const bootstrapManifest = bootstrap.manifest as RemoteProviderPackManifest;
     openCodeLaunchArtifacts = await prepareRemoteOpenCodeArtifacts({ runner: remoteCommandRunner,
-      bootstrapNode: posix.join(bootstrap.root, bootstrapManifest.payload.artifacts.nodeCommand.path),
+      bootstrapNode: posix.join(bootstrap.root, bootstrapManifest.payload.artifacts.bunCommand.path),
       manifest: expectedProviderPackManifest, nonce: randomUUID(),
       ...(providerArtifacts ? { restored: { receipt: providerArtifacts, directory: restoredArtifactDirectory } }
         : { sourceRoot: activeRemoteProviderPackRoot! }),
@@ -18648,8 +18652,8 @@ async function createRunnerdBackendWithinSessionClaim(
             }
           : {}),
         ...(openCodeLaunchArtifacts ? {
-          providerNodeCommand: openCodeLaunchArtifacts.paths.nodeCommand,
-          providerNodeCommandSha256: expectedProviderPackManifest!.payload.artifacts.nodeCommand.sha256,
+          providerNodeCommand: openCodeLaunchArtifacts.paths.bunCommand,
+          providerNodeCommandSha256: expectedProviderPackManifest!.payload.artifacts.bunCommand.sha256,
           opencodeCommand: openCodeLaunchArtifacts.paths.opencodeExecutable,
           opencodeCommandSha256: expectedProviderPackManifest!.payload.artifacts.opencodeExecutable.sha256,
           opencodeProxyPath: openCodeLaunchArtifacts.paths.opencodeProxy,

@@ -8,7 +8,7 @@ async function writeFakePiCommand(binDir: string, mode: "success" | "stale-packa
   const commandPath = path.join(binDir, "pi");
   const script =
     mode === "success"
-      ? `#!/usr/bin/env node
+      ? `#!/usr/bin/env bun
 if (process.argv.includes("--list-models")) {
   console.log("provider  model");
   console.log("openai    gpt-4.1-mini");
@@ -27,7 +27,7 @@ console.log(JSON.stringify({
   toolResults: []
 }));
 `
-      : `#!/usr/bin/env node
+      : `#!/usr/bin/env bun
 if (process.argv.includes("--list-models")) {
   console.error("npm error 404 'pi-driver@*' is not in this registry.");
   process.exit(1);

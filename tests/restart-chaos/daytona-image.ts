@@ -10,7 +10,7 @@
  * honouring OCI whiteouts, and only those two paths are written out. The
  * result is cached by image digest and the layer blobs are deleted.
  *
- *   node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/daytona-image.ts <image@sha256:…>
+ *   bun tests/restart-chaos/daytona-image.ts <image@sha256:…>
  */
 import { execFile } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";

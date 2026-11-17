@@ -5,9 +5,9 @@ creates 220 unassigned backlog tasks and 110 board approvals. It does not invoke
 a model. The origin must be a loopback address.
 
 ```sh
-pnpm --filter @paperclipai/ui build
+bun run --filter @paperclipai/ui build
 PAPERCLIP_COLLECTION_PERF_BASE_URL=http://127.0.0.1:3219 \
-  pnpm exec playwright test --config tests/perf/collections/playwright.config.ts
+  bun x playwright test --config tests/perf/collections/playwright.config.ts
 ```
 
 Start the isolated instance with `PAPERCLIP_UI_DEV_MIDDLEWARE=false` to serve the
@@ -107,7 +107,7 @@ Run these focused browser checks before the full collection suite:
 
 ```sh
 PAPERCLIP_COLLECTION_PERF_BASE_URL=http://127.0.0.1:<candidate-ui-port> \
-  pnpm exec playwright test --config tests/perf/collections/playwright.config.ts \
+  bun x playwright test --config tests/perf/collections/playwright.config.ts \
   parent-context.spec.ts startup-regressions.spec.ts
 ```
 

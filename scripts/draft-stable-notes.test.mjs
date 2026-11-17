@@ -52,7 +52,7 @@ function installFakeGh(dir, bodies, { unavailable = false, failBatchContaining =
   writeFileSync(bodiesFile, JSON.stringify(bodies));
   writeFileSync(
     join(binDir, "gh"),
-    `#!/usr/bin/env node
+    `#!/usr/bin/env bun
 const fs = require("node:fs");
 const args = process.argv.slice(2);
 fs.appendFileSync(${JSON.stringify(logFile)}, JSON.stringify(args) + "\\n");

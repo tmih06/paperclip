@@ -26,7 +26,7 @@ npx -y @paperclipai/mcp-server
 Or locally in this repo:
 
 ```sh
-pnpm --filter @paperclipai/mcp-server build
+bun run --filter @paperclipai/mcp-server build
 node packages/mcp-server/dist/stdio.js
 ```
 

@@ -63,7 +63,7 @@ describe("Runner image workflow", () => {
     const building = steps(jobs.cache).filter((step) => step.includes("docker buildx build"));
     expect(building).toHaveLength(1);
     expect([...building[0].matchAll(/--target (\S+)/g)].map((match) => match[1])).toEqual(["runner-artifacts-runnerd"]);
-    expect(jobs.cache).not.toMatch(/pnpm|setup-node|node scripts/);
+    expect(jobs.cache).not.toMatch(/pnpm|setup-node|bun scripts/);
   });
 
   it("neither publishes nor writes the cache from a scheduled run, and runs nothing on a fork's schedule", () => {
@@ -169,10 +169,10 @@ describe("Runner image workflow", () => {
   });
 
   it("never resolves the lockfile on a master push, and neither builds nor publishes when it is behind", () => {
-    const resolving = steps(jobs.identity).filter((step) => step.includes("pnpm install"));
+    const resolving = steps(jobs.identity).filter((step) => step.includes("bun install"));
     expect(resolving).toHaveLength(1);
     expect(resolving[0]).toMatch(/^ {8}if: github\.event_name != 'push'$/m);
-    expect(workflow.match(/pnpm install/g)).toHaveLength(1);
+    expect(workflow.match(/bun install/g)).toHaveLength(1);
     expect(jobCondition(jobs.build).startsWith("needs.identity.outputs.lock == 'current' && ")).toBe(true);
     expect(jobCondition(jobs.publish)).toContain("needs.identity.outputs.lock == 'current'");
     // Pull requests and manual runs always build; only a push skips an image that exists.
@@ -199,7 +199,7 @@ describe("Runner image workflow", () => {
       for (const command of step.split("docker buildx build").slice(1)) expect(command.match(/--output /g) ?? []).toHaveLength(1);
     }
     // The trees the checks read come from the archives, not from a second export.
-    expect(workflow).toContain("node scripts/runner-image-oci.mjs unpack");
+    expect(workflow).toContain("bun scripts/runner-image-oci.mjs unpack");
     expect(workflow.match(/type=local/g)).toHaveLength(3);
   });
 

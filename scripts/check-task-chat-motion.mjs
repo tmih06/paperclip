@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Finish-line gate for the Task Chat Redesign (flag: enableTaskChatRedesign).
  *

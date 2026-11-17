@@ -1,6 +1,6 @@
 // Local SQL benchmark for the Mine inbox list (GET /api/companies/:id/inbox/mine).
 //
-//   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-inbox-mine.ts \
+//   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-inbox-mine.ts \
 //     --baseline-ref=<pre-fix commit> [--issues=30000] [--activity-per-issue=12]
 //     [--comments-per-issue=6] [--touch-density=1] [--samples=7] [--evidence-dir=<dir>]
 //

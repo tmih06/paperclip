@@ -159,7 +159,7 @@ const adapterSchema: JsonSchemaNode = {
       type: "array",
       title: "Allowed commands",
       description: "Commands this adapter can run without extra approval.",
-      items: { type: "string", default: "pnpm test" },
+      items: { type: "string", default: "bun run test" },
       minItems: 1,
     },
     advanced: {
@@ -181,7 +181,7 @@ const validAdapterValues = {
   concurrency: 2,
   dryRun: true,
   notes: "Use the project worktree and post a concise task update before handoff.",
-  allowedCommands: ["pnpm --filter @paperclipai/ui typecheck", "pnpm build-storybook"],
+  allowedCommands: ["bun run --filter @paperclipai/ui typecheck", "bun run build-storybook"],
   advanced: { timeoutSeconds: 900, requireApproval: false },
 };
 
@@ -371,7 +371,7 @@ function MarkdownEditorGallery() {
               <Table2 className="mr-2 h-4 w-4" />
               Table
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setActionMarkdown((value) => `${value}\n\n\`\`\`sh\npnpm build-storybook\n\`\`\`\n`)}>
+            <Button size="sm" variant="outline" onClick={() => setActionMarkdown((value) => `${value}\n\n\`\`\`sh\nbun run build-storybook\n\`\`\`\n`)}>
               <Code2 className="mr-2 h-4 w-4" />
               Code
             </Button>

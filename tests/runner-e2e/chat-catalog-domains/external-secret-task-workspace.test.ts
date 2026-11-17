@@ -52,7 +52,7 @@ it("actual inline helper needs only the bound credential and emits sanitized sta
   try {
     expect(endpoint.scriptPath).toBe(""); expect(endpoint.command).not.toContain(f.cwd); expect(endpoint.command).not.toContain("synthetic-deployment-value");
     expect(endpoint.command).not.toMatch(/PAPERCLIP_|x-paperclip/);
-    const code = endpoint.command.slice("node --input-type=module -e '".length, -1).replace(/'\\''/g, "'");
+    const code = endpoint.command.slice("bun --input-type=module -e '".length, -1).replace(/'\\''/g, "'");
     const output: string[] = [], requests: Array<{ headers: Record<string, string> }> = [];
     // A native runner shell: only the configured credential, no Paperclip run identity.
     const fakeProcess = { env: { DEPLOYMENT_API_KEY: "synthetic-deployment-value" }, cwd: () => f.cwd, stdout: { write: (text: string) => output.push(text) }, exitCode: 0 };

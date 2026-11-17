@@ -19,7 +19,7 @@ Parallel test jobs should have similar workloads. Timing metadata must never aut
 
 **Steps to reproduce**
 
-Run `node scripts/ci/refresh-test-durations.mjs` with GitHub Actions read access and a full master checkout. Add `--dry-run` to print the changes without writing manifests.
+Run `bun scripts/ci/refresh-test-durations.mjs` with GitHub Actions read access and a full master checkout. Add `--dry-run` to print the changes without writing manifests.
 
 ## What Changed
 

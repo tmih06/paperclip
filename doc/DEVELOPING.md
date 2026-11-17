@@ -10,7 +10,10 @@ subsystem behaves belong in that subsystem's doc; see
 ## Prerequisites
 
 - Node.js 24.11+
-- Bun 1.4.4 for dependency installation and workspace scripts
+- Bun 1.4.4
+
+Bun runs the server, CLI, development tools, and tests. Node.js is required only
+by external provider distributions and registry tools that require it.
 
 ## Start Dev
 
@@ -26,16 +29,17 @@ This starts:
 - API server: `http://localhost:3100`
 - UI: served by the API server in dev middleware mode (same origin as API)
 
-`bun run dev` runs the server in watch mode and restarts on changes from workspace packages (including adapter packages). Use `bun run dev:once` to run without file watching. The application still runs on Node.js 24. Vite+ provides the frontend server, Vitest, Oxlint, and Oxfmt.
+`bun run dev` runs the server in watch mode and restarts on changes from
+workspace packages, including adapter packages. Use `bun run dev:once` to run
+without file watching. Vite+ serves the UI and provides Vitest, Oxlint, and
+Oxfmt.
 
-Use `bun run lint` for Oxlint, `bun run format:check` to check formatting, and
-`bun run format` to apply Oxfmt. Use `bun run verify` for affected tests.
-Dependency patches and overrides live in the root `package.json`; `bun.lock`
-is the Bun install lockfile.
+`bun run dev:once` auto-applies pending local migrations by default before
+starting the dev server.
 
-`pnpm dev:once` auto-applies pending local migrations by default before starting the dev server.
-
-`pnpm dev` and `pnpm dev:once` are idempotent for the current repo and instance: if the matching Paperclip dev runner is already alive, Paperclip reports the existing process instead of starting a duplicate.
+`bun run dev` and `bun run dev:once` are idempotent for the current repo and
+instance: if the matching Paperclip dev runner is already alive, Paperclip
+reports the existing process instead of starting a duplicate.
 
 To run against a separate local state root, pass `--data-dir`. The dev runner
 translates it to an isolated `PAPERCLIP_HOME` before migration checks or server
@@ -43,15 +47,15 @@ startup, so embedded PostgreSQL and other default instance state live under that
 directory:
 
 ```sh
-pnpm dev --data-dir ./tmp/paperclip-dev
+bun run dev --data-dir ./tmp/paperclip-dev
 ```
 
 Pass the same option to the service-management commands so they use the
 isolated runtime-service registry:
 
 ```sh
-pnpm dev:list --data-dir ./tmp/paperclip-dev
-pnpm dev:stop --data-dir ./tmp/paperclip-dev
+bun run dev:list --data-dir ./tmp/paperclip-dev
+bun run dev:stop --data-dir ./tmp/paperclip-dev
 ```
 
 Issue execution may also use project execution workspace policies and workspace runtime services for per-project worktrees, preview servers, and managed dev commands. Configure those through the project workspace/runtime surfaces rather than starting long-running unmanaged processes when a task needs a reusable service.
@@ -59,26 +63,45 @@ Issue execution may also use project execution workspace policies and workspace 
 Inspect or stop the current repo's managed dev runner:
 
 ```sh
-pnpm dev:list
-pnpm dev:stop
+bun run dev:list
+bun run dev:stop
 ```
 
-`pnpm dev:once` tracks backend-relevant file changes and pending migrations. When the current boot is stale, the board UI shows a `Restart required` banner. You can also enable guarded auto-restart in `Instance Settings > Experimental`, which waits for queued/running local agent runs to finish before restarting the dev server.
+`bun run dev:once` tracks backend-relevant file changes and pending migrations. When the current boot is stale, the board UI shows a `Restart required` banner. You can also enable guarded auto-restart in `Instance Settings > Experimental`, which waits for queued/running local agent runs to finish before restarting the dev server.
 
-### Mobile-friendly preview (`pnpm dev:mobile`)
+### Mobile-friendly preview (`bun run dev:mobile`)
 
-The vite dev server serves an unbundled module graph. This is fast to reload on a local machine but too heavy for phones and tablets on slow links (airplane wifi, mobile data, distant tailnet peers). `pnpm dev:mobile` builds the UI once and serves the small production bundle on port `3101` via `vite preview`, proxying `/api` requests to the dev API on `3100`.
+The Vite+ dev server serves an unbundled module graph. This is fast to reload on a local machine but too heavy for phones and tablets on slow links (airplane wifi, mobile data, distant tailnet peers). `bun run dev:mobile` builds the UI once and serves the small production bundle on port `3101`, proxying `/api` requests to the dev API on `3100`.
 
-- `pnpm dev:mobile` — build the UI and start the preview server on `:3101`. Rebuild manually to pick up UI source changes.
-- `pnpm dev:both` — run `pnpm dev` and `pnpm dev:mobile` together with prefixed output and shared signal handling.
+- `bun run dev:mobile` builds the UI and starts the preview server on `:3101`. Rebuild manually to pick up UI source changes.
+- `bun run dev:both` runs `bun run dev` and `bun run dev:mobile` together with prefixed output and shared signal handling.
 
-The preview server binds `0.0.0.0` and accepts any Host, so a tailnet or LAN address (e.g. `http://<host>.ts.net:3101/`) works out of the box. The `/api` proxy sets `x-forwarded-host` and `x-forwarded-proto`, which the server's board mutation guard uses to trust the browser's Origin — mutations from `:3101` succeed against the API on `:3100` without further configuration. An HTTPS tunnel in front of the preview server (ngrok, tailscale funnel) is also supported: the tunnel's `x-forwarded-proto` header is preserved when set.
+The preview server binds `0.0.0.0` and accepts any Host, so a tailnet or LAN address (e.g. `http://<host>.ts.net:3101/`) works out of the box. The `/api` proxy sets `x-forwarded-host` and `x-forwarded-proto`, which the server's board mutation guard uses to trust the browser's Origin. Mutations from `:3101` succeed against the API on `:3100` without further configuration. An HTTPS tunnel in front of the preview server (ngrok, tailscale funnel) is also supported: the tunnel's `x-forwarded-proto` header is preserved when set.
 
 Static UI mode compresses built JavaScript, CSS, and HTML with Brotli or gzip
 when the browser supports it. Hashed assets retain their immutable cache policy;
 byte-range responses retain their original representation. This reduces initial
 page downloads through bandwidth-limited HTTPS tunnels such as Tailscale Funnel.
 API responses and MCP transports keep their existing compression behavior.
+
+## Toolchain
+
+`bun.lock` and the root `package.json` own dependency installation, patches,
+and overrides. `bunfig.toml` selects the hoisted linker so workspace packages
+share dependency type identities.
+
+Vite+ (`vp`) runs the UI dev server, builds, Vitest, Oxlint, and Oxfmt:
+
+```sh
+bun run lint          # Oxlint
+bun run lint:fix      # Oxlint with fixes
+bun run format:check  # Oxfmt check
+bun run format        # Oxfmt
+```
+
+CI, release scripts, and container builds use Bun. Workspace declarations live
+in `package.json`. Standalone provider installs use their own `bun.lock` files.
+Run `bun run check:bun-migration` to check first-party runtime entrypoints.
 
 ## Quick Health Checks
 
@@ -105,7 +128,7 @@ The label is hidden on other hosts and when commit metadata is unavailable.
 For a first-time local install, you can bootstrap and run in one command:
 
 ```sh
-pnpm paperclipai run
+bun run paperclipai run
 ```
 
 > **Note: private npm registry `.npmrc` + first-run onboarding**
@@ -247,7 +270,7 @@ The server will automatically use embedded PostgreSQL and persist data at:
 Override home or instance:
 
 ```sh
-PAPERCLIP_HOME=/custom/path PAPERCLIP_INSTANCE_ID=dev pnpm paperclipai run
+PAPERCLIP_HOME=/custom/path PAPERCLIP_INSTANCE_ID=dev bun run paperclipai run
 ```
 
 No Docker or external database is required for this mode.
@@ -258,7 +281,7 @@ To wipe local dev data and start fresh:
 
 ```sh
 rm -rf ~/.paperclip/instances/default/db
-pnpm dev
+bun run dev
 ```
 
 ## Optional: Use External Postgres
@@ -274,7 +297,7 @@ For local development, the default storage provider is `local_disk`, which persi
 Configure storage provider/settings:
 
 ```sh
-pnpm paperclipai configure --section storage
+bun run paperclipai configure --section storage
 ```
 
 ## Secrets in Dev
@@ -297,9 +320,9 @@ Authenticated deployments default strict mode on unless explicitly overridden.
 
 CLI configuration support:
 
-- `pnpm paperclipai onboard` writes a default `secrets` config section (`local_encrypted`, strict mode off, key file path set) and creates a local key file when needed.
-- `pnpm paperclipai configure --section secrets` lets you update provider/strict mode/key path and creates the local key file when needed.
-- `pnpm paperclipai doctor` validates secrets adapter configuration, can create a missing local key file with `--repair`, and reports missing AWS Secrets Manager bootstrap env when that provider is selected.
+- `bun run paperclipai onboard` writes a default `secrets` config section (`local_encrypted`, strict mode off, key file path set) and creates a local key file when needed.
+- `bun run paperclipai configure --section secrets` lets you update provider/strict mode/key path and creates the local key file when needed.
+- `bun run paperclipai doctor` validates secrets adapter configuration, can create a missing local key file with `--repair`, and reports missing AWS Secrets Manager bootstrap env when that provider is selected.
 - Provider health is available at `GET /api/companies/:companyId/secret-providers/health` and reports local key permission warnings plus backup guidance.
 
 Per-company provider vaults are configured in the board UI under
@@ -311,8 +334,8 @@ for the operator model.
 Migration helper for existing inline env secrets:
 
 ```sh
-pnpm secrets:migrate-inline-env         # dry run
-pnpm secrets:migrate-inline-env --apply # apply migration
+bun run secrets:migrate-inline-env         # dry run
+bun run secrets:migrate-inline-env --apply # apply migration
 ```
 
 ## Deployment Modes
@@ -366,9 +389,9 @@ Seeded worktree instances quarantine copied live execution by default for both `
 
 The same quarantine stops copied project/execution-workspace runtime desired states and clears copied runtime process claims. Without this reset, booting the cloned Paperclip database could restart a source workspace's dev service from the isolated instance, creating duplicate runners, port reassignment, and stale public URLs.
 
-After `worktree init`, both the server and the CLI auto-load the repo-local `.paperclip/.env` when run inside that worktree, so normal commands like `pnpm dev`, `paperclipai doctor`, and `paperclipai db:backup` stay scoped to the worktree instance.
+After `worktree init`, both the server and the CLI auto-load the repo-local `.paperclip/.env` when run inside that worktree, so normal commands like `bun run dev`, `paperclipai doctor`, and `paperclipai db:backup` stay scoped to the worktree instance.
 
-`pnpm dev` fails fast in a linked git worktree when `.paperclip/.env` is missing, instead of silently booting against the default instance/port. If that happens, run `paperclipai worktree init` in the worktree first.
+`bun run dev` fails fast in a linked git worktree when `.paperclip/.env` is missing, instead of silently booting against the default instance/port. If that happens, run `paperclipai worktree init` in the worktree first.
 
 See [the worktree reference](worktrees.md) for deferred seeding, reseeding,
 repair, and every `paperclipai worktree` option.
@@ -394,12 +417,12 @@ Prepare a new or updated agent worktree with one command:
 node scripts/agent-preflight.mjs
 ```
 
-It does what `pnpm install --frozen-lockfile`, the plugin SDK's `ensure-build-deps`,
+It does what `bun install --frozen-lockfile`, the plugin SDK's `ensure-build-deps`,
 the Runner's `ensure:eval-build-deps`, `build:rust`, `build` and
 `build:runner-binaries` did, and skips work whose inputs are unchanged:
 
 - **install** is skipped when the lockfile, every `package.json`, `patches/`, Node
-  and pnpm match this worktree's last install.
+  and Bun match this worktree's last install.
 - **plugin SDK build** runs `scripts/ensure-plugin-build-deps.mjs`, which builds
   `@paperclipai/plugin-sdk` and its `@paperclipai/shared` dependency and skips
   them when their content fingerprints match the last build. Like the Runner and
@@ -437,9 +460,9 @@ when `CARGO_TARGET_DIR` is set.
 Use the local verification entry point for ordinary issue work:
 
 ```sh
-pnpm verify
-pnpm verify --explain
-pnpm verify --base origin/master
+bun run verify
+bun run verify --explain
+bun run verify --base origin/master
 ```
 
 The command compares the actual working tree with the merge base of the supplied
@@ -452,7 +475,7 @@ Serialized server tests retain their owner. Native server tests remain in local
 coverage. Selected chat tests retain six sequential isolated line shards.
 
 When the change touches `packages/shared/src`, `packages/plugins/sdk/src`, or an
-SDK build input such as `pnpm-lock.yaml`, the command first checks the committed
+SDK build input such as `bun.lock`, the command first checks the committed
 SDK public input pins (`tests/runner-e2e/source-sdk-public-inputs.json`) against
 the working tree. If they are stale it exits 1 and prints the refresh command:
 commit the change, run
@@ -468,7 +491,7 @@ verification. The command prints the local test scope and remaining CI lanes.
 An unchanged repeat can reuse both graph discovery and passing checks. Keys include
 actual tracked and non-ignored file contents (including dirty and untracked files),
 the shared audited-prose exclusions, dotenv files, lockfile, installation metadata,
-dependency bindings and installed package contents, the complete effective child environment, Node/pnpm/Rust toolchains,
+dependency bindings and installed package contents, the complete effective child environment, Node/Bun/Rust toolchains,
 platform, checkout path, comparison, and selection. Values from the environment
 are hashed, not written to results. External database/live-test settings and
 out-of-checkout source symlinks disable reuse. Cache state lives under the ignored
@@ -485,8 +508,8 @@ not silently launch the full suite or claim affected coverage passed. Use focuse
 checks and required CI to close that gap, or explicitly request a broad local run:
 
 ```sh
-pnpm verify --full
-pnpm verify --no-cache
+bun run verify --full
+bun run verify --no-cache
 ```
 
 `--full` executes the complete existing Vitest path with fresh integration coverage.
@@ -499,10 +522,10 @@ release checks and any real browser, provider, local-platform or acceptance proo
 The full local Vitest commands remain available:
 
 ```sh
-pnpm test
+bun run test
 ```
 
-`pnpm test` runs the Vitest suite only. Its default chat integration coverage runs
+`bun run test` runs the Vitest suite only. Its default chat integration coverage runs
 first in six sequential, exact-cover child processes, each with its own home,
 config and embedded PostgreSQL. The remaining server invocation excludes that
 chat file once and retains the native Runner suites. This bounds shared fixture
@@ -514,14 +537,14 @@ are unchanged.
 For interactive Vitest watch mode use:
 
 ```sh
-pnpm test:watch
+bun run test:watch
 ```
 
 Browser suites stay separate:
 
 ```sh
-pnpm test:e2e
-pnpm test:release-smoke
+bun run test:e2e
+bun run test:release-smoke
 ```
 
 These browser suites are intended for targeted local verification and CI, not the default agent/human test command.
@@ -531,7 +554,7 @@ its throwaway instance and serves that build with
 `PAPERCLIP_UI_DEV_MIDDLEWARE=false`. This exercises the
 shipped assets, including service-worker takeover and reload, without traversing
 the development server's unbundled module graph on each navigation. Browser
-assertion deadlines and retries remain unchanged. Use `pnpm dev` separately when
+assertion deadlines and retries remain unchanged. Use `bun run dev` separately when
 verifying Vite/HMR behavior.
 
 For normal issue work, start with the smallest targeted check that proves the change.
@@ -568,8 +591,8 @@ establish production behavior. Feature recipes retain optional verification
 scope guidance; the feature/access structural check needs no Storybook runtime.
 
 ```sh
-pnpm storybook
-pnpm build-storybook
+bun run storybook
+bun run build-storybook
 ```
 
 These run the `@paperclipai/ui` Storybook on port `6006` and build the static output to `ui/storybook-static/`.
@@ -577,7 +600,7 @@ These run the `@paperclipai/ui` Storybook on port `6006` and build the static ou
 Run one story suite's browser checks against a running Storybook with:
 
 ```sh
-STORYBOOK_TEST_BASE_URL=http://localhost:6006 pnpm exec playwright test <name>.spec.ts --config=tests/storybook-visual/playwright.config.ts --project=stories
+STORYBOOK_TEST_BASE_URL=http://localhost:6006 bun x --no-install playwright test <name>.spec.ts --config=tests/storybook-visual/playwright.config.ts --project=stories
 ```
 
 To publish a branch's Storybook, see
@@ -587,15 +610,15 @@ The Storybook visual regression suite uses external PNG baselines instead of
 committed screenshots:
 
 ```sh
-pnpm test:storybook-visual
-pnpm test:storybook-visual:update
+bun run test:storybook-visual
+bun run test:storybook-visual:update
 ```
 
-`pnpm test:storybook-visual` downloads and verifies the baseline archive from
+`bun run test:storybook-visual` downloads and verifies the baseline archive from
 `tests/storybook-visual/baseline-manifest.json` before running Playwright.
 Accepted visual changes should update the manifest metadata and publish a new
-immutable archive with `pnpm storybook-visual:baseline pack` and
-`pnpm storybook-visual:baseline upload`; do not commit generated PNG snapshots.
+immutable archive with `bun run storybook-visual:baseline pack` and
+`bun run storybook-visual:baseline upload`; do not commit generated PNG snapshots.
 
 Known limitation: Storybook visual baselines are Linux/Ubuntu-only. The manifest
 pins the capture environment to `ubuntu-24.04` and the Playwright suite uses
@@ -632,8 +655,8 @@ npx paperclipai context set --api-base http://localhost:3100 --company-id <compa
 Then run commands without repeating flags:
 
 ```sh
-pnpm paperclipai issue list
-pnpm paperclipai dashboard get
+bun run paperclipai issue list
+bun run paperclipai dashboard get
 ```
 
 See full command reference in `doc/CLI.md`.

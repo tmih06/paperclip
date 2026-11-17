@@ -1429,7 +1429,7 @@ describe("managed AI connections", () => {
   it("authenticates local Gemini probes and runs with the saved key in an isolated home", async () => {
     const root = await mkdtemp(path.join(home, "gemini-auth-"));
     const command = path.join(root, "gemini");
-    await writeFile(command, `#!/usr/bin/env node
+    await writeFile(command, `#!/usr/bin/env bun
 const fs = require("node:fs");
 const path = require("node:path");
 const settings = JSON.parse(fs.readFileSync(path.join(process.env.HOME, ".gemini/settings.json"), "utf8"));

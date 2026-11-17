@@ -71,7 +71,7 @@ test("pull request CI builds the canonical Evalbook viewer", async () => {
 
   assert.match(
     buildJob,
-    /name: Build Runner Evalbook viewer[\s\S]*pnpm --filter @paperclipai\/paperclip-runner build:issue-thread/u,
+    /name: Build Runner Evalbook viewer[\s\S]*bun run --filter @paperclipai\/paperclip-runner build:issue-thread/u,
   );
 });
 
@@ -82,7 +82,7 @@ test("resolves both repositories immutably and bounds total matrix concurrency",
     workflow.indexOf("  catalog:"),
   );
   assert.match(targetLock, /ref: \$\{\{ needs\.authorize\.outputs\.target_sha \}\}/u);
-  assert.match(targetLock, /pnpm install --ignore-scripts --no-frozen-lockfile --lockfile-only/u);
+  assert.match(targetLock, /bun install --ignore-scripts --no-frozen-lockfile --lockfile-only/u);
   assert.match(targetLock, /Upload resolved target lockfile/u);
   const build = workflow.slice(
     workflow.indexOf("  build_runner:"),
@@ -146,7 +146,7 @@ test("resolves both repositories immutably and bounds total matrix concurrency",
   assert.match(workflow, /matrix_1/u);
   assert.match(
     workflow,
-    /pnpm --filter @paperclipai\/paperclip-runner deploy --prod/u,
+    /bun run --filter @paperclipai\/paperclip-runner deploy --prod/u,
   );
   assert.match(
     workflow,
@@ -238,7 +238,7 @@ test("report preparation stays on the trusted lock and install mode", async () =
   assert.doesNotMatch(report, /Download resolved target lockfile/u);
   assert.doesNotMatch(report, /Restore resolved target lockfile/u);
   assert.doesNotMatch(report, /--no-frozen-lockfile|cache: pnpm/u);
-  assert.match(report, /pnpm install --frozen-lockfile --ignore-scripts --store-dir "\$RUNNER_TEMP\/runner-report-pnpm-store"/u);
+  assert.match(report, /bun install --frozen-lockfile --ignore-scripts --store-dir "\$RUNNER_TEMP\/runner-report-pnpm-store"/u);
 });
 
 test("trusted catalog, direct eval, and report orchestration stay on workflow revision", async () => {
@@ -257,7 +257,7 @@ test("trusted catalog, direct eval, and report orchestration stay on workflow re
 
 test("authentication failures retain cell metadata without leaking malformed summary content", async () => {
   const workflow = await readFile(workflowPath, "utf8");
-  const script = workflow.match(/CELL_EXIT_CODE="\$status" node --input-type=module <<'NODE'\n([\s\S]*?)          NODE/u)?.[1];
+  const script = workflow.match(/CELL_EXIT_CODE="\$status" bun --input-type=module <<'NODE'\n([\s\S]*?)          NODE/u)?.[1];
   assert.ok(script);
   const root = await mkdtemp(resolve(tmpdir(), "grok-cell-evidence-"));
   try {
@@ -501,13 +501,13 @@ test('private archive jobs consume verified controller code without resolving de
   // Defaults come from the verified controller runtime, not the workspace that evals code can modify.
   assert.doesNotMatch(preparer, /hosted-defaults\.json/u);
   assert.doesNotMatch(workflow, /RUNNER_PROTOCOL_EVAL_CONTROLLER_POLICY_JSON/u);
-  assert.match(builder, /pnpm install --frozen-lockfile --ignore-scripts --store-dir/u);
-  assert.doesNotMatch(preparer, /pnpm install|build-runtime.mjs|cache: pnpm/u);
+  assert.match(builder, /bun install --frozen-lockfile --ignore-scripts --store-dir/u);
+  assert.doesNotMatch(preparer, /bun install|build-runtime.mjs|cache: pnpm/u);
   assert.ok(preparer.indexOf('verify-runtime.mjs') < preparer.indexOf('hosted.mjs" prepare'));
   assert.match(preparer, /needs\.build_controller\.outputs\.runtime_receipt_sha256/u);
   for (const job of workflow.split(/\n(?=  [A-Za-z0-9_]+:)/u).filter(value => value.includes('id-token: write'))) {
     assert.doesNotMatch(job, /--no-frozen-lockfile|cache: pnpm|actions\/cache/u);
-    for (const install of job.matchAll(/pnpm install[^\n]*/gu)) {
+    for (const install of job.matchAll(/bun install[^\n]*/gu)) {
       assert.match(install[0], /--frozen-lockfile/u);
       assert.match(install[0], /--ignore-scripts/u);
       assert.match(install[0], /--store-dir/u);
@@ -518,17 +518,17 @@ test('private archive jobs consume verified controller code without resolving de
 test('controller dependency lock rejects a modified committed lockfile before installation', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
   const script = workflowShell(workflow, 'Build portable controller in an unprivileged job');
-  const guard = script.slice(0, script.indexOf('pnpm install'));
+  const guard = script.slice(0, script.indexOf('bun install'));
   const root = await mkdtemp(resolve(tmpdir(), 'runner-committed-lock-'));
   const git = (...args) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
   try {
     git('init', '-q'); git('config', 'user.email', 'test@example.com'); git('config', 'user.name', 'test');
-    await writeFile(resolve(root, 'pnpm-lock.yaml'), 'committed dependencies');
-    git('add', 'pnpm-lock.yaml'); git('commit', '-qm', 'lock');
+    await writeFile(resolve(root, 'bun.lock'), 'committed dependencies');
+    git('add', 'bun.lock'); git('commit', '-qm', 'lock');
     const head = git('rev-parse', 'HEAD').stdout.trim();
     const run = () => spawnSync('bash', ['-euc', guard], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH, GITHUB_SHA: head } });
     assert.equal(run().status, 0, run().stderr);
-    await writeFile(resolve(root, 'pnpm-lock.yaml'), 'changed dependencies');
+    await writeFile(resolve(root, 'bun.lock'), 'changed dependencies');
     assert.notEqual(run().status, 0);
   } finally { await rm(root, { recursive: true, force: true }); }
 });

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Identity of the Runner image (ghcr.io/paperclipai/paperclip-runner).
 //
 // The Runner image is built once for each distinct set of inputs and named
@@ -24,7 +24,7 @@
 //
 //   docker buildx build --target runner-artifacts-identity --output type=local,dest=DIR .
 //
-// Usage: node scripts/runner-image-identity.mjs [--json]
+// Usage: bun scripts/runner-image-identity.mjs [--json]
 // See doc/runner-image-contract.md.
 
 import { createHash } from "node:crypto";
@@ -54,8 +54,8 @@ export const RUNNER_IMAGE_CONTEXT_INPUTS = Object.freeze([
   "packages/paperclip-runner",
   "packages/shared/src/provider-failure.generated.ts",
   "patches",
-  "pnpm-lock.yaml",
-  "pnpm-workspace.yaml",
+  "bun.lock",
+  "bunfig.toml",
   "scripts/create-provider-pack-archive.mjs",
   "scripts/link-plugin-dev-sdk.mjs",
   "scripts/runner-image-identity.mjs",
@@ -152,7 +152,7 @@ const invoked = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).h
 if (invoked === import.meta.url) {
   const flags = process.argv.slice(2);
   if (flags.some((flag) => flag !== "--json")) {
-    process.stderr.write("Usage: node scripts/runner-image-identity.mjs [--json]\n");
+    process.stderr.write("Usage: bun scripts/runner-image-identity.mjs [--json]\n");
     process.exit(2);
   }
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

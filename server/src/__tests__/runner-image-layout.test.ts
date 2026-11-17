@@ -81,7 +81,7 @@ function elf(machine: number) {
 /** A Runner package as its build leaves it: build output and the stamp that describes it. */
 function workspace(root: string, { machine = 62, arch = "x64", digest = BUILD_INPUTS } = {}) {
   const runner = "packages/paperclip-runner";
-  write(root, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+  write(root, "bun.lock", "lockfileVersion: '9.0'\n");
   write(root, `${runner}/package.json`, '{"name":"@paperclipai/paperclip-runner","type":"module"}\n');
   write(root, `${runner}/scripts/provision-grok.mjs`, "// provisions Grok\n");
   write(root, `${runner}/src/providers/grok/platforms.json`, '{"version":"1.0.13"}\n');
@@ -108,7 +108,7 @@ async function providerPack(out: string, { revision = REVISION, inputsDigest = I
   const pack = path.join(out, "provider-pack");
   const files: Record<string, [string, Buffer | string]> = {
     nodeCommand: ["node_modules/node/bin/node", LARGE],
-    productionLock: ["pnpm-lock.yaml", lock],
+    productionLock: ["bun.lock", lock],
     opencodeProxy: ["dist/cli/opencode-app-server-proxy.cjs", "opencodeProxy\n"],
   };
   const artifacts: Record<string, { path: string; sha256: string }> = {};
@@ -759,7 +759,7 @@ describe("Runner image layout contract", () => {
   it("writes nothing at the image root that the documented layout does not list", () => {
     const documented = new Set(Object.values(RUNNER_IMAGE_PATHS).map((relative) => (relative as string).split("/")[0]));
     expect(new Set(readdirSync(out))).toEqual(documented);
-    expect([...documented].sort()).toEqual(["bundles", "paperclip-runnerd", "pnpm-lock.yaml", "provider-pack",
+    expect([...documented].sort()).toEqual(["bundles", "paperclip-runnerd", "bun.lock", "provider-pack",
       "provider-pack.archive.json", "provider-pack.archives", "runner-image.json", "runner-package"]);
   });
 });

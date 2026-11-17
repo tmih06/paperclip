@@ -132,7 +132,7 @@ function buildRunEvents(startMs: number): HeartbeatRunEvent[] {
     }),
     message("m2", "Week dates aren’t supported upstream, so I’ll parse them in `parseExportDate` and add tests."),
     ...command("c1", "rg -n parseExportDate server/src", "server/src/export/worker.ts:42:export function parseExportDate("),
-    ...command("c2", "node --test server/src/export/worker.test.ts", "✔ parses calendar dates\n✖ parses ISO week dates\n\n5 passed, 1 failed", "failed"),
+    ...command("c2", "bun test server/src/export/worker.test.ts", "✔ parses calendar dates\n✖ parses ISO week dates\n\n5 passed, 1 failed", "failed"),
     runEvent("wait.started", {
       schema: "paperclip.wait.v1",
       waitId: "sleep-1",
@@ -149,10 +149,10 @@ function buildRunEvents(startMs: number): HeartbeatRunEvent[] {
       plannedDurationMs: 30_000,
       elapsedDurationMs: 30_000,
     }, { itemId: "sleep-1" }),
-    ...command("c3", "node --test server/src/export/worker.test.ts", "✔ parses calendar dates\n✔ parses ISO week dates\n\n6 passed"),
-    verification("v1", "passed", "node --test server/src/export/worker.test.ts", "6 tests passed"),
-    verification("v2", "failed", "pnpm --filter @paperclipai/server typecheck", "2 errors in src/export/worker.ts"),
-    verification("v3", "not_run", "pnpm test:e2e", "Browser suite not needed for a parser change"),
+    ...command("c3", "bun test server/src/export/worker.test.ts", "✔ parses calendar dates\n✔ parses ISO week dates\n\n6 passed"),
+    verification("v1", "passed", "bun test server/src/export/worker.test.ts", "6 tests passed"),
+    verification("v2", "failed", "bun run --filter @paperclipai/server typecheck", "2 errors in src/export/worker.ts"),
+    verification("v3", "not_run", "bun run test:e2e", "Browser suite not needed for a parser change"),
     message("final", "Week-date strings like `2026-W45-4` now parse to the matching calendar day. The worker tests pass; typecheck still reports two errors in the worker that predate this change.", "final"),
   ];
 }

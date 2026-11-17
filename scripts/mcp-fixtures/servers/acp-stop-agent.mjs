@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Deterministic ACP process for interruption and same-session continuation tests.
 import fs from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';

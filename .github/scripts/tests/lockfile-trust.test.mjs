@@ -25,7 +25,7 @@ test('allows a pull request that does not change lock content', () => {
 });
 
 test('blocks a contributor lockfile change', () => {
-  const result = classifyPullRequest({ ...base, changedPaths: ['pnpm-lock.yaml'] });
+  const result = classifyPullRequest({ ...base, changedPaths: ['bun.lock'] });
   assert.equal(result.allowed, false);
   assert.match(result.reason, /bun\.lock/);
 });
@@ -38,51 +38,51 @@ test('blocks a contributor change to the reporting-lock proof', () => {
 
 test('blocks a contributor branch named like the refresh branch', () => {
   for (const headRepo of [repo, 'someone/paperclip']) {
-    const result = classifyPullRequest({ ...base, headRepo, headRef: 'chore/refresh-lockfile', changedPaths: ['pnpm-lock.yaml'] });
+    const result = classifyPullRequest({ ...base, headRepo, headRef: 'chore/refresh-lockfile', changedPaths: ['bun.lock'] });
     assert.equal(result.allowed, false, headRepo);
   }
 });
 
 test('blocks the refresh author and branch from a fork', () => {
   const result = classifyPullRequest({ ...base, author: 'github-actions[bot]', headRepo: 'someone/paperclip',
-    headRef: 'chore/refresh-lockfile', changedPaths: ['pnpm-lock.yaml'] });
+    headRef: 'chore/refresh-lockfile', changedPaths: ['bun.lock'] });
   assert.equal(result.allowed, false);
 });
 
 test('allows the refresh workflow to change the lockfile and its proof', () => {
   const result = classifyPullRequest({ ...base, author: 'github-actions[bot]', headRef: 'chore/refresh-lockfile',
-    changedPaths: ['pnpm-lock.yaml', 'tests/runner-e2e/report-lock.json', 'tests/runner-e2e/report-lock.patch'] });
+    changedPaths: ['bun.lock', 'tests/runner-e2e/report-lock.json', 'tests/runner-e2e/report-lock.patch'] });
   assert.equal(result.allowed, true);
   assert.equal(result.writer, 'refresh-bot');
 });
 
 test('allows a Dependabot lockfile that matches a verified Dependabot commit', () => {
   const result = classifyPullRequest({ ...base, author: 'dependabot[bot]', headRef: 'dependabot/npm_and_yarn/zod-4.6.6',
-    changedPaths: ['package.json', 'pnpm-lock.yaml'], dependabotLockCommits: { 'pnpm-lock.yaml': 'abc123' } });
+    changedPaths: ['package.json', 'bun.lock'], dependabotLockCommits: { 'bun.lock': 'abc123' } });
   assert.equal(result.allowed, true);
   assert.equal(result.writer, 'dependabot');
 });
 
 test('blocks a Dependabot lockfile that no verified Dependabot commit produced', () => {
-  const result = classifyPullRequest({ ...base, author: 'dependabot[bot]', changedPaths: ['pnpm-lock.yaml'] });
+  const result = classifyPullRequest({ ...base, author: 'dependabot[bot]', changedPaths: ['bun.lock'] });
   assert.equal(result.allowed, false);
   assert.match(result.reason, /@dependabot recreate/);
 });
 
 test('blocks a Dependabot pull request that changes the reporting-lock proof', () => {
-  const result = classifyPullRequest({ ...base, author: 'dependabot[bot]', dependabotLockCommits: { 'pnpm-lock.yaml': 'abc123' },
-    changedPaths: ['pnpm-lock.yaml', 'tests/runner-e2e/report-lock.json'] });
+  const result = classifyPullRequest({ ...base, author: 'dependabot[bot]', dependabotLockCommits: { 'bun.lock': 'abc123' },
+    changedPaths: ['bun.lock', 'tests/runner-e2e/report-lock.json'] });
   assert.equal(result.allowed, false);
 });
 
 test('blocks a Dependabot author from a fork', () => {
   const result = classifyPullRequest({ ...base, author: 'dependabot[bot]', headRepo: 'someone/paperclip',
-    dependabotLockCommits: { 'pnpm-lock.yaml': 'abc123' }, changedPaths: ['pnpm-lock.yaml'] });
+    dependabotLockCommits: { 'bun.lock': 'abc123' }, changedPaths: ['bun.lock'] });
   assert.equal(result.allowed, false);
 });
 
 test('guards the sandbox provider lockfiles as well as the root lockfile', () => {
-  assert.deepEqual(LOCKFILES, ['pnpm-lock.yaml', ...PROVIDER_LOCKFILES]);
+  assert.deepEqual(LOCKFILES, ['bun.lock', ...PROVIDER_LOCKFILES]);
   for (const file of PROVIDER_LOCKFILES) {
     const result = classifyPullRequest({ ...base, changedPaths: [file] });
     assert.equal(result.allowed, false, file);
@@ -108,7 +108,7 @@ test('allows a Dependabot provider lockfile that matches a verified Dependabot c
 test('blocks a Dependabot pull request when any changed lockfile is unverified', () => {
   const [file] = PROVIDER_LOCKFILES;
   const result = classifyPullRequest({ ...base, author: 'dependabot[bot]',
-    changedPaths: ['pnpm-lock.yaml', file], dependabotLockCommits: { 'pnpm-lock.yaml': 'abc123', [file]: null } });
+    changedPaths: ['bun.lock', file], dependabotLockCommits: { 'bun.lock': 'abc123', [file]: null } });
   assert.equal(result.allowed, false);
   assert.ok(result.reason.startsWith(`${file} does not match`), result.reason);
 });
@@ -175,7 +175,7 @@ function runPrCheck(build) {
       return git('rev-parse', 'HEAD');
     };
     git('init', '-q');
-    const baseSha = commit('base', { 'pnpm-lock.yaml': 'lock: base\n', 'package.json': '{}\n' });
+    const baseSha = commit('base', { 'bun.lock': 'lock: base\n', 'package.json': '{}\n' });
     const { author, commits } = build(commit);
     const bin = path.join(root, '.bin');
     execFileSync('mkdir', [bin]);
@@ -197,7 +197,7 @@ function runPrCheck(build) {
 
 test('pr command admits a Dependabot lockfile after a later non-lockfile commit', () => {
   const result = runPrCheck((commit) => {
-    const sha = commit('dependabot', { 'pnpm-lock.yaml': 'lock: dependabot\n', 'package.json': '{"zod":"4.6.6"}\n' });
+    const sha = commit('dependabot', { 'bun.lock': 'lock: dependabot\n', 'package.json': '{"zod":"4.6.6"}\n' });
     commit('maintainer', { 'notes.md': 'fix\n' });
     return { author: 'dependabot[bot]', commits: [{ sha, login: 'dependabot[bot]', committer: 'web-flow', verified: true }] };
   });
@@ -207,8 +207,8 @@ test('pr command admits a Dependabot lockfile after a later non-lockfile commit'
 
 test('pr command blocks a lockfile edited after the Dependabot commit', () => {
   const result = runPrCheck((commit) => {
-    const sha = commit('dependabot', { 'pnpm-lock.yaml': 'lock: dependabot\n' });
-    const edit = commit('maintainer', { 'pnpm-lock.yaml': 'lock: edited\n' });
+    const sha = commit('dependabot', { 'bun.lock': 'lock: dependabot\n' });
+    const edit = commit('maintainer', { 'bun.lock': 'lock: edited\n' });
     return { author: 'dependabot[bot]', commits: [
       { sha, login: 'dependabot[bot]', committer: 'web-flow', verified: true },
       { sha: edit, login: 'maintainer', committer: 'web-flow', verified: true },
@@ -220,7 +220,7 @@ test('pr command blocks a lockfile edited after the Dependabot commit', () => {
 
 test('pr command blocks a lockfile commit whose Dependabot author another committer signed', () => {
   const result = runPrCheck((commit) => {
-    const sha = commit('maintainer', { 'pnpm-lock.yaml': 'lock: spoofed\n' });
+    const sha = commit('maintainer', { 'bun.lock': 'lock: spoofed\n' });
     return { author: 'dependabot[bot]', commits: [{ sha, login: 'dependabot[bot]', committer: 'maintainer', verified: true }] };
   });
   assert.equal(result.status, 1);
@@ -237,7 +237,7 @@ test('pr command checks each lockfile a Dependabot pull request changes', () => 
   assert.match(admitted.output, /^writer=dependabot$/m);
 
   const edited = runPrCheck((commit) => {
-    const sha = commit('dependabot', { 'pnpm-lock.yaml': 'lock: dependabot\n', [file]: 'lock: dependabot\n' });
+    const sha = commit('dependabot', { 'bun.lock': 'lock: dependabot\n', [file]: 'lock: dependabot\n' });
     const edit = commit('maintainer', { [file]: 'lock: edited\n' });
     return { author: 'dependabot[bot]', commits: [
       { sha, login: 'dependabot[bot]', committer: 'web-flow', verified: true },
@@ -259,7 +259,7 @@ test('pr command blocks a contributor change to a provider lockfile', () => {
 
 test('pr command blocks a contributor lockfile change', () => {
   const result = runPrCheck((commit) => {
-    commit('someuser', { 'pnpm-lock.yaml': 'lock: contributor\n' });
+    commit('someuser', { 'bun.lock': 'lock: contributor\n' });
     return { author: 'someuser', commits: [] };
   });
   assert.equal(result.status, 1);
@@ -269,7 +269,7 @@ test('pr command blocks a contributor lockfile change', () => {
 test('workflows run the trust policy from trusted code and pass the verified hash to the proof refresh', () => {
   const pr = readFileSync('.github/workflows/pr-trusted.yml', 'utf8');
   assert.match(pr, /git show "\$trusted_base:\.github\/scripts\/lockfile-trust\.mjs" > "\$policy"/);
-  assert.match(pr, /BASE_SHA="\$trusted_base" node "\$policy" pr/);
+  assert.match(pr, /BASE_SHA="\$trusted_base" bun "\$policy" pr/);
   assert.match(pr, /PAPERCLIP_CI_PR_AUTHOR: \$\{\{ github\.event\.pull_request\.user\.login \}\}/);
   assert.doesNotMatch(pr, /github\.head_ref != 'chore\/refresh-lockfile'/);
 
@@ -311,11 +311,11 @@ test('the policy step loads the policy from the merge commit when the recorded b
       return git('rev-parse', 'HEAD');
     };
     git('init', '-q', '-b', 'master');
-    writeFileSync(path.join(root, 'pnpm-lock.yaml'), 'lock: base\n');
+    writeFileSync(path.join(root, 'bun.lock'), 'lock: base\n');
     const staleBase = commit('base before the policy');
     // A contributor branch named like the refresh branch, from the stale base. The earlier rule exempts it.
     git('checkout', '-q', '-b', 'chore/refresh-lockfile');
-    writeFileSync(path.join(root, 'pnpm-lock.yaml'), 'lock: contributor\n');
+    writeFileSync(path.join(root, 'bun.lock'), 'lock: contributor\n');
     const head = commit('contributor lockfile');
     git('checkout', '-q', 'master');
     execFileSync('mkdir', ['-p', path.join(root, '.github/scripts')]);
@@ -362,7 +362,7 @@ test('the policy step fails when the loaded policy exits without reporting a wri
     writeFileSync(path.join(root, '.github/scripts/lockfile-trust.mjs'), 'process.exit(0);\n');
     const baseSha = commit('a policy that skips its checks');
     git('checkout', '-q', '-b', 'feature');
-    writeFileSync(path.join(root, 'pnpm-lock.yaml'), 'lock: contributor\n');
+    writeFileSync(path.join(root, 'bun.lock'), 'lock: contributor\n');
     const head = commit('contributor lockfile');
     git('checkout', '-q', 'master');
     git('-c', 'user.name=GitHub', '-c', 'user.email=noreply@github.com', 'merge', '-q', '--no-ff', '-m', 'merge', head);

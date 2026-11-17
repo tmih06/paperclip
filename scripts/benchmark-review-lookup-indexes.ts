@@ -8,7 +8,7 @@
  * --baseline-ref. Each version runs with and without the new indexes, and the
  * script fails unless complete rows and service results match.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-review-lookup-indexes.ts --baseline-ref=<pre-fix commit>
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-review-lookup-indexes.ts --baseline-ref=<pre-fix commit>
  *
  * Optional sizes: LINKS (default 50000), DELIVERIES (5000), RUNS (4000),
  * RUN_CONTEXT_KIB (12).

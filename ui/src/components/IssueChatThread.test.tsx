@@ -4268,7 +4268,7 @@ describe("IssueChatThread", () => {
                   ts: "2026-04-06T12:00:10.000Z",
                   name: "command_execution",
                   toolUseId: "tool-1",
-                  input: { command: "pnpm test" },
+                  input: { command: "bun run test" },
                 },
                 {
                   kind: "tool_result",

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { parseAcpxCandidateStartupAdmission, type AcpxCandidateStartupAdmission } from "../drivers/acpx/candidate-admission.js";
 import { probeKimiMetadata } from "../drivers/acpx/kimi-metadata-probe.js";
 import { KIMI_NODE_VERSION } from "../drivers/acpx/kimi-closure-pins.js";

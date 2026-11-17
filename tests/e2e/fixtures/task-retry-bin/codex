@@ -1,2 +1,2 @@
 #!/bin/sh
-exec node "$(dirname "$0")/../in-feed-codex.mjs" "$@" --task-retry-fixture
+exec bun "$(dirname "$0")/../in-feed-codex.mjs" "$@" --task-retry-fixture

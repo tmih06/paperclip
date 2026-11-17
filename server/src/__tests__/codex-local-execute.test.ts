@@ -8,7 +8,7 @@ import { buildPaperclipTaskMarkdown } from "../services/heartbeat.js";
 import { AGENT_CHAT_DIRECTIVE } from "../services/agent-conversations.js";
 
 async function writeFakeCodexCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 const fs = require("node:fs");
 
 const capturePath = process.env.PAPERCLIP_TEST_CAPTURE_PATH;
@@ -39,7 +39,7 @@ console.log(JSON.stringify({ type: "turn.completed", usage: { input_tokens: 1, c
 }
 
 async function writeFailingCodexCommand(commandPath: string, errorMessage: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 console.log(JSON.stringify({ type: "error", message: ${JSON.stringify(errorMessage)} }));
 process.exit(1);
 `;
@@ -794,7 +794,7 @@ describe("codex execute", () => {
     const commandPath = path.join(root, "codex");
     const attemptsPath = path.join(root, "attempts");
     await seedSharedCodexAuth(root);
-    await fs.writeFile(commandPath, `#!/usr/bin/env node
+    await fs.writeFile(commandPath, `#!/usr/bin/env bun
 const fs = require("node:fs");
 fs.appendFileSync(${JSON.stringify(attemptsPath)}, "attempt\\n");
 if (process.argv.includes("resume")) {
@@ -830,7 +830,7 @@ if (process.argv.includes("resume")) {
     // Faithful to the observed MCP transport crash: the protocol stream starts,
     // then the process dies with only a harness tracing line on stderr — no
     // protocol-terminal event (error / turn.failed / turn.completed).
-    const script = `#!/usr/bin/env node
+    const script = `#!/usr/bin/env bun
 console.log(JSON.stringify({ type: "thread.started", thread_id: "thread-crash-1" }));
 console.log(JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: "Starting the task." } }));
 console.error("2026-07-23T22:58:56.007042Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when UnexpectedContentType(Some(\\"text/plain\\"))");

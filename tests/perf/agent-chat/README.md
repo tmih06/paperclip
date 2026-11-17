@@ -12,7 +12,7 @@ its matching PostgreSQL URL, with a database name ending in `_test`:
 ```sh
 PAPERCLIP_ISSUE_PERF_BASE_URL=http://127.0.0.1:3221 \
 PAPERCLIP_CHAT_PERF_DATABASE_URL=postgres://paperclip:paperclip@127.0.0.1:55503/fast_chat_preview_test \
-  pnpm exec playwright test --config tests/perf/agent-chat/playwright.config.ts
+  bun x playwright test --config tests/perf/agent-chat/playwright.config.ts
 ```
 
 The recipe enables Streamlined UI and the disposable board user's Coordinator
@@ -90,7 +90,7 @@ already visible conversation.
 Compare the full service against a pinned commit before this optimization:
 
 ```sh
-pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-questions.ts \
+bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-questions.ts \
   --baseline-ref=909e29dd07 --unrelated=1000
 ```
 

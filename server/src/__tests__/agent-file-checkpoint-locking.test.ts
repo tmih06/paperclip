@@ -317,7 +317,7 @@ describe("agent file checkpoint locking", () => {
     await expectHeadRestorable();
   });
 
-  // Opt in: PAPERCLIP_AGENT_FILE_CHECKPOINT_BENCHMARK=1 pnpm exec vitest run src/__tests__/agent-file-checkpoint-locking.test.ts -t measures
+  // Opt in: PAPERCLIP_AGENT_FILE_CHECKPOINT_BENCHMARK=1 bun x vitest run src/__tests__/agent-file-checkpoint-locking.test.ts -t measures
   // Wall time shares the host's load; statement counts and lock observations are exact.
   it.skipIf(process.env.PAPERCLIP_AGENT_FILE_CHECKPOINT_BENCHMARK !== "1")("measures checkpoint statements and agent row lock time", async () => {
     const copy = await warmRun();

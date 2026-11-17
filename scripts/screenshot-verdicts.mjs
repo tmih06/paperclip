@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Screenshot the C3 per-item verdict card stories (PAP-13249) at both
 // viewports and both themes against a served storybook-static (see PAP-13249).
 import fs from "node:fs/promises";

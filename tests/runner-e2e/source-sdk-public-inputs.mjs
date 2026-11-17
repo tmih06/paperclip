@@ -147,12 +147,12 @@ export async function staleSdkPublicInputsInWorkingTree(root) {
 /** The actionable failure text shared by the CI drift guard and local verification. */
 export function staleSdkPublicInputsMessage(stale) {
   return `${registryPath} is stale for ${stale.length} pinned input(s): ${stale.slice(0, 10).map(row => `${row.file} (${row.change})`).join(", ")}${stale.length > 10 ? ", ..." : ""}. `
-    + "Commit your change, run `node tests/runner-e2e/source-sdk-public-inputs.mjs $(git rev-parse HEAD) --write`, and commit the updated registry.";
+    + "Commit your change, run `bun tests/runner-e2e/source-sdk-public-inputs.mjs $(git rev-parse HEAD) --write`, and commit the updated registry.";
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [revision, mode] = process.argv.slice(2);
-  if (process.argv.length !== 4 || !["--check", "--write"].includes(mode)) throw new Error("Usage: node tests/runner-e2e/source-sdk-public-inputs.mjs <HEAD-40hex> --check|--write");
+  if (process.argv.length !== 4 || !["--check", "--write"].includes(mode)) throw new Error("Usage: bun tests/runner-e2e/source-sdk-public-inputs.mjs <HEAD-40hex> --check|--write");
   const root = await realpath(path.resolve(fileURLToPath(new URL("../..", import.meta.url))));
   const result = await synchronizeSdkPublicInputs(root, revision, { write: mode === "--write" });
   console.log(JSON.stringify(result));

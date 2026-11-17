@@ -203,11 +203,11 @@ test("CI launcher executes forced and uncacheable lanes after a cached result", 
       packageManager: JSON.parse(readFileSync(new URL("package.json", repositoryRoot), "utf8")).packageManager,
       scripts: { "test:run:general": "node check.cjs" },
     });
-    write("pnpm-workspace.yaml", "packages: ['packages/*']\n");
-    write("pnpm-lock.yaml", "lockfileVersion: '9.0'\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\nimporters:\n  .: {}\n  packages/fixture: {}\n");
+    write("bunfig.toml", "packages: ['packages/*']\n");
+    write("bun.lock", "lockfileVersion: '9.0'\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\nimporters:\n  .: {}\n  packages/fixture: {}\n");
     json("turbo.json", {
       globalEnv: ["CI_TASK_CACHE_SCOPE"],
-      globalDependencies: ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"],
+      globalDependencies: ["package.json", "bun.lock", "bunfig.toml"],
       tasks: { "//#ci:server": {
         inputs: ["input.txt", "check.cjs"], outputs: ["result.txt"], cache: true,
       } },

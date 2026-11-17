@@ -19,7 +19,7 @@
  * the main thread only (event loop utilization). Allocated bytes are V8's
  * `total_allocated_bytes` and are omitted on a Node.js without that counter.
  *
- *   TSX_DISABLE_CACHE=1 pnpm --filter @paperclipai/server exec tsx scripts/benchmark-run-event-append.ts
+ *   TSX_DISABLE_CACHE=1 bun run --filter @paperclipai/server exec tsx scripts/benchmark-run-event-append.ts
  *
  * TSX_DISABLE_CACHE keeps tsx from scanning its shared cache directory while
  * the first passes run, which otherwise shows up as allocation and CPU here.

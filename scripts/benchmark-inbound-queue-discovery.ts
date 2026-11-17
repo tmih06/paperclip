@@ -22,7 +22,7 @@ assert.ok(selectedFixtures.length > 0, `No fixture matches --only=${only}; endpo
 const baselineRevision = execFileSync("git", ["rev-parse", "--verify", `${ref}^{commit}`], { encoding: "utf8" }).trim();
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sources = ["server/src/services/chat-channels/inbound/delivery-ledger.ts", "server/src/services/chat-channels/inbound/conversation-queue.ts", "server/src/services/chat-channels.ts"];
-const runtimeChanges = execFileSync("git", ["diff", "--name-only", baselineRevision, "--", "server/src/services", "packages/db/src", "packages/shared/src", "pnpm-lock.yaml"], { encoding: "utf8" }).trim().split("\n").filter(Boolean);
+const runtimeChanges = execFileSync("git", ["diff", "--name-only", baselineRevision, "--", "server/src/services", "packages/db/src", "packages/shared/src", "bun.lock"], { encoding: "utf8" }).trim().split("\n").filter(Boolean);
 assert.deepEqual(runtimeChanges.filter(name => !sources.includes(name)), [], "Baseline must not import changed runtime helpers or dependencies");
 const dir = await fs.mkdtemp(path.join(root, "server/scripts/.inbound-baseline-"));
 let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | undefined;

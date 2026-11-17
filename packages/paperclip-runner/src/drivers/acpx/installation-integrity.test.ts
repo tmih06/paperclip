@@ -934,7 +934,7 @@ describe("ACPX installation integrity", () => {
     const replacement = `${fixture.commandPath}.replacement`;
     await writeFile(
       replacement,
-      '#!/usr/bin/env node\nprocess.stdout.write("replacement");\n',
+      '#!/usr/bin/env bun\nprocess.stdout.write("replacement");\n',
     );
     await chmod(replacement, 0o755);
     await rename(replacement, fixture.commandPath);
@@ -952,7 +952,7 @@ describe("ACPX installation integrity", () => {
     const outside = join(fixture.root, "outside.js");
     await writeFile(
       outside,
-      '#!/usr/bin/env node\nprocess.stdout.write("symlink-target");\n',
+      '#!/usr/bin/env bun\nprocess.stdout.write("symlink-target");\n',
     );
     await rm(fixture.commandPath);
     await symlink(outside, fixture.commandPath);
@@ -970,7 +970,7 @@ describe("ACPX installation integrity", () => {
     const before = await stat(fixture.commandPath, { bigint: true });
     await writeFile(
       fixture.commandPath,
-      '#!/usr/bin/env node\nprocess.stdout.write("modified");\n',
+      '#!/usr/bin/env bun\nprocess.stdout.write("modified");\n',
     );
     const after = await stat(fixture.commandPath, { bigint: true });
     expect(after.ino).toBe(before.ino);
@@ -2153,7 +2153,7 @@ async function expectFailure(
 async function persistentInstallationFixture() {
   const fixture = await installationFixture();
   const command = [
-    "#!/usr/bin/env node",
+    "#!/usr/bin/env bun",
     'const fs = require("node:fs");',
     "fs.writeFileSync(process.env.PAPERCLIP_PROVIDER_PID_FILE, String(process.pid));",
     "setInterval(() => undefined, 1_000);",
@@ -2286,7 +2286,7 @@ async function installationFixture() {
   const serverPackageJsonPath = join(serverDirectory, "package.json");
   const runtimePackageJsonPath = join(runtimeDirectory, "package.json");
   const commandPath = join(commandDirectory, "server.js");
-  const command = '#!/usr/bin/env node\nprocess.stdout.write("verified");\n';
+  const command = '#!/usr/bin/env bun\nprocess.stdout.write("verified");\n';
   await Promise.all([
     writeFile(
       serverPackageJsonPath,

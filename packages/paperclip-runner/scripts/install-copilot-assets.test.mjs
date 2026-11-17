@@ -107,7 +107,7 @@ test("an unbuilt source workspace defers installation; a published package with 
     await mkdir(join(server, "src/services"), { recursive: true });
     await writeFile(join(server, "src/services/copilot-connection-probe.ts"), "// source workspace\n");
     assert.notEqual(invoke(script).status, 0);
-    await writeFile(join(root, "pnpm-workspace.yaml"), "packages: [server]\n");
+    await writeFile(join(root, "bunfig.toml"), "packages: [server]\n");
     succeeded(invoke(script), "source-workspace-pending-build");
     await assert.rejects(readFile(join(server, "provider-assets/copilot", target, "copilot")), { code: "ENOENT" });
   } finally { await rm(root, { recursive: true, force: true }); }

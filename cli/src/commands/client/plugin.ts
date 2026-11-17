@@ -290,7 +290,7 @@ export function buildPluginInitNextCommands(outputDir: string): string[] {
   const quotedOutputDir = shellQuote(outputDir);
   return [
     `cd ${quotedOutputDir}`,
-    "pnpm install",
+    "bun install",
     "bun run dev",
     `paperclipai plugin install ${quotedOutputDir}`,
   ];

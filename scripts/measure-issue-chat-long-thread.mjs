@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { chromium } from "@playwright/test";
 import fs from "node:fs";

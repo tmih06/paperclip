@@ -14,11 +14,11 @@ it.each(['valid', 'unknown-lock', 'changed-patch', 'wrong-output'])(
     try {
       await mkdir(relative, { recursive: true });
       for (const file of ['report-lock.json', 'report-lock.patch']) await copyFile(path.join(here, file), path.join(relative, file));
-      const committed = execFileSync('git', ['show', 'HEAD:pnpm-lock.yaml'], { cwd: path.resolve(here, '../..') });
+      const committed = execFileSync('git', ['show', 'HEAD:bun.lock'], { cwd: path.resolve(here, '../..') });
       const policy = JSON.parse(await readFile(path.join(relative, 'report-lock.json'), 'utf8'));
       const committedHash = createHash('sha256').update(committed).digest('hex');
       expect([policy.inputSha256, policy.outputSha256]).toContain(committedHash);
-      const lock = path.join(root, 'pnpm-lock.yaml');
+      const lock = path.join(root, 'bun.lock');
       await writeFile(lock, committed);
       if (variant === 'valid') {
         expect(await prepareReportLock(root)).toBe(committedHash === policy.outputSha256 ? 'already-reviewed' : 'reviewed-correction');
@@ -63,7 +63,7 @@ it.each(['input', 'output', 'unknown'])('refreshes dependency proof only from a 
   const hash = (value: string) => createHash('sha256').update(value).digest('hex');
   try {
     await mkdir(relative, { recursive: true });
-    await writeFile(path.join(root, 'pnpm-lock.yaml'), original);
+    await writeFile(path.join(root, 'bun.lock'), original);
     const initial = { inputSha256: variant === 'input' ? hash(original) : '0'.repeat(64),
       outputSha256: variant === 'output' ? hash(original) : '1'.repeat(64), patchSha256: hash('historical') };
     await writeFile(path.join(relative, 'report-lock.json'), JSON.stringify(initial));
@@ -71,12 +71,12 @@ it.each(['input', 'output', 'unknown'])('refreshes dependency proof only from a 
     execFileSync('git', ['init', '-q'], { cwd: root });
     execFileSync('git', ['add', '.'], { cwd: root });
     execFileSync('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture'], { cwd: root });
-    await writeFile(path.join(root, 'pnpm-lock.yaml'), resolved);
+    await writeFile(path.join(root, 'bun.lock'), resolved);
     if (variant === 'unknown') {
       await expect(refreshReportLock(root)).rejects.toThrow('not reviewed');
       expect(await readFile(path.join(relative, 'report-lock.patch'), 'utf8')).toBe('historical');
       expect(JSON.parse(await readFile(path.join(relative, 'report-lock.json'), 'utf8'))).toEqual(initial);
-      expect(await readFile(path.join(root, 'pnpm-lock.yaml'), 'utf8')).toBe(resolved);
+      expect(await readFile(path.join(root, 'bun.lock'), 'utf8')).toBe(resolved);
       return;
     }
     if (variant === 'output') {
@@ -89,10 +89,10 @@ it.each(['input', 'output', 'unknown'])('refreshes dependency proof only from a 
     const policy = JSON.parse(await readFile(path.join(relative, 'report-lock.json'), 'utf8'));
     const patch = await readFile(path.join(relative, 'report-lock.patch'), 'utf8');
     expect(policy).toMatchObject({ inputSha256: hash(original), outputSha256: hash(resolved), patchSha256: hash(patch) });
-    await writeFile(path.join(root, 'pnpm-lock.yaml'), original);
+    await writeFile(path.join(root, 'bun.lock'), original);
     expect(await prepareReportLock(root)).toBe('reviewed-correction');
-    expect(await readFile(path.join(root, 'pnpm-lock.yaml'), 'utf8')).toBe(resolved);
-    expect(parse(await readFile(path.join(root, 'pnpm-lock.yaml'), 'utf8')).packages).toEqual(parse(resolved).packages);
+    expect(await readFile(path.join(root, 'bun.lock'), 'utf8')).toBe(resolved);
+    expect(parse(await readFile(path.join(root, 'bun.lock'), 'utf8')).packages).toEqual(parse(resolved).packages);
     expect(await prepareReportLock(root)).toBe('already-reviewed');
     execFileSync('git', ['add', '.'], { cwd: root });
     execFileSync('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'refresh'], { cwd: root });
@@ -111,7 +111,7 @@ async function trustedLockFixture(variant: string, callback: (root: string, rela
   const initial = { inputSha256: '0'.repeat(64), outputSha256: '1'.repeat(64), patchSha256: hash('historical') };
   try {
     await mkdir(relative, { recursive: true });
-    await writeFile(path.join(root, 'pnpm-lock.yaml'), original);
+    await writeFile(path.join(root, 'bun.lock'), original);
     await writeFile(path.join(relative, 'report-lock.json'), JSON.stringify(initial));
     await writeFile(path.join(relative, 'report-lock.patch'), 'historical');
     execFileSync('git', ['init', '-q'], { cwd: root });
@@ -133,16 +133,16 @@ it('admits a verified trusted lock that already resolves without a correction', 
 
 it('records the correction for a verified trusted lock that resolves differently', async () => {
   await trustedLockFixture('trusted-corrected', async (root, relative, hash, original, resolved) => {
-    await writeFile(path.join(root, 'pnpm-lock.yaml'), resolved);
+    await writeFile(path.join(root, 'bun.lock'), resolved);
     const cli = path.join(relative, 'prepare-report-lock.mjs');
     await copyFile(path.join(import.meta.dirname, 'prepare-report-lock.mjs'), cli);
     expect(execFileSync(process.execPath, [cli, '--refresh', '--trusted-lock-sha256', hash(original)], { cwd: root, encoding: 'utf8' }).trim())
       .toBe('refreshed');
     const policy = JSON.parse(await readFile(path.join(relative, 'report-lock.json'), 'utf8'));
     expect(policy).toMatchObject({ inputSha256: hash(original), outputSha256: hash(resolved) });
-    await writeFile(path.join(root, 'pnpm-lock.yaml'), original);
+    await writeFile(path.join(root, 'bun.lock'), original);
     expect(await prepareReportLock(root)).toBe('reviewed-correction');
-    expect(await readFile(path.join(root, 'pnpm-lock.yaml'), 'utf8')).toBe(resolved);
+    expect(await readFile(path.join(root, 'bun.lock'), 'utf8')).toBe(resolved);
   });
 });
 

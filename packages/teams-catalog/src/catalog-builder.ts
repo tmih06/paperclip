@@ -140,7 +140,7 @@ export async function validateCatalog(packageDir: string): Promise<BuildCatalogM
   if (generatedText !== null) {
     const expectedText = formatCatalogManifest(expected.manifest);
     if (generatedText !== expectedText) {
-      errors.push("generated/catalog.json is stale. Run pnpm --filter @paperclipai/teams-catalog build:manifest.");
+      errors.push("generated/catalog.json is stale. Run bun run --filter @paperclipai/teams-catalog build:manifest.");
     }
   }
 

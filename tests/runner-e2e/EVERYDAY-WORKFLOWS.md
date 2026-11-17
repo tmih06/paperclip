@@ -19,7 +19,7 @@ to total recovery time; they do not extend the runner's seven-minute grace or th
 workflow's attempt deadline. `recover-controller` permits no automatic retries.
 
 ```sh
-PAPERCLIP_RUNNER_E2E_CONTROLLER_OUTAGE_MS=300000 pnpm test:e2e:runner -- --id everyday-workflows.runner-codex.daytona.recover-controller --max-automatic-retries 0
+PAPERCLIP_RUNNER_E2E_CONTROLLER_OUTAGE_MS=300000 bun run test:e2e:runner -- --id everyday-workflows.runner-codex.daytona.recover-controller --max-automatic-retries 0
 ```
 
 The credential-free wrapper smoke starts the actual main server and a separate
@@ -27,7 +27,7 @@ disposable Postgres, kills/replaces the server, checks that Postgres never
 restarted, reads existing data, accepts a new HTTP mutation, and confirms cleanup:
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/controller-replacement-smoke.ts
+bun tests/runner-e2e/controller-replacement-smoke.ts
 ```
 
 It prints a private JSON evidence path. It uses no model and **does not qualify
@@ -83,11 +83,11 @@ profile/environment selector, nor a scheduled campaign selects them. Only the
 (`explicitGroup` on the task fixture enforces this in `selectors.ts`).
 
 ```sh
-pnpm test:e2e:runner -- --list --suite everyday-workflows --group reliability
-pnpm test:e2e:runner -- --suite everyday-workflows --group reliability --max-parallel 2
-pnpm test:e2e:runner -- --suite everyday-workflows --case queue-steer
-pnpm test:e2e:runner -- --id everyday-workflows.runner-opencode-deepseek-1017.local.interrupt-redirect
-pnpm test:e2e:runner -- --id everyday-workflows.runner-codex.daytona.interrupt-redirect
+bun run test:e2e:runner -- --list --suite everyday-workflows --group reliability
+bun run test:e2e:runner -- --suite everyday-workflows --group reliability --max-parallel 2
+bun run test:e2e:runner -- --suite everyday-workflows --case queue-steer
+bun run test:e2e:runner -- --id everyday-workflows.runner-opencode-deepseek-1017.local.interrupt-redirect
+bun run test:e2e:runner -- --id everyday-workflows.runner-codex.daytona.interrupt-redirect
 ```
 
 **Cadence:** launch the [TestOps Reliability plan](#testops-reliability-plan)
@@ -271,14 +271,14 @@ The suite definition version and harness digest change with this oracle.
 Its deterministic calibration is not a claim that a live Daytona run passed.
 
 ```sh
-pnpm test:e2e:runner -- --id everyday-workflows.runner-codex.daytona.recover-controller --max-automatic-retries 0
+bun run test:e2e:runner -- --id everyday-workflows.runner-codex.daytona.recover-controller --max-automatic-retries 0
 ```
 
 ```sh
-pnpm test:e2e:runner -- --list --suite everyday-workflows
-pnpm test:e2e:runner -- --suite everyday-workflows --environment local --max-parallel 2
-pnpm test:e2e:runner -- --id everyday-workflows.runner-codex-mini.local.build-revise
-pnpm test:e2e:runner -- --suite everyday-workflows --environment daytona --max-parallel 2
+bun run test:e2e:runner -- --list --suite everyday-workflows
+bun run test:e2e:runner -- --suite everyday-workflows --environment local --max-parallel 2
+bun run test:e2e:runner -- --id everyday-workflows.runner-codex-mini.local.build-revise
+bun run test:e2e:runner -- --suite everyday-workflows --environment daytona --max-parallel 2
 ```
 
 Before project stories or the Python calibration tests, start Docker on the
@@ -303,8 +303,8 @@ production connection, transport, tool approval, and document delivery paths.
 ## Deterministic checks and calibration
 
 ```sh
-pnpm test:e2e:runner:typecheck
-pnpm test:e2e:runner:unit
+bun run test:e2e:runner:typecheck
+bun run test:e2e:runner:unit
 python3 -m unittest discover -s tests/runner-e2e -p test_everyday_artifact.py
 ```
 
@@ -441,7 +441,7 @@ defaults, assignment checks, and completion using a fixture provider. Neither
 test qualifies live AgentMail delivery. Run a bounded local model cell with:
 
 ```sh
-pnpm test:e2e:runner -- --id everyday-workflows.runner-codex-mini.local.agentmail-setup --max-automatic-retries 0
+bun run test:e2e:runner -- --id everyday-workflows.runner-codex-mini.local.agentmail-setup --max-automatic-retries 0
 ```
 
 - `provider-native`: Jira is supported natively and by aggregators. Require the

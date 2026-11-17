@@ -13,18 +13,18 @@ Requires Node 24.11+, pnpm, and an installed Paperclip checkout.
 
 ```sh
 cd packages/plugins/sandbox-providers/createos
-pnpm install --ignore-workspace --no-lockfile
-pnpm typecheck
-pnpm test
-pnpm build
+bun install --no-save
+bun run typecheck
+bun run test
+bun run build
 ```
 
 From the Paperclip checkout, with your instance running:
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts plugin install /absolute/path/to/paperclip/packages/plugins/sandbox-providers/createos
-node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts plugin list
-node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts plugin inspect paperclip.createos-sandbox-provider
+bun cli/src/index.ts plugin install /absolute/path/to/paperclip/packages/plugins/sandbox-providers/createos
+bun cli/src/index.ts plugin list
+bun cli/src/index.ts plugin inspect paperclip.createos-sandbox-provider
 ```
 
 Rebuild after source changes; local plugin output watching reloads the worker.
@@ -32,8 +32,8 @@ If the running worker still uses the previous build, explicitly reload it when
 no sandbox commands are active:
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts plugin disable paperclip.createos-sandbox-provider
-node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts plugin enable paperclip.createos-sandbox-provider
+bun cli/src/index.ts plugin disable paperclip.createos-sandbox-provider
+bun cli/src/index.ts plugin enable paperclip.createos-sandbox-provider
 ```
 
 The plugin uses the same package entrypoints and publish manifest helper as
@@ -130,7 +130,7 @@ chosen endpoint, export `CREATEOS_API_URL`, `CREATEOS_API_KEY`, `CREATEOS_SHAPE`
 and optionally `CREATEOS_ROOTFS`, then run:
 
 ```sh
-CREATEOS_LIVE_TEST=1 pnpm test
+CREATEOS_LIVE_TEST=1 bun run test
 ```
 
 The live test creates a sandbox, round-trips a 5 MiB binary file through native

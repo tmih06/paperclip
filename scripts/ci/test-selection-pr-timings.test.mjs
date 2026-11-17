@@ -149,7 +149,7 @@ test("the Runner inventory follows the package's Vitest include list", () => {
   assert.ok(inventory.size > 100, `unexpectedly small Runner inventory: ${inventory.size}`);
   assert.ok(inventory.has("packages/paperclip-runner/src/live/runnerd-codex-transport.test.ts"));
   assert.ok(inventory.has("packages/paperclip-runner/scripts/vitest-sequencer.test.mjs"));
-  // node --test files in the same package are not Vitest weights.
+  // bun test files in the same package are not Vitest weights.
   assert.ok(!inventory.has("packages/paperclip-runner/scripts/vitest-sequencer.mjs"));
   assert.ok(![...inventory].some(file => file.startsWith("packages/paperclip-runner/test/")));
 });

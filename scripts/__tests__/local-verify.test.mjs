@@ -27,16 +27,16 @@ function fixture(t) {
     write(file, readFileSync(path.join(repository, file), "utf8"));
   }
   for (const directory of ["server/src/__tests__", "server/scripts"]) mkdirSync(path.join(root, directory), { recursive: true });
-  mkdirSync(path.join(root, "node_modules/.pnpm"), { recursive: true });
+  mkdirSync(path.join(root, "node_modules/.bun/clsx@1.0.0/node_modules/clsx"), { recursive: true });
   for (const name of ["vitest", "oxc-parser", ".bin"]) {
     symlinkSync(path.join(repository, "node_modules", name), path.join(root, "node_modules", name), "dir");
   }
-  for (const file of ["node_modules/.modules.yaml", "node_modules/.pnpm/lock.yaml"]) {
-    write(file, readFileSync(path.join(repository, file), "utf8"));
-  }
+  write("node_modules/.bun/clsx@1.0.0/node_modules/clsx/package.json", '{"name":"clsx","version":"1.0.0"}\n');
   write(".gitignore", "node_modules\nnode_modules/\n.turbo/\n.env\n");
-  write("package.json", JSON.stringify({ name: "local-verification-fixture", private: true, type: "module", packageManager: "pnpm@9.15.4",
-    scripts: { verify: "node scripts/local-verify.mjs", "test:run": "vitest run" } }));
+  write("bun.lock", '{\n  "lockfileVersion": 3,\n  "workspaces": {}\n}\n');
+  write("bunfig.toml", '[install]\nlinker = "isolated"\n');
+  write("package.json", JSON.stringify({ name: "local-verification-fixture", private: true, type: "module", packageManager: "bun@1.4.4",
+    scripts: { verify: "bun scripts/local-verify.mjs", "test:run": "vitest run" } }));
   write("vitest.config.mjs", 'export default {test:{projects:["ui","cli"]}};');
   for (const [directory, name] of [["ui", "@paperclipai/ui"], ["cli", "paperclipai"]]) {
     write(`${directory}/vitest.config.mjs`, `export default {test:{name:${JSON.stringify(name)},include:["src/**/*.test.ts"]}};`);
@@ -96,8 +96,7 @@ test("real selected execution reuses passes and invalidates source, environment,
   const environmentFailure = f.run([], { LOCAL_VERIFY_FLAVOR: "fail" });
   assert.equal(environmentFailure.status, 1, environmentFailure.text);
   assert.match(environmentFailure.text, /affected consumer/);
-  const installed = readFileSync(path.join(f.root, "node_modules/.modules.yaml"), "utf8");
-  f.write("node_modules/.modules.yaml", `${installed}\n# changed installation\n`);
+  f.write("node_modules/.bun/clsx@1.0.0/node_modules/clsx/package.json", '{"name":"clsx","version":"1.0.1"}\n');
   const dependencies = f.run();
   assert.equal(dependencies.status, 0, dependencies.text);
   assert.match(dependencies.text, /Test Files\s+1 passed/);
@@ -161,7 +160,7 @@ test("dependency installation, ignored dotenv and child environment enter the ca
   assert.notEqual(snapshot(f.root, f.env).hash, before);
   rmSync(path.join(f.root, ".env"));
   assert.equal(snapshot(f.root, f.env).hash, before);
-  f.write("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+  f.write("bun.lock", '{\n  "lockfileVersion": 3,\n  "workspaces": { "": {} }\n}\n');
   assert.notEqual(snapshot(f.root, f.env).hash, before);
   assert.notEqual(snapshot(f.root, { ...f.env, NEW_TEST_FLAG: "1" }).hash, before);
   assert.equal(snapshot(f.root, { ...f.env, PAPERCLIP_TEST_POSTGRES_ADMIN_URL: "postgres://external.invalid/test" }).cacheable, false);
@@ -169,7 +168,7 @@ test("dependency installation, ignored dotenv and child environment enter the ca
 
 test("installed dependency code changes invalidate a real passing result", { timeout: 120_000 }, t => {
   const f = fixture(t);
-  const installed = "node_modules/.pnpm/clsx@1.0.0/node_modules/clsx";
+  const installed = "node_modules/.bun/clsx@1.0.0/node_modules/clsx";
   f.write(`${installed}/package.json`, '{"name":"clsx","version":"1.0.0","type":"module","exports":"./index.mjs"}');
   f.write(`${installed}/index.mjs`, "export default () => 2;\n");
   symlinkSync(path.join(f.root, installed), path.join(f.root, "node_modules/clsx"), "dir");

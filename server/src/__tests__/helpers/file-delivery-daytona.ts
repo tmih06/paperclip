@@ -37,7 +37,7 @@ export async function startFileDeliveryDaytona() {
   `;
   const runner: CommandManagedRuntimeRunner = {
     execute: async input => {
-      const command = `node --input-type=commonjs -e ${shellQuote(executeSource)} ${shellQuote(JSON.stringify(input))}`;
+      const command = `bun --input-type=commonjs -e ${shellQuote(executeSource)} ${shellQuote(JSON.stringify(input))}`;
       const result = await sandbox.process.executeCommand(command, undefined, undefined, Math.ceil((input.timeoutMs ?? 30000) / 1000) + 10);
       if (result.exitCode !== 0) throw new Error(`Daytona test command transport failed (exit ${result.exitCode})`);
       return JSON.parse(result.result);

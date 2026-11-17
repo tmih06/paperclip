@@ -126,19 +126,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: bun install --no-save
 
       - name: Verify runner Chrome
         # Release smoke also runs headless on GitHub's Ubuntu image, so use the
@@ -173,7 +172,7 @@ jobs:
           PAPERCLIP_RELEASE_SMOKE_EMAIL: ${{ env.SMOKE_ADMIN_EMAIL }}
           PAPERCLIP_RELEASE_SMOKE_PASSWORD: ${{ env.SMOKE_ADMIN_PASSWORD }}
           PAPERCLIP_PLAYWRIGHT_CHANNEL: "chrome"
-        run: pnpm run test:release-smoke
+        run: bun run test:release-smoke
 
       - name: Capture Docker logs
         if: always()
@@ -231,9 +230,9 @@ jobs:
         with:
           ref: ${{ inputs.qualification_source_sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
@@ -258,8 +257,8 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]] || exit 1
       - name: Build normal workspace outputs and public CLI
         run: |
-          pnpm install --no-frozen-lockfile
-          pnpm build
+          bun install --no-save
+          bun run build
           bash scripts/build-npm.sh --skip-checks --skip-typecheck
           mv cli/package.dev.json cli/package.json
       - name: Assemble exact-source daemons before server packing
@@ -277,7 +276,7 @@ jobs:
       - name: Verify clean public installation and retain the same package bytes
         env:
           PAPERCLIP_RUNNER_PUBLIC_PACKS_DIR: ${{ runner.temp }}/public-runner-packs
-        run: node scripts/verify-grok-npm-install.mjs
+        run: bun scripts/verify-grok-npm-install.mjs
       - name: Locate completed package assembly
         id: pack_identity
         if: ${{ !cancelled() }}
@@ -308,9 +307,9 @@ jobs:
         with:
           ref: ${{ inputs.qualification_source_sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
@@ -319,7 +318,7 @@ jobs:
           name: ${{ inputs.artifact_name }}-public-packages
           path: ${{ runner.temp }}/public-runner-packs
       - name: Install only the existing verifier tooling
-        run: pnpm install --ignore-scripts --no-frozen-lockfile
+        run: bun install --ignore-scripts --no-frozen-lockfile
       - name: Checkout immutable ARM qualification tooling
         if: ${{ matrix.target == 'linux-arm64' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -345,7 +344,7 @@ jobs:
           [[ "$TOOLING_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]] || exit 1
           [[ "$(git -C .qualification-tooling rev-parse HEAD)" == "$TOOLING_SHA" ]] || exit 1
-          node --input-type=module <<'NODE'
+          bun --input-type=module <<'NODE'
           import { createHash } from 'node:crypto';
           import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
           import { join } from 'node:path';
@@ -372,7 +371,7 @@ jobs:
           [[ "$(bun -p 'process.platform + "-" + process.arch')" == "$TARGET" ]] || exit 1
           mode=--mac-consumer
           if [[ "$TARGET" == linux-arm64 ]]; then mode=--linux-arm64-consumer; fi
-          node scripts/verify-grok-npm-install.mjs "$mode" \
+          bun scripts/verify-grok-npm-install.mjs "$mode" \
             "$RUNNER_TEMP/public-runner-packs" "$SOURCE_SHA" "$RUNNER_TEMP/native-public-install.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

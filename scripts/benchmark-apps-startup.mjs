@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { chromium } from "@playwright/test";
 
 const [phase, origin, directory] = process.argv.slice(2);
-if (!phase || !origin || !directory) throw new Error("Usage: node scripts/benchmark-apps-startup.mjs <phase> <loopback-origin> <output-directory>");
+if (!phase || !origin || !directory) throw new Error("Usage: bun scripts/benchmark-apps-startup.mjs <phase> <loopback-origin> <output-directory>");
 const target = new URL(origin);
 if (!["127.0.0.1", "localhost", "[::1]"].includes(target.hostname) || target.pathname !== "/" || target.username || target.password) {
   throw new Error("Only a disposable loopback instance is supported");

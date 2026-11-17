@@ -1,6 +1,6 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Capture screenshots of the Blocked Inbox storybook stories.
-// Usage: node scripts/screenshot-blocked-inbox.mjs <storybook-static-dir> <output-dir>
+// Usage: bun scripts/screenshot-blocked-inbox.mjs <storybook-static-dir> <output-dir>
 
 import http from "node:http";
 import path from "node:path";
@@ -10,7 +10,7 @@ import { chromium } from "@playwright/test";
 async function main() {
   const [, , staticDir, outDir] = process.argv;
   if (!staticDir || !outDir) {
-    console.error("usage: node scripts/screenshot-blocked-inbox.mjs <storybook-static-dir> <output-dir>");
+    console.error("usage: bun scripts/screenshot-blocked-inbox.mjs <storybook-static-dir> <output-dir>");
     process.exit(1);
   }
   await fs.mkdir(outDir, { recursive: true });

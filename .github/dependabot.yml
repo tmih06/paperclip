@@ -30,7 +30,7 @@ updates:
         update-types:
           - "version-update:semver-major"
 
-  # Sandbox providers (packages/plugins/sandbox-providers/*). pnpm-workspace.yaml
+  # Sandbox providers (packages/plugins/sandbox-providers/*). bunfig.toml
   # keeps them out of the root workspace on purpose, so the "/" entry above never
   # sees them. Each provider is a standalone published package with its own
   # version ranges.

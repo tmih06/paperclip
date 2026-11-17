@@ -39,15 +39,15 @@ export async function prepareReviewedSdkReference(original:string,directory:stri
   const policyBytes=gitFile(original,policyFile),policy=JSON.parse(policyBytes.toString("utf8"));
   if(!(await readFile(path.join(original,policyFile))).equals(policyBytes)||policy.outputSha256!==pins.lockSha256)
     throw new Error("Reviewed SDK reference policy does not match public proof: source-sdk-public-inputs.json lockSha256 must equal the committed report-lock.json outputSha256. "
-      +"Commit the lock change, then run `node tests/runner-e2e/source-sdk-public-inputs.mjs $(git rev-parse HEAD) --write` and commit the updated registry.");
-  const committed=gitFile(original,"pnpm-lock.yaml");
+      +"Commit the lock change, then run `bun tests/runner-e2e/source-sdk-public-inputs.mjs $(git rev-parse HEAD) --write` and commit the updated registry.");
+  const committed=gitFile(original,"bun.lock");
   if(![policy.inputSha256,policy.outputSha256].includes(sha(committed)))throw new Error("Committed SDK reference lock is not reviewed");
   for(const [file,expected]of Object.entries(pins.inputs)){
-    const bytes=file==="pnpm-lock.yaml"?committed:await readFile(path.join(original,file));
-    if(file!=="pnpm-lock.yaml"&&blob(bytes)!==expected)throw new Error(`Reviewed SDK reference source changed: ${file} does not match its pin in tests/runner-e2e/source-sdk-public-inputs.json. `
-      +"Commit your change, run `node tests/runner-e2e/source-sdk-public-inputs.mjs $(git rev-parse HEAD) --write`, and commit the updated registry.");
+    const bytes=file==="bun.lock"?committed:await readFile(path.join(original,file));
+    if(file!=="bun.lock"&&blob(bytes)!==expected)throw new Error(`Reviewed SDK reference source changed: ${file} does not match its pin in tests/runner-e2e/source-sdk-public-inputs.json. `
+      +"Commit your change, run `bun tests/runner-e2e/source-sdk-public-inputs.mjs $(git rev-parse HEAD) --write`, and commit the updated registry.");
     const target=path.join(directory,file);await mkdir(path.dirname(target),{recursive:true});
-    if(file==="pnpm-lock.yaml")await writeFile(target,bytes);else await copyFile(path.join(original,file),target);
+    if(file==="bun.lock")await writeFile(target,bytes);else await copyFile(path.join(original,file),target);
   }
   for(const file of [policyFile,patchFile]){
     const bytes=gitFile(original,file);
@@ -58,7 +58,7 @@ export async function prepareReviewedSdkReference(original:string,directory:stri
   // Same existing authenticated input->output correction. No hash refresh,
   // changed-lock admission, install, resolver or compiler-option substitution.
   await prepareReportLock(directory);
-  if(sha(await readFile(path.join(directory,"pnpm-lock.yaml")))!==policy.outputSha256)throw new Error("Reviewed SDK reference lock changed");
+  if(sha(await readFile(path.join(directory,"bun.lock")))!==policy.outputSha256)throw new Error("Reviewed SDK reference lock changed");
   const installedStore=await realpath(path.join(original,"node_modules/.pnpm"));
   await thirdPartyLinks(path.join(original,"node_modules"),path.join(directory,"node_modules"),installedStore);
   for(const name of ["shared","plugins/sdk"])await thirdPartyLinks(path.join(original,"packages",name,"node_modules"),path.join(directory,"packages",name,"node_modules"),installedStore);

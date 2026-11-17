@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Live smoke for the Capability issue-thread server.
  *
@@ -8,7 +8,7 @@
  * durable mock records, and no credential. Requires an authenticated local
  * Codex installation.
  *
- * Usage: node scripts/capability-issue-thread-smoke.mjs [--json]
+ * Usage: bun scripts/capability-issue-thread-smoke.mjs [--json]
  */
 
 import { createServer } from "node:http";

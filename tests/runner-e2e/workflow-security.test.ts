@@ -53,11 +53,11 @@ describe("public repository paid workflow security", () => {
     expect(manual).toContain('test "$VERIFY_PUBLIC_INSTALL" != true');
     expect(manual).toContain('SOURCE_SHA: ${{ needs.authorize_manual.outputs.target_sha }}');
     expect([...manual.matchAll(/secrets\.([A-Z_]+)/gu)].map(match => match[1])).toEqual(["GITHUB_TOKEN"]);
-    expect(manual).toContain('pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile');
+    expect(manual).toContain('bun install --no-save');
     expect(manual).toContain('PAPERCLIP_RUNNER_LOCK_SHA256=$lock_sha');
     expect(manual).toContain('docker logout ghcr.io');
     expect(manual.indexOf('Apply reviewed qualification lock corrections')).toBeLessThan(manual.indexOf('Resolve source dependencies without lifecycle scripts'));
-    expect(manual).toContain('node tests/runner-e2e/prepare-report-lock.mjs');
+    expect(manual).toContain('bun tests/runner-e2e/prepare-report-lock.mjs');
     expect(manual).toContain('if [ "$TARGET_SHA" = "$GITHUB_SHA" ]; then');
 
   });
@@ -282,8 +282,8 @@ describe("public repository paid workflow security", () => {
     expect(authorizeJob.match(/actions\/checkout@/gu)).toHaveLength(1);
     expect(authorizeJob).toContain("ref: ${{ github.sha }}");
     expect(authorizeJob).not.toContain("ref: ${{ needs.authorize.outputs.target_sha }}");
-    expect(authorizeJob.match(/run: pnpm install.*$/gmu)).toEqual([
-      "run: pnpm install --lockfile-only --frozen-lockfile --ignore-scripts --offline",
+    expect(authorizeJob.match(/run: bun install.*$/gmu)).toEqual([
+      "run: bun install --lockfile-only --frozen-lockfile --ignore-scripts --offline",
     ]);
     expect(targetLockJob).toContain("name: Resolve target pnpm lockfile");
     expect(targetLockJob).toContain("needs: authorize");
@@ -292,7 +292,7 @@ describe("public repository paid workflow security", () => {
     );
     expect(targetLockJob).toContain("persist-credentials: false");
     expect(targetLockJob).toContain(
-      "pnpm install --ignore-scripts --no-frozen-lockfile --lockfile-only",
+      "bun install --ignore-scripts --no-frozen-lockfile --lockfile-only",
     );
     expect(targetLockJob).toContain(
       "artifact_id: ${{ steps.upload.outputs.artifact-id }}",
@@ -314,7 +314,7 @@ describe("public repository paid workflow security", () => {
       /Reauthorize paid execution before provider access[\s\S]*actions\/checkout@[0-9a-f]{40}[\s\S]*persist-credentials: false[\s\S]*Download resolved target lockfile/,
     );
     expect(paidJob).toContain(
-      "pnpm exec playwright install --with-deps --only-shell chromium",
+      "bun x playwright install --with-deps --only-shell chromium",
     );
     expect(paidJob).toContain("name: Qualify preinstalled Chrome");
     expect(paidJob).toContain(
@@ -328,10 +328,10 @@ describe("public repository paid workflow security", () => {
       "PAPERCLIP_PLAYWRIGHT_CHANNEL: ${{ needs.authorize.outputs.playwright_channel }}",
     );
     expect(paidJob).not.toContain(
-      "pnpm exec playwright install --with-deps chromium",
+      "bun x playwright install --with-deps chromium",
     );
     const paidInstall = paidJob.indexOf(
-      "pnpm install --frozen-lockfile --ignore-scripts",
+      "bun install --frozen-lockfile --ignore-scripts",
     );
     const daytonaPluginPreparation = paidJob.indexOf(
       "Prepare bundled Daytona plugin without dependency lifecycle scripts",
@@ -395,7 +395,7 @@ describe("public repository paid workflow security", () => {
     expect(awsFfmpegStep).toContain(
       "if: needs.authorize.outputs.playwright_channel == 'chrome'",
     );
-    expect(awsFfmpegStep).toContain("pnpm exec playwright install ffmpeg");
+    expect(awsFfmpegStep).toContain("bun x playwright install ffmpeg");
     expect(awsFfmpegStep).not.toMatch(
       /(?:OPENAI|ANTHROPIC|OPENROUTER|DAYTONA)_API_KEY/,
     );
@@ -407,14 +407,14 @@ describe("public repository paid workflow security", () => {
       "if: matrix.environmentId == 'daytona'",
     );
     expect(preparedBeforeProviderAccess).toContain(
-      'test -f "$daytona_root/pnpm-lock.yaml"',
+      'test -f "$daytona_root/bun.lock"',
     );
     expect(preparedBeforeProviderAccess).toContain(
-      "pnpm install --ignore-workspace --frozen-lockfile --ignore-scripts",
+      "bun install --ignore-workspace --frozen-lockfile --ignore-scripts",
     );
     expect(preparedBeforeProviderAccess).not.toContain("--no-lockfile");
     expect(preparedBeforeProviderAccess).toContain(
-      "node scripts/link-plugin-dev-sdk.mjs",
+      "bun scripts/link-plugin-dev-sdk.mjs",
     );
     expect(preparedBeforeProviderAccess).toContain(
       '"@paperclipai/plugin-daytona"',
@@ -424,7 +424,7 @@ describe("public repository paid workflow security", () => {
       'realpath "$daytona_root/node_modules/@paperclipai/plugin-sdk"',
     );
     expect(preparedBeforeProviderAccess).toContain(
-      'pnpm --dir "$daytona_root" build',
+      'bun run --cwd "$daytona_root" build',
     );
     expect(preparedBeforeProviderAccess).not.toContain("secrets.");
     expect(preparedBeforeProviderAccess).not.toContain("pnpm rebuild");
@@ -517,7 +517,7 @@ describe("public repository paid workflow security", () => {
         "Restore resolved target lockfile",
       );
       const setupNode = targetCodeJob.indexOf("actions/setup-node@");
-      const install = targetCodeJob.indexOf("pnpm install --frozen-lockfile");
+      const install = targetCodeJob.indexOf("bun install --frozen-lockfile");
       expect(checkout).toBeGreaterThan(0);
       expect(downloadLock).toBeGreaterThan(checkout);
       expect(restoreLock).toBeGreaterThan(downloadLock);
@@ -563,7 +563,7 @@ describe("public repository paid workflow security", () => {
       "ref: ${{ needs.authorize.outputs.target_sha }}",
     );
     expect(reportJob).not.toContain("Download resolved target lockfile");
-    expect(reportJob).toContain("run: node tests/runner-e2e/prepare-report-lock.mjs");
+    expect(reportJob).toContain("run: bun tests/runner-e2e/prepare-report-lock.mjs");
     expect(reportJob.indexOf("Apply reviewed reporting lock corrections")).toBeLessThan(reportJob.indexOf("Install pinned reporting dependencies"));
     expect(reportJob).not.toContain("needs.target_lock.outputs");
 
@@ -572,11 +572,11 @@ describe("public repository paid workflow security", () => {
       "ref: ${{ needs.authorize.outputs.target_sha }}",
     );
     expect(historyJob).not.toContain("Download resolved target lockfile");
-    expect(historyJob).toContain("run: node tests/runner-e2e/prepare-report-lock.mjs");
+    expect(historyJob).toContain("run: bun tests/runner-e2e/prepare-report-lock.mjs");
     const authorization = fullStack.split("  authorize:\n")[1]!.split("  target_lock:\n")[0]!;
     expect(authorization).toContain("ref: ${{ github.sha }}");
     expect(authorization).toContain("Preflight reviewed report dependencies before paid admission");
-    expect(authorization).toContain("run: node tests/runner-e2e/prepare-report-lock.mjs");
+    expect(authorization).toContain("run: bun tests/runner-e2e/prepare-report-lock.mjs");
     expect(authorization).not.toContain("environment:");
 
     expect(fullStack).toContain(
@@ -690,13 +690,13 @@ describe("public repository paid workflow security", () => {
     expect(buildJob).not.toContain("environment:");
     expect(buildJob).not.toContain("secrets.");
     expect(
-      buildJob.match(/pnpm install --frozen-lockfile --ignore-scripts/g),
+      buildJob.match(/bun install --frozen-lockfile --ignore-scripts/g),
     ).toHaveLength(2);
     expect(buildJob).toContain(
-      "pnpm --filter @paperclipai/paperclip-runner build:typescript",
+      "bun run --filter @paperclipai/paperclip-runner build:typescript",
     );
     expect(buildJob).toContain(
-      "pnpm --filter @paperclipai/paperclip-runner build:runner-binaries",
+      "bun run --filter @paperclipai/paperclip-runner build:runner-binaries",
     );
     expect(buildJob).toContain(
       "node packages/paperclip-runner/scripts/build-provider-pack.mjs",
@@ -790,7 +790,7 @@ describe("public repository paid workflow security", () => {
     );
     for (const jobName of ["report", "publish_history"]) {
       const job = workflow.split(`\n  ${jobName}:`)[1]!.split(/\n  [a-z_]+:/u)[0]!;
-      const install = job.indexOf("pnpm install --frozen-lockfile --ignore-scripts");
+      const install = job.indexOf("bun install --frozen-lockfile --ignore-scripts");
       expect(job).toContain("ref: ${{ github.sha }}");
       expect(job).not.toContain("resolved-target-lockfile");
       expect(job, jobName).not.toContain("--no-frozen-lockfile");
@@ -911,7 +911,7 @@ describe("public repository paid workflow security", () => {
       "Publish trusted summary and declared screenshots to public bundles",
     );
     expect(publisher).toContain(
-      "pnpm exec playwright install --with-deps --only-shell chromium",
+      "bun x playwright install --with-deps --only-shell chromium",
     );
     expect(workflow).toContain(
       "Package pruned dashboard with declared screenshots for GitHub Pages",
@@ -923,7 +923,7 @@ describe("public repository paid workflow security", () => {
     expect(workflow).not.toContain("dashboard_ready");
     expect(workflow).not.toContain("Publish latest screenshot dashboard");
     expect(
-      workflow.indexOf("pnpm test:e2e:runner:history:publish"),
+      workflow.indexOf("bun run test:e2e:runner:history:publish"),
     ).toBeLessThan(workflow.indexOf("actions/upload-pages-artifact@"));
   });
 
@@ -937,13 +937,13 @@ describe("public repository paid workflow security", () => {
       const steps = job + (job.includes("steps: *paid_test_steps") ? paidSteps : "");
       expect(steps, job.split("\n")[0]).not.toMatch(/cache:\s*(?:pnpm|npm|yarn)\b/u);
       expect(steps).not.toMatch(/actions\/cache(?:\/restore)?@/u);
-      for (const install of steps.matchAll(/\bpnpm install[^\n]*/gu)) {
+      for (const install of steps.matchAll(/\bbun install[^\n]*/gu)) {
         expect(install[0]).toContain("--ignore-scripts");
       }
     }
     for (const name of ["report", "publish_history"]) {
       const job = jobs.find(value => value.startsWith(`  ${name}:`))!;
-      const installs = [...job.matchAll(/\bpnpm install[^\n]*/gu)];
+      const installs = [...job.matchAll(/\bbun install[^\n]*/gu)];
       expect(installs).toHaveLength(1);
       for (const install of installs) expect(install[0]).toContain('--store-dir "${{ runner.temp }}/eval-');
     }
@@ -957,7 +957,7 @@ it("keeps dependency resolution and shared caches out of Runner protocol archive
   expect(privileged.length).toBeGreaterThanOrEqual(4);
   for (const job of privileged) {
     expect(job).not.toMatch(/--no-frozen-lockfile|cache:\s*(?:pnpm|npm|yarn)|actions\/cache/u);
-    for (const install of job.matchAll(/pnpm install[^\n]*/gu)) {
+    for (const install of job.matchAll(/bun install[^\n]*/gu)) {
       expect(install[0]).toContain("--frozen-lockfile");
       expect(install[0]).toContain("--ignore-scripts");
       expect(install[0]).toContain("--store-dir");
@@ -969,9 +969,9 @@ it("keeps dependency resolution and shared caches out of Runner protocol archive
   expect(upload).toContain("include-hidden-files: true");
   expect(upload).toContain("id: upload");
   expect(builder).toContain("artifact-ids: ${{ steps.upload.outputs.artifact-id }}");
-  expect(builder).toContain("run: node --test .github/tests/runner-controller-artifact-transport.test.mjs");
+  expect(builder).toContain("run: bun test .github/tests/runner-controller-artifact-transport.test.mjs");
   expect(builder).toContain("PAPERCLIP_CONTROLLER_RECEIPT_SHA256: ${{ steps.build.outputs.runtime_receipt_sha256 }}");
   const preparer = jobs.find(job => job.startsWith("  prepare_controller:"))!;
-  expect(preparer).not.toMatch(/pnpm install/u);
+  expect(preparer).not.toMatch(/bun install/u);
   expect(preparer.indexOf("verify-runtime.mjs")).toBeLessThan(preparer.indexOf('hosted.mjs" prepare'));
 });

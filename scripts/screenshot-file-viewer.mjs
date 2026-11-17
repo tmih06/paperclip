@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Screenshots every FileViewerSheet Storybook state at desktop + mobile viewports.
 
 import fs from "node:fs/promises";

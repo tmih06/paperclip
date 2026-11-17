@@ -43,8 +43,8 @@ the private QA implementation reuses Cloud's email-code authentication helper.
 ## Select and run
 
 ```sh
-pnpm test:e2e:runner -- --list --suite github-review-journey
-pnpm test:e2e:runner -- \
+bun run test:e2e:runner -- --list --suite github-review-journey
+bun run test:e2e:runner -- \
   --id github-review-journey.configured-agent.daytona.setup-and-first-review \
   --github-review-config /private/ponytail-qa.json
 ```

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { mkdirSync, copyFileSync, existsSync, readFileSync } from "node:fs";
 import { dirname, resolve, extname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";

@@ -2266,7 +2266,7 @@
         "../../cli/src/client/board-auth.ts",
         "../../cli/src/commands/client/auth.ts",
         "../../cli/src/commands/client/common.ts",
-        "../../pnpm-lock.yaml"
+        "../../bun.lock"
       ],
       "screenshot": "final-state.png",
       "evidenceKind": "private-final-state-png",

@@ -12,7 +12,7 @@ import { planWave, taskFaultSchedule } from "./scheduler.js";
 import type { TaskPlan, WaveOptions } from "./types.js";
 
 /** A stand-in Codex app-server: answers turn/start, acknowledges turn/interrupt, then sends the interrupted terminal. */
-const FAKE_PROVIDER = `#!/usr/bin/env node
+const FAKE_PROVIDER = `#!/usr/bin/env bun
 let buffer = "";
 const send = value => process.stdout.write(JSON.stringify(value) + "\\n");
 process.stdin.on("data", chunk => {

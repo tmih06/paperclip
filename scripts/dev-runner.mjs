@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -35,7 +35,7 @@ const watchedDirectories = [
 const watchedFiles = [
   ".env",
   "package.json",
-  "pnpm-workspace.yaml",
+  "bunfig.toml",
   "tsconfig.base.json",
   "tsconfig.json",
   "vitest.config.ts",
@@ -104,7 +104,7 @@ if (tailscaleAuth) {
   console.log("[paperclip] dev mode: local_trusted (default)");
 }
 
-const pnpmBin = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const bunBin = process.platform === "win32" ? "bun.exe" : "bun";
 let previousSnapshot = collectWatchedSnapshot();
 let dirtyPaths = new Set();
 let pendingMigrations = [];
@@ -252,9 +252,9 @@ function clearDevServerStatus() {
   rmSync(devServerStatusFilePath, { force: true });
 }
 
-async function runPnpm(args, options = {}) {
+async function runBun(args, options = {}) {
   return await new Promise((resolve, reject) => {
-    const spawned = spawn(pnpmBin, args, {
+    const spawned = spawn(bunBin, args, {
       stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
       env: options.env ?? process.env,
       cwd: options.cwd,
@@ -290,15 +290,15 @@ async function runPnpm(args, options = {}) {
 }
 
 async function getMigrationStatusPayload() {
-  const status = await runPnpm(
-    ["--filter", "@paperclipai/db", "exec", "tsx", "src/migration-status.ts", "--json"],
-    { env },
+  const status = await runBun(
+    ["x", "--cwd", "packages/db", "--no-install", "tsx", "src/migration-status.ts", "--json"],
+    { env, cwd: repoRoot },
   );
   if (status.code !== 0) {
     process.stderr.write(
       status.stderr ||
         status.stdout ||
-        `[paperclip] Command failed with code ${status.code}: pnpm --filter @paperclipai/db exec tsx src/migration-status.ts --json\n`,
+        `[paperclip] Command failed with code ${status.code}: bun x --cwd packages/db --no-install tsx src/migration-status.ts --json\n`,
     );
     process.exit(status.code);
   }
@@ -368,7 +368,7 @@ async function maybePreflightMigrations(options = {}) {
     return;
   }
 
-  const migrate = spawn(pnpmBin, ["db:migrate"], {
+  const migrate = spawn(bunBin, ["run", "db:migrate"], {
     stdio: "inherit",
     env,
     shell: process.platform === "win32",
@@ -389,8 +389,8 @@ async function maybePreflightMigrations(options = {}) {
 
 async function buildPluginSdk() {
   console.log("[paperclip] building plugin sdk...");
-  const result = await runPnpm(
-    ["--filter", "@paperclipai/plugin-sdk", "build"],
+  const result = await runBun(
+    ["run", "--filter", "@paperclipai/plugin-sdk", "build"],
     { stdio: "inherit" },
   );
   if (result.signal) {
@@ -469,8 +469,8 @@ async function startServerChild() {
 
   const serverScript = mode === "watch" ? "dev:watch" : "dev";
   child = spawn(
-    pnpmBin,
-    ["--filter", "@paperclipai/server", serverScript, ...forwardedArgs],
+    bunBin,
+    ["run", "--filter", "@paperclipai/server", serverScript, ...forwardedArgs],
     { stdio: "inherit", env, shell: process.platform === "win32" },
   );
 

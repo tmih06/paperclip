@@ -1,6 +1,6 @@
 import path from "path";
 import { createRequire } from "node:module";
-import { defineConfig } from "vite";
+import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { createUiDevWatchOptions } from "./src/lib/vite-watch";
@@ -14,24 +14,29 @@ const lexicalEntry = createRequire(import.meta.url).resolve("lexical");
 
 export default defineConfig(({ mode }) => ({
   define: {
-    __PAPERCLIP_BUILD_COMMIT__: JSON.stringify(
-      readBrowserBuildCommit(__dirname),
-    ),
+    __PAPERCLIP_BUILD_COMMIT__: JSON.stringify(readBrowserBuildCommit(__dirname)),
   },
   plugins: [react(), tailwindcss(), serviceWorkerBuildIdPlugin(), preloadIssueDetail()],
   build: {
     minify: "oxc",
     rolldownOptions: {
       output: {
-        minify: mode === "production" ? {
-          compress: { dropConsole: true, dropDebugger: true, keepNames: { function: true, class: true } },
-          mangle: { keepNames: true },
-        } : undefined,
+        minify:
+          mode === "production"
+            ? {
+                compress: { dropConsole: true, dropDebugger: true, keepNames: { function: true, class: true } },
+                mangle: { keepNames: true },
+              }
+            : undefined,
         comments: { legal: false },
         codeSplitting: {
           groups: [
             { name: "board-startup", tags: ["$initial"], priority: 10 },
-            { name: "collections", test: /\/src\/pages\/(?:Issues|Inbox|LegacyInbox|CoordinatorTasks)\.tsx$/, priority: 6 },
+            {
+              name: "collections",
+              test: /\/src\/pages\/(?:Issues|Inbox|LegacyInbox|CoordinatorTasks)\.tsx$/,
+              priority: 6,
+            },
             { name: "issue-detail", test: /\/src\/pages\/IssueDetail\.tsx$/, priority: 5 },
           ],
         },

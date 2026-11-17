@@ -2194,7 +2194,7 @@ export async function prepareSandboxManagedRuntime(input: {
                 let sparseSupported = false;
                 if (input.workspaceCheckpoint && nativeSyncOut) {
                   sparseSupported = await input.client.run(
-                    `node --input-type=module -e ${shellQuote("import {DatabaseSync} from 'node:sqlite'; new DatabaseSync(':memory:').close()")}`,
+                    `bun --input-type=module -e ${shellQuote("import {DatabaseSync} from 'node:sqlite'; new DatabaseSync(':memory:').close()")}`,
                     { timeoutMs: 15_000 },
                   ).then(() => true, () => false);
                 }

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { scaffoldPluginProject, type ScaffoldPluginOptions } from "./index.js";

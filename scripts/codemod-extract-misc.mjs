@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * codemod-extract-misc.mjs
  *
@@ -82,7 +82,7 @@
  * Idempotent: the FIND regexes only match the ORIGINAL bracket-literal form;
  * once rewritten the pattern no longer matches, so re-running is a no-op.
  *
- * Usage: node scripts/codemod-extract-misc.mjs [--check]
+ * Usage: bun scripts/codemod-extract-misc.mjs [--check]
  *   --check   Report what WOULD change without writing files (dry run).
  */
 

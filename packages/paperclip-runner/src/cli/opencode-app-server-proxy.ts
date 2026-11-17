@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { parseOpenCodeReasoningMode } from "../drivers/opencode/reasoning-mode.js";
 import { createInterface } from "node:readline";
 import { readFileSync } from "node:fs";

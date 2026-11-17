@@ -13,7 +13,7 @@
 // runs the chain (the parent of both phases), so two Runner builds running at
 // once in one checkout do not consume each other's record.
 //
-// Usage: node scripts/record-build-inputs.mjs (--begin | --finish) [--package-root <dir>]
+// Usage: bun scripts/record-build-inputs.mjs (--begin | --finish) [--package-root <dir>]
 // The package root defaults to this package; the flag exists for tests that
 // build a throwaway package layout.
 

@@ -175,7 +175,7 @@ const ICON_ROWS: TaskChatToolItem[] = [
   { kind: "tool", id: "icon-1", name: "Search meetings", rawName: "mcp__paperclip__mcp.circleback-1a2b3c4d:searchmeetings", target: "Heavybit", status: "completed" },
   { kind: "tool", id: "icon-2", name: "Display meetings", rawName: "mcp__paperclip__mcp.circleback-1a2b3c4d:displaymeetings", status: "completed" },
   { kind: "tool", id: "icon-3", name: "List issues", rawName: "mcp__paperclip__mcp.linear-5e6f7a8b:list-issues", status: "completed" },
-  { kind: "tool", id: "icon-4", name: "Bash", rawName: "Bash", target: "pnpm test", status: "completed" },
+  { kind: "tool", id: "icon-4", name: "Bash", rawName: "Bash", target: "bun run test", status: "completed" },
 ];
 
 export const ProviderToolIcons: Story = {

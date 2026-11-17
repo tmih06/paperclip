@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { createHash } from "node:crypto";
 import {
   createReadStream,
@@ -77,7 +77,7 @@ function parseFlags(args) {
 }
 
 function usage() {
-  console.log(`Usage: node scripts/storybook-visual-baseline.mjs <command>
+  console.log(`Usage: bun scripts/storybook-visual-baseline.mjs <command>
 
 Commands:
   download  Fetch, checksum, and unpack the manifest archive into the snapshot dir.

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Credential-free ACP filesystem requests, driven through the real client.
 import { createInterface } from "node:readline";
 

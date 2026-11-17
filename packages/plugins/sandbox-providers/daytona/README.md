@@ -50,11 +50,11 @@ unchanged.
 
 ```bash
 cd packages/plugins/sandbox-providers/daytona
-pnpm install --ignore-workspace --no-lockfile
-pnpm build
-pnpm test
-pnpm exec vitest run --config vitest.sdk-ingress.config.ts
-pnpm typecheck
+bun install --no-save
+bun run build
+bun run test
+bun x vitest run --config vitest.sdk-ingress.config.ts
+bun run typecheck
 ```
 
 These commands assume the repo root has already been installed once so the local `@paperclipai/plugin-sdk` workspace package is available to the compiler during development.
@@ -68,7 +68,7 @@ is missing and runs all ingress acceptance cases without a conditional skip.
 The capacity regression uses Python 3 for a real local PTY, Bash, and GNU core
 utilities (`gtar`, `gdd`, and `gbase64` on macOS). It skips when those prerequisites
 are unavailable or their version checks do not match. With `DAYTONA_API_KEY` set, run
-`pnpm test src/file-sync-capacity.live.test.ts` to exercise an actual stopped and
+`bun run test src/file-sync-capacity.live.test.ts` to exercise an actual stopped and
 resumed Daytona sandbox, tar and file-copy writes to `/dev/full`, validated
 exports, and second exports after reconnect. Each case creates and deletes one
 disposable 1 GiB Ubuntu sandbox; it does not fill a disk or modify existing sandboxes.

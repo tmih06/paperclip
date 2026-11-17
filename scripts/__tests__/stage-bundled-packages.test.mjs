@@ -27,7 +27,7 @@ test('the children run the CLI entry release.sh uses, never an in-process call',
   assert.ok(source.includes('if (process.argv[1] === fileURLToPath(import.meta.url))'));
   assert.ok(source.includes('prepareBundledPackage(resolve(sourceDir), resolve(destinationDir))'));
   const release = readFileSync(new URL('../release.sh', import.meta.url), 'utf8');
-  assert.match(release, /node "\$REPO_ROOT\/scripts\/prepare-bundled-package\.mjs" "\$REPO_ROOT\/\$pkg_dir" "\$publish_dir"/);
+  assert.match(release, /bun "\$REPO_ROOT\/scripts\/prepare-bundled-package\.mjs" "\$REPO_ROOT\/\$pkg_dir" "\$publish_dir"/);
 });
 
 test('the installs run at the same time, each with its own source and target', async () => withScratch(async root => {

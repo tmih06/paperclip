@@ -28,7 +28,7 @@ function stageBody(name: string): string {
 function pnpmArguments(): string[] {
   const context = path.join(scratch, "arguments");
   mkdirSync(path.join(context, "packages", "paperclip-runner"), { recursive: true });
-  writeFileSync(path.join(context, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+  writeFileSync(path.join(context, "bun.lock"), "lockfileVersion: '9.0'\n");
   writeFileSync(path.join(context, "packages", "paperclip-runner", "package.json"), "{}\n");
   let seen: string[] = [];
   runnerLockState(context, {
@@ -53,7 +53,7 @@ describe("application image lockfile check", () => {
     expect(args.at(-1)).toBe("@paperclipai/paperclip-runner...");
     const command = ["pnpm", ...args.slice(0, -1), `'${args.at(-1)}'`].join(" ");
     expect(stage).toContain(`RUN ${command} > /tmp/runner-lockfile.log 2>&1 \\\n`);
-    expect(stageBody("runner-artifacts-build")).toContain(`pnpm install --frozen-lockfile --filter '${args.at(-1)}'`);
+    expect(stageBody("runner-artifacts-build")).toContain(`bun install --frozen-lockfile --filter '${args.at(-1)}'`);
   });
 
   it("reads only manifests the Runner build reads", () => {
@@ -64,8 +64,8 @@ describe("application image lockfile check", () => {
       "packages/paperclip-eval-kernel/package.json",
       "packages/paperclip-runner/package.json",
       "patches/",
-      "pnpm-lock.yaml",
-      "pnpm-workspace.yaml",
+      "bun.lock",
+      "bunfig.toml",
     ]);
     for (const source of sources) {
       const file = source.replace(/\/$/, "");
@@ -79,7 +79,7 @@ describe("application image lockfile check", () => {
 
   it("names the stale lockfile and the command that refreshes it", () => {
     expect(stage).toContain("grep -Eq 'ERR_PNPM_OUTDATED_LOCKFILE|ERR_PNPM_LOCKFILE_CONFIG_MISMATCH' /tmp/runner-lockfile.log");
-    expect(stage).toContain("ERROR: pnpm-lock.yaml is behind the manifests the Runner is installed from");
+    expect(stage).toContain("ERROR: bun.lock is behind the manifests the Runner is installed from");
     expect(stage).toContain(`Run this command in the checkout, then build again: ${LOCKFILE_REFRESH_COMMAND}" >&2;`);
     expect(stage).toMatch(/exit 1; \}\n/);
     for (const workflow of ["docker.yml", "docker-merge-group.yml", "docker-app-check.yml"]) {
@@ -96,7 +96,7 @@ describe("beta and stable release lockfile check", () => {
     for (const input of RUNNER_IMAGE_CONTEXT_INPUTS as readonly string[]) {
       const file = input === "patches" ? "patches/a.patch" : input.startsWith("packages/paperclip-") ? `${input}/package.json` : input;
       mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
-      writeFileSync(path.join(root, file), file === "pnpm-lock.yaml" ? lockfile : `${file}\n`);
+      writeFileSync(path.join(root, file), file === "bun.lock" ? lockfile : `${file}\n`);
     }
     mkdirSync(path.join(root, "server"));
     writeFileSync(path.join(root, "server", "index.ts"), "export {};\n");
@@ -108,14 +108,14 @@ describe("beta and stable release lockfile check", () => {
 
   it("checks the Runner inputs of the commit, not the working tree, and removes its copy", () => {
     const root = repository("committed\n");
-    writeFileSync(path.join(root, "pnpm-lock.yaml"), "edited after the commit\n");
+    writeFileSync(path.join(root, "bun.lock"), "edited after the commit\n");
     writeFileSync(path.join(root, "packages", "paperclip-runner", "untracked.txt"), "untracked\n");
     let context = "";
     const result = runnerLockStateAtCommit({
       repoRoot: root,
       lockState: (directory: string) => {
         context = directory;
-        expect(readFileSync(path.join(directory, "pnpm-lock.yaml"), "utf8")).toBe("committed\n");
+        expect(readFileSync(path.join(directory, "bun.lock"), "utf8")).toBe("committed\n");
         expect(existsSync(path.join(directory, "packages", "paperclip-runner", "package.json"))).toBe(true);
         expect(existsSync(path.join(directory, "server"))).toBe(false);
         expect(existsSync(path.join(directory, ".git"))).toBe(false);
@@ -130,7 +130,7 @@ describe("beta and stable release lockfile check", () => {
 
   it("fails when the commit lacks an input instead of calling the lockfile current", () => {
     const root = repository();
-    git(root, "rm", "--quiet", "pnpm-lock.yaml");
+    git(root, "rm", "--quiet", "bun.lock");
     git(root, "-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "--quiet", "--message", "no lockfile");
     expect(() => runnerLockStateAtCommit({ repoRoot: root, lockState: () => ({ state: "current" as const, detail: "" }) }))
       .toThrow(/Could not export the Runner's inputs at HEAD/);
@@ -140,7 +140,7 @@ describe("beta and stable release lockfile check", () => {
 
   it.each<["current" | "behind", number, RegExp]>([
     ["current", 0, /^pnpm-lock\.yaml at abc123 matches the Runner's manifests\.$/],
-    ["behind", 1, /^pnpm-lock\.yaml at abc123 is behind the Runner's manifests \(detail\)\. .*: pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile$/],
+    ["behind", 1, /^pnpm-lock\.yaml at abc123 is behind the Runner's manifests \(detail\)\. .*: bun install --no-save$/],
   ])("exits for a %s lockfile with %i", (state, status, message) => {
     const lines: string[] = [];
     const checked: { repoRoot: string; commit?: string }[] = [];
@@ -199,6 +199,6 @@ describe("beta and stable release lockfile check", () => {
     });
     expect(result.status).toBe(releaseStatus);
     expect(result.stdout.includes("released")).toBe(releaseStatus === 0);
-    if (releaseStatus !== 0) expect(result.stderr).toContain("Error: a beta or stable release needs a pnpm-lock.yaml that matches the Runner's manifests at HEAD.");
+    if (releaseStatus !== 0) expect(result.stderr).toContain("Error: a beta or stable release needs a bun.lock that matches the Runner's manifests at HEAD.");
   });
 });

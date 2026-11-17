@@ -3053,7 +3053,7 @@ it.each([false, true])("binds a vendored source server to its pnpm dependency ro
   await mkdir(join(workspace, "node_modules", ".pnpm"), { recursive: true });
   await mkdir(join(server, "node_modules", ...(selfRooted ? [".pnpm"] : [])), { recursive: true });
   await writeFile(join(workspace, "package.json"), JSON.stringify({ name: "paperclip", private: true }));
-  await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages:\n  - server\n");
+  await writeFile(join(workspace, "bunfig.toml"), "packages:\n  - server\n");
   await writeFile(join(server, "package.json"), JSON.stringify({ name: "@paperclipai/server" }));
   try {
     expect(runnerdLaunchProfileInternals.acpxProviderPackageAuthority(

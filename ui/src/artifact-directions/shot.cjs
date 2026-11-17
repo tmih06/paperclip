@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /* eslint-disable no-console */
 "use strict";
 
@@ -74,7 +74,7 @@ function loadChromium() {
       // try the next one
     }
   }
-  throw new Error("Playwright is not installed (looked for @playwright/test and playwright). Run pnpm install.");
+  throw new Error("Playwright is not installed (looked for @playwright/test and playwright). Run bun install.");
 }
 
 /**

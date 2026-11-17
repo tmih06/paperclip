@@ -17,7 +17,7 @@ the same dark theme. Static site styles live in
 colors and typography come from the Runner Lab token layer.
 Missing recordings show a notice in the same viewer; missing viewer builds
 fail generation. Build with
-`pnpm --filter @paperclipai/paperclip-runner build:issue-thread` and provide
+`bun run --filter @paperclipai/paperclip-runner build:issue-thread` and provide
 `--viewer-root` or `PAPERCLIP_EVAL_VIEWER_ROOT` to the canonical Python renderer.
 
 Legacy manual runs place full evidence in Actions artifacts. These artifacts
@@ -788,14 +788,14 @@ additive writes and reads for that prefix.
 These tests make no provider or AWS calls:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner test:runner-protocol-eval-publish
+bun run --filter @paperclipai/paperclip-runner test:runner-protocol-eval-publish
 ```
 
 To inspect the catalog without executing it, point the command at a local
 evals checkout:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner \
+bun run --filter @paperclipai/paperclip-runner \
   report:runner-protocol-eval:catalog -- \
   --evals-root /path/to/paperclip-evals \
   --campaign-id gha-1-1 \
@@ -889,7 +889,7 @@ still fit its spend cap: the once-only overhead plus every selected allocation
 must not exceed `maxUsd`, or preparation fails before provider work. With the
 committed defaults the 41-case Claude plan reserves $339 of the $400 cap.
 
-The controller installs the committed `pnpm-lock.yaml` of the trusted workflow
+The controller installs the committed `bun.lock` of the trusted workflow
 revision with `--frozen-lockfile`, disabled install scripts and a job-local
 store. It fails if the checkout's lockfile differs from the commit. The runtime
 receipt records the lockfile digest; private preparation checks that it equals
@@ -965,7 +965,7 @@ skipped. Selective publication requires a separate reviewed projection.
 
 To restore a report with an authorized private-history session, use the
 portable runtime's `private-history.mjs download protocol-report RUN_ID NEW_DIR`
-or `node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/private-history.ts`
+or `bun tests/runner-e2e/private-history.ts`
 with the same arguments. Supply the private bucket and AWS region through the
 existing environment variables. Read retained reports without rerunning models.
 The report command accepts `--controller-manifest` and

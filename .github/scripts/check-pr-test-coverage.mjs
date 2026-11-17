@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-pr-test-coverage.mjs
  * Checks that a PR diff includes at least one test file. Respects conventional

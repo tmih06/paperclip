@@ -58,7 +58,7 @@ const runningItemSteps: TaskChatItem[][] = [
       kind: "tool",
       name: "Bash",
       rawName: "bash",
-      target: "pnpm exec vitest run ui/src/components/task-chat/TaskChatRunnerTurn.test.tsx --runInBand",
+      target: "bun x vitest run ui/src/components/task-chat/TaskChatRunnerTurn.test.tsx --runInBand",
       status: "in_progress",
     },
   ],

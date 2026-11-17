@@ -48,7 +48,7 @@ export async function captureSdkCanaryBuild(input: { repositoryRoot: string; tem
   const copied = [];
   for (const [file, gitBlobSha1] of Object.entries(inputs.inputs)) {
     const bytes = await readFile(path.join(input.repositoryRoot, file));
-    copied.push({ path: file, bytes: bytes.length, sha256: hash(bytes), gitBlobSha1, restoredLockOverlay: file === "pnpm-lock.yaml" });
+    copied.push({ path: file, bytes: bytes.length, sha256: hash(bytes), gitBlobSha1, restoredLockOverlay: file === "bun.lock" });
   }
   copied.sort((a, b) => a.path.localeCompare(b.path));
   const retained = await verifyRetainedSourceSdk(input.temporaryRoot, SDK_CANARY, input.sourceRevision, input.secrets, input.repositoryRoot);

@@ -54,10 +54,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
           run_install: false
 
       - name: Setup Node.js
@@ -75,7 +75,7 @@ jobs:
 
       - name: Compute the Runner inputs of this commit
         timeout-minutes: 5
-        run: node scripts/runner-image-resolve.mjs inputs --dir "$RUNNER_TEMP/runner-image-resolve"
+        run: bun scripts/runner-image-resolve.mjs inputs --dir "$RUNNER_TEMP/runner-image-resolve"
 
       - name: Find the published Runner image of these inputs
         id: resolve
@@ -86,9 +86,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$WAIT" = true ]; then
-            node scripts/runner-image-resolve.mjs resolve --dir "$RUNNER_TEMP/runner-image-resolve" --wait
+            bun scripts/runner-image-resolve.mjs resolve --dir "$RUNNER_TEMP/runner-image-resolve" --wait
           else
-            node scripts/runner-image-resolve.mjs resolve --dir "$RUNNER_TEMP/runner-image-resolve"
+            bun scripts/runner-image-resolve.mjs resolve --dir "$RUNNER_TEMP/runner-image-resolve"
           fi
 
       - name: Verify the attestation of the Runner image
@@ -142,7 +142,7 @@ jobs:
         id: watch
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/watch-release-source.mjs
+        run: bun scripts/watch-release-source.mjs
 
   reuse_canary_image:
     if: github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && startsWith(github.ref, 'refs/tags/canary/v')
@@ -171,13 +171,13 @@ jobs:
         id: reuse
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/reuse-canary-image.mjs
+        run: bun scripts/reuse-canary-image.mjs
 
   # Multi-arch by native runner, not QEMU.
   #
   # This was one job building linux/amd64,linux/arm64 together on an x86
   # runner. The arm64 half is emulated there, and it did not merely run slow:
-  # it wedged, every time, in `RUN pnpm --filter @paperclipai/server build`,
+  # it wedged, every time, in `RUN bun run --filter @paperclipai/server build`,
   # emitting nothing for 38-45 minutes until `timeout-minutes: 60` killed the
   # job. Verified across three consecutive runs on 2026-09-04; the amd64 half
   # reached `production 5/5` minutes earlier in every one.
@@ -263,10 +263,10 @@ jobs:
         id: tools-epoch
         run: echo "epoch=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
           run_install: false
 
       # No dependency cache here: this workflow publishes release images, and
@@ -281,7 +281,7 @@ jobs:
         if: needs.runner_image.outputs.mode != 'published'
         run: |
           set -euo pipefail
-          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+          bun install --no-save
 
           changed="$(git status --porcelain)"
           if [ -z "$changed" ]; then
@@ -289,13 +289,13 @@ jobs:
             exit 0
           fi
 
-          if printf '%s\n' "$changed" | grep -Fvq ' pnpm-lock.yaml'; then
+          if printf '%s\n' "$changed" | grep -Fvq ' bun.lock'; then
             echo "Unexpected files changed during lockfile refresh:"
             echo "$changed"
             exit 1
           fi
 
-          echo "Using refreshed pnpm-lock.yaml in the Docker build context."
+          echo "Using refreshed bun.lock in the Docker build context."
 
       - name: Free runner disk
         if: ${{ !(vars.CORE_RELEASE_AWS_ENABLED == 'true' && github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master') }}
@@ -350,7 +350,7 @@ jobs:
           set -euo pipefail
           trusted="$RUNNER_TEMP/merge-group-image-trusted.mjs"
           git show "$BEFORE:scripts/merge-group-image.mjs" > "$trusted"
-          node "$trusted" find --arch "$ARCH"
+          bun "$trusted" find --arch "$ARCH"
 
       - name: Download the merge-queue image
         if: steps.find.outputs.run_id != ''
@@ -388,7 +388,7 @@ jobs:
           git show "$BEFORE:scripts/merge-group-image.mjs" > "$trusted"
           # Verify without writing a step output: the digest is set only after
           # the exact bytes are in the registry.
-          verified="$(GITHUB_OUTPUT='' node "$trusted" verify --arch "$ARCH" --dir "$DIRECTORY" --since "$BEFORE")"
+          verified="$(GITHUB_OUTPUT='' bun "$trusted" verify --arch "$ARCH" --dir "$DIRECTORY" --since "$BEFORE")"
           digest="$(printf '%s\n' "$verified" | sed -n 's/^digest=//p')"
           printf '%s' "$digest" | grep -Eq '^sha256:[a-f0-9]{64}$'
           # --preserve-digests fails rather than re-encode, so the registry
@@ -554,7 +554,7 @@ jobs:
       - name: Require source proof and migrator admission before publication
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/watch-release-source.mjs --require-proof
+        run: bun scripts/watch-release-source.mjs --require-proof
 
   # Names the per-architecture digests as one manifest list under the real
   # tags. Nothing is publicly tagged until this runs, so a half-published
@@ -637,7 +637,7 @@ jobs:
         if: github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.ref == 'refs/heads/master'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/watch-release-source.mjs --check-proof
+        run: bun scripts/watch-release-source.mjs --check-proof
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
@@ -660,7 +660,7 @@ jobs:
       - name: Resolve standard image digest
         id: standard
         if: github.repository == 'paperclipai/paperclip' && github.repository_id == '1170821064' && github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: node scripts/standard-image-contract.mjs --resolve "$GITHUB_SHA" --verified-digests /tmp/digests
+        run: bun scripts/standard-image-contract.mjs --resolve "$GITHUB_SHA" --verified-digests /tmp/digests
       - name: Attest the standard production image
         if: steps.standard.outputs.digest != ''
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4

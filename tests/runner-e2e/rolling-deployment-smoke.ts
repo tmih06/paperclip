@@ -35,7 +35,7 @@ const report: Record<string, unknown> = {
   sourceRevision: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim(),
   sourceDirty: execFileSync("git", ["status", "--porcelain"], { cwd: repositoryRoot, encoding: "utf8" }).trim().length > 0,
   sourcePatchSha256: patchHash.digest("hex"), nodeVersion: process.version,
-  lockfileSha256: createHash("sha256").update(await readFile(path.join(repositoryRoot, "pnpm-lock.yaml"))).digest("hex"),
+  lockfileSha256: createHash("sha256").update(await readFile(path.join(repositoryRoot, "bun.lock"))).digest("hex"),
   artifactKind: "source", authentication: "local_trusted", readinessProbe: "/api/ready",
   activeAgentContinuityQualified: false, browserQualified: false, checks,
 };

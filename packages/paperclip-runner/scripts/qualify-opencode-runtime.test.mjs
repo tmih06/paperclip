@@ -1,5 +1,5 @@
 // Opt-in qualification of the installed CLI, not the fake protocol server.
-// PAPERCLIP_OPENCODE_QUALIFY=1 node --test scripts/qualify-opencode-runtime.test.mjs
+// PAPERCLIP_OPENCODE_QUALIFY=1 bun test scripts/qualify-opencode-runtime.test.mjs
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { once } from "node:events";
@@ -147,7 +147,7 @@ test("the pinned OpenCode executable serves health, sessions, SSE, and a local-p
 
 // Output custody against the real executable: a command that prints a
 // configured secret and a file read of that secret must reach neither the
-// model request nor OpenCode's session store. Requires `pnpm build:typescript`.
+// model request nor OpenCode's session store. Requires `bun run build:typescript`.
 for (const custody of [false, true]) {
   test(`configured secrets ${custody ? "stay out of" : "reach (unprotected baseline)"} OpenCode's store and model requests`, {
     skip: !enabled,

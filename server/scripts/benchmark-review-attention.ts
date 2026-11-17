@@ -14,7 +14,7 @@
  * counts, the same attention feed, the same task index, the same task list
  * and the same review attention for every task in review.
  *
- *   pnpm --filter @paperclipai/server exec tsx scripts/benchmark-review-attention.ts \
+ *   bun run --filter @paperclipai/server exec tsx scripts/benchmark-review-attention.ts \
  *     --baseline-ref=<pre-fix commit> --tasks=3000,9000 --agents=60 --company-sources
  *
  * Options: --tasks (comma-separated fixture sizes, default 3000,9000),

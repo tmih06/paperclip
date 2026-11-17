@@ -359,7 +359,7 @@ try {
   }
   const report = { baselineRevision, treatmentRevision: gitOutput(["rev-parse", "HEAD"]).trim(),
     treatmentIsBaseline, diagnostic, migrationProof, baselineIndexes, treatmentIndexes, sourceHashes: Object.fromEntries(await Promise.all(proofPaths.map(async file => [file, createHash("sha256").update(await fs.readFile(repositoryPath(file))).digest("hex")]))),
-    checkedInLockSha256: createHash("sha256").update(await fs.readFile(repositoryPath("pnpm-lock.yaml"))).digest("hex"), nodeVersion: process.version, dependencyVersions: Object.fromEntries(await Promise.all(["postgres", "drizzle-orm"].map(async name => [name, JSON.parse(await fs.readFile(repositoryPath(`packages/db/node_modules/${name}/package.json`), "utf8")).version]))), settings, setupMs, totalMs: performance.now() - started, results };
+    checkedInLockSha256: createHash("sha256").update(await fs.readFile(repositoryPath("bun.lock"))).digest("hex"), nodeVersion: process.version, dependencyVersions: Object.fromEntries(await Promise.all(["postgres", "drizzle-orm"].map(async name => [name, JSON.parse(await fs.readFile(repositoryPath(`packages/db/node_modules/${name}/package.json`), "utf8")).version]))), settings, setupMs, totalMs: performance.now() - started, results };
   const json = JSON.stringify(report, null, 2);
   if (evidenceDir) { await fs.mkdir(evidenceDir, { recursive: true }); await fs.writeFile(path.join(evidenceDir, "benchmark.json"), json); }
   console.log(json);

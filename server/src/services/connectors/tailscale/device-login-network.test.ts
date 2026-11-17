@@ -16,7 +16,7 @@ describe("Tailscale interactive device enrollment", () => {
   let manager: ReturnType<typeof createTailscaleNetworkManager>;
   beforeEach(async () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-ts-login-test-"));
-    await fs.writeFile(path.join(dir, "daemon"), `#!/usr/bin/env node
+    await fs.writeFile(path.join(dir, "daemon"), `#!/usr/bin/env bun
 const fs = require('node:fs');
 const path = require('node:path');
 const dir = path.dirname(process.argv.find(arg => arg.startsWith('--socket=')).slice(9));
@@ -24,7 +24,7 @@ fs.writeFileSync(path.join(dir, 'pid'), String(process.pid));
 process.on('SIGTERM', () => process.exit(0));
 setInterval(() => {}, 1000);
 `, { mode: 0o700 });
-    await fs.writeFile(path.join(dir, "cli"), `#!/usr/bin/env node
+    await fs.writeFile(path.join(dir, "cli"), `#!/usr/bin/env bun
 const fs = require('node:fs');
 const path = require('node:path');
 const args = process.argv.slice(2);

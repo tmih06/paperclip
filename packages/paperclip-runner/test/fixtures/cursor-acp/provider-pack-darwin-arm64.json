@@ -43,7 +43,7 @@
         "sha256": "sha256:27db838bb204ef7c21df2931f5656e4c8fb32e6e947f363a402b49714d32b5b1"
       },
       "productionLock": {
-        "path": "pnpm-lock.yaml",
+        "path": "bun.lock",
         "sha256": "sha256:9eea60187c6c808efb4d936a234a8d8000beac45253091abd4c5348132bd1408"
       },
       "opencodeCommand": {

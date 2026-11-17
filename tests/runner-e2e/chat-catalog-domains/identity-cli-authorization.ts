@@ -72,7 +72,7 @@ export const cliAuthorizationIdentityCases: readonly ChatCatalogCase[] = [identi
     return { ...o, state: { ...o.state, runEventsRead: true, agentApiOperations: agentApiOperations(events) } };
   },
   sourceFiles: ["chat-catalog-domains/identity-cli-authorization.ts", "chat-catalog-domains/identity-support.ts", "chat-catalog-domains/internal-support.ts", "chat-scenarios/access.yaml", "run-observations.ts",
-    "../../cli/src/index.ts", "../../cli/src/client/board-auth.ts", "../../cli/src/commands/client/auth.ts", "../../cli/src/commands/client/common.ts", "../../pnpm-lock.yaml"],
+    "../../cli/src/index.ts", "../../cli/src/client/board-auth.ts", "../../cli/src/commands/client/auth.ts", "../../cli/src/commands/client/common.ts", "../../bun.lock"],
   async act(ctx, state) {
     await waitForReply(ctx, chatCatalogOriginalPhaseDeadline(ctx)); const resources = owned.get(ctx); if (!resources) throw new Error("Owned CLI home missing");
     const login = runCli(ctx, ["auth", "login", "--company-id", ctx.input.fixtures.company.id, "--no-browser"], "login");

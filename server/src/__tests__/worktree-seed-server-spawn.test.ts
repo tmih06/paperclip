@@ -191,7 +191,7 @@ describe("managed worktree seed source through the server spawn path", () => {
     const hookPath = path.join(hooksDir, "post-checkout");
     await fs.writeFile(
       hookPath,
-      `#!/usr/bin/env node
+      `#!/usr/bin/env bun
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");

@@ -36,8 +36,8 @@ recorded walkthrough in [doc/MCP-DEMO-SCRIPT.md](../../doc/MCP-DEMO-SCRIPT.md).
 From the repo root:
 
 ```sh
-pnpm --filter @paperclipai/kv-demo-mcp-server build
-pnpm --filter @paperclipai/kv-demo-mcp-server start
+bun run --filter @paperclipai/kv-demo-mcp-server build
+bun run --filter @paperclipai/kv-demo-mcp-server start
 ```
 
 Or run the source directly during development:
@@ -235,7 +235,7 @@ MCP Tasks.
 Start it from the repo root:
 
 ```sh
-pnpm --filter @paperclipai/kv-demo-mcp-server build
+bun run --filter @paperclipai/kv-demo-mcp-server build
 node packages/kv-demo-mcp-server/dist/tasks/main.js
 ```
 
