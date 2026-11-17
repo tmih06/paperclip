@@ -9,11 +9,11 @@ type Row = Record<string, any>;
 const rec = (value: unknown): Row => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Row : {};
 const sha = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const requireEvidence = (value: unknown, reason: string) => { if (!value) throw new Error(`Pi file evidence: ${reason}`); };
-export function piFileContract(nonce: string) {
+export function piFileContract(nonce: string, validationRuntime: "bun" | "node" = "bun") {
   if (!/^[A-Za-z0-9-]{1,100}$/u.test(nonce)) throw new Error("Invalid file fixture nonce");
   const filename = `extended-${nonce}.txt`, before = `ready-${nonce}\n`, after = `verified-${nonce}\n`;
   const validationMarker = `PI-VALIDATED-${nonce}`;
-  const validationCommand = `node -e 'if(require("node:fs").readFileSync(${JSON.stringify(filename)},"utf8")!==${JSON.stringify(after)})throw Error("mismatch");console.log(${JSON.stringify(validationMarker)})'`;
+  const validationCommand = `${validationRuntime} -e 'if(require("node:fs").readFileSync(${JSON.stringify(filename)},"utf8")!==${JSON.stringify(after)})throw Error("mismatch");console.log(${JSON.stringify(validationMarker)})'`;
   if ([...validationCommand].length > 240) throw new Error("Validation command exceeds native Rust tool-name bound");
   return { filename, before, after, sha256: sha(after), byteSize: Buffer.byteLength(after), validationMarker, validationCommand };
 }
@@ -65,8 +65,9 @@ export function gradePiFileEvidence(input: {
   environment: "local" | "daytona"; environmentId: string; lease?: Row;
   events: unknown[]; seed: unknown; workspaceBytes: Buffer; attachments: unknown[];
   attachmentId: string; downloadedBytes: Buffer; activity: unknown[];
+  validationRuntime?: "bun" | "node";
 }) {
-  const c = piFileContract(input.nonce), run = input.run, seed = rec(input.seed);
+  const c = piFileContract(input.nonce, input.validationRuntime), run = input.run, seed = rec(input.seed);
   const workspaceProvenance = input.environment === "daytona"
     ? gradePiCopyback(run, rec(input.lease), input.companyId, input.environmentId)
     : { kind: "independent_local_workspace" };

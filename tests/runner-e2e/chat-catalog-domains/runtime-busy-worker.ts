@@ -15,7 +15,7 @@ export function taskBoundRuntimeGate(nonce: string, timeoutMs = 300_000): Runtim
   const gateName = `runtime-brief-${createHash("sha256").update(nonce).digest("hex").slice(0, 24)}.txt`;
   const script = `const fs=require("node:fs");const gate=${JSON.stringify(gateName)};fs.writeFileSync(gate+".waiting","waiting",{flag:"wx"});const end=Date.now()+${timeoutMs};const timer=setInterval(()=>{if(fs.existsSync(gate)){console.log(fs.readFileSync(gate,"utf8"));clearInterval(timer)}else if(Date.now()>end){clearInterval(timer);process.exitCode=1}},100);`;
   const quote = (value: string) => "'" + value.replace(/'/g, "'\\''") + "'";
-  return { gate: "", ready: "", scriptPath: "", command: `node -e ${quote(script)}`, taskBound: true, gateName, script };
+  return { gate: "", ready: "", scriptPath: "", command: `bun -e ${quote(script)}`, taskBound: true, gateName, script };
 }
 /** Bind only the actual assigned task's persisted workspace, never AGENT_HOME. */
 export async function readRuntimeTaskGate(ctx: ChatCatalogContext, gate: RuntimeBriefGate, taskId: string, workerId: string) {

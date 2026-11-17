@@ -71,7 +71,9 @@ describe("Pi edit, validation and public artifact oracle", () => {
         sourceSeq: x.sourceSeq, sourceEventId: `runner:run:${x.sourceSeq}`, runId: "run", turnId: "turn",
         normalizedSessionId: "session", eventType: x.eventType, payload: x.payload,
       } } }));
-    expect(gradePiFileEvidence(f).verification).toMatchObject({ nativeStructuredExitCode: 0, typedExitCode: null });
+    expect(() => gradePiFileEvidence(f)).toThrow("exact correlated command progress");
+    expect(gradePiFileEvidence({ ...f, validationRuntime: "node" }).verification)
+      .toMatchObject({ nativeStructuredExitCode: 0, typedExitCode: null });
   });
   it("accepts actual correlated lifecycles, independent bytes and a run-bound registered download", () => {
     const result = gradePiFileEvidence(fixture());

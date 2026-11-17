@@ -91,7 +91,7 @@ export function workspaceChatBrief(nonce: string, timeoutMs = 120_000) {
   const name = `chat-brief-${nonce}.txt`;
   const script = `const fs=require("node:fs"),g="${name}",end=Date.now()+${Math.floor(timeoutMs)};fs.writeFileSync(g+".waiting","waiting");const t=setInterval(()=>{if(fs.existsSync(g)){console.log(fs.readFileSync(g,"utf8"));clearInterval(t)}else if(Date.now()>end){clearInterval(t);process.exitCode=1}},100)`;
   return {
-    command: `node -e '${script}'`,
+    command: `bun -e '${script}'`,
     at: (workspacePath: string) => ({ gate: path.join(workspacePath, name), ready: path.join(workspacePath, `${name}.waiting`) }),
   };
 }

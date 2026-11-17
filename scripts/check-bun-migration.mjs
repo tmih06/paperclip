@@ -35,7 +35,14 @@ for (const file of files) {
   if (!code && !commands) continue;
   for (const [index, line] of content.split("\n").entries()) {
     if (/^\s*(?:\/\/|\*|#(?!\!))/.test(line)) continue;
+    const externalNodeEval =
+      (file === "packages/adapter-utils/src/sandbox-install-command.ts"
+        || file === "packages/plugins/sandbox-providers/exe-dev/src/plugin.ts")
+        && line.includes("process.versions.node.split")
+      || /^scripts\/verify-(?:cursor|grok)-npm-install\.mjs$/.test(file)
+        && line.includes("postinstall:") && line.includes("lifecycle-ran");
     const invalid = code && (launch.test(line) || /^#!.*\b(?:node|tsx)\b/.test(line)
+      || !externalNodeEval && /(?<![\w/-])node\s+(?:-e|--eval)\s/.test(line)
       || /["'`]\s*(?:node|tsx|pnpm|corepack)\s+(?:--import\s+[^"'`]*tsx|[^"'`]*node_modules\/tsx\/)/.test(line)
       || /node_modules\/(?:\.bin\/tsx|tsx\/dist\/(?:cli|loader)\.mjs)|["']node_modules["']\s*,\s*["']tsx["']/.test(line))
       || commands && /(?:^|\brun:\s*|\bRUN\s+|[;&|]\s*|\$\()\s*(?:exec\s+)?(?:pnpm|corepack|tsx|node)\s/.test(line)

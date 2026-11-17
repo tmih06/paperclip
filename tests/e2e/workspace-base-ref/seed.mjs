@@ -30,7 +30,7 @@ export async function seedBranchRepair(base, { inheritAgentStrategy = false } = 
   });
   const agent = await api(`/companies/${company.id}/agents`, "POST", { name: "Branch verification worker", role: "engineer", adapterType: "process",
     adapterConfig: { command: process.execPath, args: [path.resolve(import.meta.dirname, "worker.mjs"), ...(inheritAgentStrategy ? ["--expect-setup"] : [])],
-      ...(inheritAgentStrategy ? { workspaceStrategy: { type: "git_worktree", baseRef: "main", branchTemplate: "agent/{{issue.identifier}}", worktreeParentDir: ".agent-worktrees", provisionCommand: `node -e "require('node:fs').writeFileSync('setup-proof.txt', 'ready')"` } } : {}) },
+      ...(inheritAgentStrategy ? { workspaceStrategy: { type: "git_worktree", baseRef: "main", branchTemplate: "agent/{{issue.identifier}}", worktreeParentDir: ".agent-worktrees", provisionCommand: `bun -e "require('node:fs').writeFileSync('setup-proof.txt', 'ready')"` } } : {}) },
     runtimeConfig: { heartbeat: { enabled: false, wakeOnDemand: true } },
   });
   const issue = await api(`/companies/${company.id}/issues`, "POST", { title: "Repair the missing starting branch", status: "todo", projectId: project.id, assigneeAgentId: agent.id,
