@@ -1,0 +1,88 @@
+{
+  "recordedAt": "2026-11-17T19:34:36.441619+00:00",
+  "scope": "Separate validation controller and database; not the stopped main instance",
+  "agent": {
+    "id": "768602a0-a1b8-490d-b09c-48124823dfe0",
+    "name": "OMPIG Beam Free",
+    "adapterType": "ompig_slim",
+    "model": "opencode-free/beam-free",
+    "status": "paused",
+    "lifecycleState": "verifying",
+    "defaultEnvironmentId": "91f9c9b3-d55d-49f8-98f1-753db8647551"
+  },
+  "issue": {
+    "id": "9120495b-e9a9-4c3c-8c4a-7836a33d6473",
+    "identifier": "OMP-1",
+    "status": "backlog"
+  },
+  "ompigSourceRevision": "51d4583",
+  "ompigBinarySha256": "eff78814d125b13fdc08776a1be252823d9e23b08cd6960997ea19735bcf4650",
+  "runtimeImage": "paperclip-ompig-runtime:e2e-51d4583-bun1.4.4",
+  "runtimeImageDigest": "sha256:f51afc85610c9c21bbd6aa1e54b98aaf8491560c3af87c3b7eaab9b2a3c76c84",
+  "providerResult": [
+    {
+      "role": "assistant",
+      "content": [],
+      "api": "openai-completions",
+      "provider": "opencode-free",
+      "model": "beam-free",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "error",
+      "timestamp": 1794943742716,
+      "errorMessage": "429: {\"type\":\"FreeUsageLimitError\",\"message\":\"Free usage limit reached. Free models work in OpenCode (https://opencode.ai); subscribe to OpenCode Go to keep going: https://opencode.ai/go\"} (resets in 5h02m)",
+      "durationMs": 329,
+      "thinkingLevel": "off"
+    }
+  ],
+  "podSecurity": {
+    "namespace": "pc-ompig-e2e-a599d591-40f3-4528-a142-a88dbc3808d1",
+    "hostNetwork": false,
+    "hostPID": false,
+    "hostIPC": false,
+    "hostPathVolumes": false,
+    "automountServiceAccountToken": false,
+    "runAsUser": 1000,
+    "seccompProfile": {
+      "type": "RuntimeDefault"
+    },
+    "containerSecurityContext": {
+      "allowPrivilegeEscalation": false,
+      "capabilities": {
+        "drop": [
+          "ALL"
+        ]
+      },
+      "readOnlyRootFilesystem": true
+    },
+    "resources": {
+      "limits": {
+        "cpu": "2",
+        "memory": "4Gi"
+      },
+      "requests": {
+        "cpu": "250m",
+        "memory": "512Mi"
+      }
+    }
+  },
+  "cleanup": {
+    "pods": 0,
+    "sandboxes": 0,
+    "perRunSecrets": 0
+  },
+  "realAnswerVerified": false,
+  "reason": "OpenCode Free returned HTTP 429 FreeUsageLimitError, with about 5h02m until reset. No paid fallback or quota bypass attempted."
+}

@@ -33,18 +33,8 @@ export const kubernetesProviderConfigSchema = z
     jobTtlSecondsAfterFinished: z.number().int().nonnegative().default(900),
     podActivityDeadlineSec: z.number().int().positive().default(3600),
 
-    /**
-     * The adapter type that Jobs in this environment will run.
-     * Each Kubernetes environment is bound to one adapter; create multiple
-     * environments for different adapters.
-     * Defaults to `"claude_local"`.
-     */
-    adapterType: z
-      .string()
-      .default("claude_local")
-      .refine((v) => KNOWN_ADAPTER_TYPES.has(v), {
-        message: "adapterType must be one of the known adapter types",
-      }),
+    /** Default adapter when the run does not supply one. */
+    adapterType: z.string().default("claude_local"),
 
     /**
      * Optional declarative adapter registry. When present it is authoritative
@@ -67,6 +57,12 @@ export const kubernetesProviderConfigSchema = z
      */
     backend: z.enum(["sandbox-cr", "job"]).default("sandbox-cr"),
   })
+  .refine(
+    (cfg) => cfg.adapters?.length
+      ? cfg.adapters.some((entry) => entry.adapterType === cfg.adapterType)
+      : KNOWN_ADAPTER_TYPES.has(cfg.adapterType),
+    { path: ["adapterType"], message: "adapterType must be in the configured adapter registry or built-in defaults" },
+  )
   .refine(
     (cfg) => cfg.inCluster || cfg.kubeconfig,
     {

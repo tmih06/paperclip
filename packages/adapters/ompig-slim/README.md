@@ -6,8 +6,19 @@ credentials from the host. Configure an exact `provider/model`, credentials via
 secret-backed environment variables or a provisioned profile, and a workspace.
 
 `execute`, `testEnvironment`, and `sessionCodec` are exported from
-`@paperclipai/adapter-ompig-slim/server`. The diagnostics probe only verifies the
-workspace, commands and Durable CLI protocol; it does not make an inference call.
+`@paperclipai/adapter-ompig-slim/server`. The environment test verifies the
+workspace, commands and Durable CLI protocol, then makes one bounded, one-turn
+hello assignment against the configured model. It consumes that provider's
+allowance (and may incur charges for a paid model). A protocol-only check is
+not enough to activate the agent. Failed or unanswered probes remain failures;
+there is no automatic switch to another model or provider.
+
+For native keyless OpenCode Free inference, set `model` to
+`opencode-free/beam-free` and use an ompig-slim build containing that provider.
+It does not require an OpenCode CLI or a copied user profile. The historical
+0.1.10 runtime example below is not qualification of that newer provider; the
+source-pinned 0.2.1 validation and its upstream-quota blocker are recorded in
+`doc/benchmarks/2026-11-17-ompig-beam-kubernetes-e2e.md`.
 
 ## Local kind runtime
 
@@ -53,7 +64,7 @@ passing tests or approval.
 ## Opt-in binary integration test
 
 Set `PAPERCLIP_OMPIG_BINARY` to a pinned executable and run
-`bun x vitest run packages/adapters/ompig-slim/src/server/durable-binary.test.ts`.
+`bun x --bun --no-install vitest run packages/adapters/ompig-slim/src/server/durable-binary.test.ts`.
 The skipped-by-default test creates an isolated temporary `models.json`, local
 mock streaming model, profile, workspace and Durable state; it removes ambient
 broker/API credentials, verifies interrupted new-run resume and duplicate

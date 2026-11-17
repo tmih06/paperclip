@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
 import { execute } from "./execute.js";
+import { testEnvironment } from "./test.js";
 
 const binary = process.env.PAPERCLIP_OMPIG_BINARY;
 afterEach(() => { vi.unstubAllEnvs(); });
@@ -28,7 +29,7 @@ describe.skipIf(!binary)("installed ompig-slim Durable adapter (opt-in, isolated
       calls++;
       if (calls === 1) return; // Crash point: hold the first model request until timeout.
       response.writeHead(200, { "Content-Type": "text/event-stream" });
-      response.end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { role: "assistant", content: "Recovered adapter assignment" }, finish_reason: null }] })
+      response.end('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { role: "assistant", content: calls >= 3 ? "hello" : "Recovered adapter assignment" }, finish_reason: null }] })
         + '\n\ndata: ' + JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] }) + '\n\ndata: [DONE]\n\n');
     });
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
@@ -62,6 +63,9 @@ describe.skipIf(!binary)("installed ompig-slim Durable adapter (opt-in, isolated
       expect(duplicate.summary).toBe("Recovered adapter assignment");
       expect(calls).toBe(2);
       expect(await fs.readFile(path.join(cwd, "preserved.txt"), "utf8")).toBe("uncommitted workspace\n");
+      const probe = await testEnvironment({ adapterType: "ompig_slim", companyId: "test-company", config: ctx.config });
+      expect(probe.checks).toContainEqual(expect.objectContaining({ code: "ompig_hello_probe_passed", level: "info" }));
+      expect(calls).toBe(3);
     } finally {
       server.closeAllConnections();
       await new Promise<void>(resolve => server.close(() => resolve()));
