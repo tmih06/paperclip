@@ -1,7 +1,7 @@
 {
   "inputs": {
     "bun.lock": "b7d5bbede84154e4edad9a6d9f1a18ce0717d51f",
-    "package.json": "f8d66ce2303a69310875b51d5e67355956d8cec7",
+    "package.json": "e27a56fed8c8bd881e2ca8c59554e9ef4bf9bdbf",
     "packages/plugins/sdk/package.json": "7eac2da8ff9f9d4af6f0c2facb32cbb366849da2",
     "packages/plugins/sdk/src/bundlers.ts": "883bf3d9f2bd42877cfc0c3707cd882a6f6248d0",
     "packages/plugins/sdk/src/define-plugin.ts": "a99e07ce77ef72fcf1df1347346aacb8ba12e284",

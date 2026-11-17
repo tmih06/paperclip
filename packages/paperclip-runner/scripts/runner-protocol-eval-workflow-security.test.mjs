@@ -146,7 +146,7 @@ test("resolves both repositories immutably and bounds total matrix concurrency",
   assert.match(workflow, /matrix_1/u);
   assert.match(
     workflow,
-    /bun run --filter @paperclipai\/paperclip-runner deploy --prod/u,
+    /bun pm pack --cwd packages\/paperclip-runner/u,
   );
   assert.match(
     workflow,
@@ -238,7 +238,7 @@ test("report preparation stays on the trusted lock and install mode", async () =
   assert.doesNotMatch(report, /Download resolved target lockfile/u);
   assert.doesNotMatch(report, /Restore resolved target lockfile/u);
   assert.doesNotMatch(report, /--no-frozen-lockfile|cache: pnpm/u);
-  assert.match(report, /bun install --frozen-lockfile --ignore-scripts --store-dir "\$RUNNER_TEMP\/runner-report-pnpm-store"/u);
+  assert.match(report, /bun install --frozen-lockfile --ignore-scripts --cache-dir "\$RUNNER_TEMP\/runner-report-pnpm-store"/u);
 });
 
 test("trusted catalog, direct eval, and report orchestration stay on workflow revision", async () => {
@@ -257,7 +257,7 @@ test("trusted catalog, direct eval, and report orchestration stay on workflow re
 
 test("authentication failures retain cell metadata without leaking malformed summary content", async () => {
   const workflow = await readFile(workflowPath, "utf8");
-  const script = workflow.match(/CELL_EXIT_CODE="\$status" bun --input-type=module <<'NODE'\n([\s\S]*?)          NODE/u)?.[1];
+  const script = workflow.match(/CELL_EXIT_CODE="\$status" bun --input-type=module - <<'NODE'\n([\s\S]*?)          NODE/u)?.[1];
   assert.ok(script);
   const root = await mkdtemp(resolve(tmpdir(), "grok-cell-evidence-"));
   try {
@@ -344,7 +344,7 @@ test('controlled workers keep the required GitHub-hosted origin even when the le
 test('requested parallelism respects both configured capacity and the selected runner cap', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
   const script = workflowShell(workflow, 'Build the two bounded roster-plus-case matrices');
-  const prefix = script.slice(0, script.indexOf('node packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs'));
+  const prefix = script.slice(0, script.indexOf('bun packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs'));
   assert.ok(prefix.includes('REQUESTED_MAX_PARALLEL'));
   for (const [configured, limit, requested, expected] of [['100', '57', '2', '2'], ['100', '57', '', '57'],
     ['100', '100', '', '100'], ['8', '57', '16', null], ['100', '57', '58', null], ['100', '57', '1', null]]) {
@@ -364,7 +364,7 @@ test('the provider uses an owned same-byte Node before credentials without chang
   assert.ok(staging < paid.indexOf('Prepare short-lived AgentCore web identity'));
   assert.ok(staging < paid.indexOf('Run one immutable direct protocol cell'));
   const command = workflowShell(paid, 'Stage an owned provider Node before credentials');
-  assert.match(command, /node packages\/paperclip-runner\/scripts\/stage-runner-provider-node\.mjs/u);
+  assert.match(command, /bun packages\/paperclip-runner\/scripts\/stage-runner-provider-node\.mjs/u);
   assert.match(command, /"\$RUNNER_TEMP\/runner-protocol-provider-node"/u);
   assert.match(command, /portable\/dist\/cli\/acpx-runtime-sidecar\.cjs/u);
   assert.match(command, /cell-output\/provider-node-receipt\.json/u);
@@ -495,13 +495,13 @@ test('private archive jobs consume verified controller code without resolving de
   assert.match(builder, /build-runtime.mjs/u);
   assert.doesNotMatch(builder, /--no-frozen-lockfile/u);
   assert.doesNotMatch(builder, /target_lock|RESOLVED_LOCK_SHA256|runner-controller-lock/u);
-  assert.match(builder, /git diff --quiet HEAD -- pnpm-lock\.yaml/u);
-  assert.match(preparer, /committed="\$\(sha256sum pnpm-lock\.yaml/u);
+  assert.match(builder, /git diff --quiet HEAD -- bun\.lock/u);
+  assert.match(preparer, /committed="\$\(sha256sum bun\.lock/u);
   assert.match(preparer, /PAPERCLIP_RUNNER_EVAL_CONTROLLER_LOCK_SHA256: \$\{\{ steps\.controller_lock\.outputs\.sha256 \}\}/u);
   // Defaults come from the verified controller runtime, not the workspace that evals code can modify.
   assert.doesNotMatch(preparer, /hosted-defaults\.json/u);
   assert.doesNotMatch(workflow, /RUNNER_PROTOCOL_EVAL_CONTROLLER_POLICY_JSON/u);
-  assert.match(builder, /bun install --frozen-lockfile --ignore-scripts --store-dir/u);
+  assert.match(builder, /bun install --frozen-lockfile --ignore-scripts --cache-dir/u);
   assert.doesNotMatch(preparer, /bun install|build-runtime.mjs|cache: pnpm/u);
   assert.ok(preparer.indexOf('verify-runtime.mjs') < preparer.indexOf('hosted.mjs" prepare'));
   assert.match(preparer, /needs\.build_controller\.outputs\.runtime_receipt_sha256/u);
@@ -510,7 +510,7 @@ test('private archive jobs consume verified controller code without resolving de
     for (const install of job.matchAll(/bun install[^\n]*/gu)) {
       assert.match(install[0], /--frozen-lockfile/u);
       assert.match(install[0], /--ignore-scripts/u);
-      assert.match(install[0], /--store-dir/u);
+      assert.match(install[0], /--cache-dir/u);
     }
   }
 });
