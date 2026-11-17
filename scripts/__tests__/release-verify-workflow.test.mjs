@@ -67,7 +67,7 @@ test("source proof gates publication without occupying a publication runner", ()
   const gate = workflow.split("  publication_verification:\n")[1].split("  merge-and-push:")[0];
   const publisher = workflow.split("  merge-and-push:\n")[1].split("  promote_canary_channel:")[0];
   assert.match(observer, /verified: \$\{\{ steps.watch.outputs.verified \}\}/);
-  assert.match(gate, /run: node scripts\/watch-release-source.mjs --require-proof/);
+  assert.match(gate, /run: bun scripts\/watch-release-source.mjs --require-proof/);
   assert.match(gate, /actions: write # restart only exact-source producers deferred before admission/);
   assert.match(gate, /needs: \[build-and-push, source_verification\]/);
   assert.match(publisher, /needs: \[build-and-push, source_verification, publication_verification\]/);
@@ -122,7 +122,7 @@ test("canary can admit deferred exact-source checks while stable keeps full veri
   assert.match(canary, /actions: write # restart only an exact-source push deferred before admission/);
   assert.match(canary, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(canary, /SOURCE_SHA: \$\{\{ github\.sha \}\}/);
-  assert.match(canary, /run: node scripts\/cloud-source-verification\.mjs "\$SOURCE_SHA"/);
+  assert.match(canary, /run: bun scripts\/cloud-source-verification\.mjs "\$SOURCE_SHA"/);
   // Two runner-loss retries of a deferred full readiness run fit inside the job.
   assert.match(canary, /timeout-minutes: 100\n/);
   assert.doesNotMatch(canary, /release-verify\.yml|continue-on-error|always\(\)/);
@@ -364,7 +364,7 @@ test("published canaries are gated by the exact-version onboarding browser smoke
   assert.match(releaseWorkflow, /test:canary-onboarding-smoke/);
   assert.match(
     releaseWorkflow,
-    /smoke_canary_onboarding:[\s\S]*?uses: actions\/checkout@[0-9a-f]{40} # v7[\s\S]*?uses: pnpm\/action-setup@[0-9a-f]{40} # v6[\s\S]*?uses: actions\/setup-node@[0-9a-f]{40} # v7/,
+    /smoke_canary_onboarding:[\s\S]*?uses: actions\/checkout@[0-9a-f]{40} # v7[\s\S]*?uses: oven-sh\/setup-bun@[0-9a-f]{40}[\s\S]*?bun-version: 1\.4\.4/,
   );
   assert.match(
     releaseWorkflow,
@@ -395,9 +395,9 @@ test("canary smoke consumes its publisher's source-bound lockfile before frozen 
   for (const job of [publish, smoke]) {
     assert.match(job, /name: Checkout repository\n\s+uses: actions\/checkout@[^\n]+\n\s+with:\n\s+ref: \$\{\{ github\.sha \}\}/);
     assert.match(job, /name: canary-smoke-lockfile-\$\{\{ github\.sha \}\}/);
-    assert.match(job, /version: 9\.15\.4/);
+    assert.match(job, /bun-version: 1\.4\.4/);
   }
-  assert.match(publish, /name: Save canary smoke lockfile\n\s+uses: actions\/upload-artifact@[0-9a-f]{40} # v4\n\s+with:\n\s+name: canary-smoke-lockfile-\$\{\{ github\.sha \}\}\n\s+path: pnpm-lock\.yaml\n\s+if-no-files-found: error\n\s+overwrite: true\n\s+retention-days: 14/);
+  assert.match(publish, /name: Save canary smoke lockfile\n\s+uses: actions\/upload-artifact@[0-9a-f]{40} # v4\n\s+with:\n\s+name: canary-smoke-lockfile-\$\{\{ github\.sha \}\}\n\s+path: \|\n\s+bun\.lock\n\s+bun\.lock\.proof\.json\n\s+if-no-files-found: error\n\s+overwrite: true\n\s+retention-days: 14/);
   assert.ok(publish.indexOf("name: Install dependencies") < publish.indexOf("name: Save canary smoke lockfile"));
   assert.ok(publish.indexOf("name: Save canary smoke lockfile") < publish.indexOf("name: Restore tracked install-time changes"));
   assert.ok(publish.indexOf("name: Restore tracked install-time changes") < publish.indexOf("name: Publish canary"));
@@ -407,7 +407,7 @@ test("canary smoke consumes its publisher's source-bound lockfile before frozen 
 });
 
 for (const drift of ["patch", "manifest"]) {
-  test(`a publisher lockfile lets a fresh smoke install retain validation after ${drift} drift`, (t) => {
+  test(`a publisher lockfile lets a fresh smoke install retain validation after ${drift} drift`, async (t) => {
     const root = mkdtempSync(path.join(os.tmpdir(), "canary-smoke-lockfile-test-"));
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const source = path.join(root, "package");
@@ -416,14 +416,18 @@ for (const drift of ["patch", "manifest"]) {
     writeFileSync(path.join(source, "index.js"), 'module.exports = "original";\n');
     const pack = spawnSync("npm", ["pack", "--ignore-scripts", "--pack-destination", root], { cwd: source, encoding: "utf8" });
     assert.equal(pack.status, 0, pack.stderr);
+    const { startPackedRegistry, writePackedRegistryCatalog } = await import("../public-install-registry.mjs");
+    await writePackedRegistryCatalog(root);
+    const registry = await startPackedRegistry(root);
+    t.after(() => registry.close());
     const manifest = {
       name: "canary-smoke-fixture", private: true,
-      packageManager: "pnpm@9.15.4",
-      dependencies: { "smoke-fixture-dependency": "file:smoke-fixture-dependency-1.0.0.tgz" },
-      pnpm: { patchedDependencies: { "smoke-fixture-dependency@1.0.0": "fixture.patch" } },
+      packageManager: "bun@1.4.4",
+      dependencies: { "smoke-fixture-dependency": "1.0.0" },
+      patchedDependencies: { "smoke-fixture-dependency@1.0.0": "fixture.patch" },
     };
     writeFileSync(path.join(root, "package.json"), JSON.stringify(manifest));
-    writeFileSync(path.join(root, "bunfig.toml"), "packages: []\n");
+    writeFileSync(path.join(root, "bunfig.toml"), '[install]\nlinker = "hoisted"\n');
     const patch = (value) => writeFileSync(path.join(root, "fixture.patch"), [
       "diff --git a/index.js b/index.js", "index 1111111..2222222 100644",
       "--- a/index.js", "+++ b/index.js", "@@ -1 +1 @@",
@@ -436,29 +440,46 @@ for (const drift of ["patch", "manifest"]) {
       const job = name === "Install dependencies" ? publish : smoke;
       const command = job.match(new RegExp(`name: ${name}\\n\\s+run: (bun install[^\\n]+)`))?.[1];
       assert.ok(command, `missing ${name}`);
-      return [...command.split(" ").slice(1), "--offline", "--ignore-scripts"];
+      return [...command.split(" ").slice(1), "--registry", registry.url, "--ignore-scripts"];
     };
-    const install = (args) => spawnSync("pnpm", args, {
-      cwd: root, encoding: "utf8", env: { ...process.env, CI: "true" },
-    });
+    const proof = mode => spawnSync(process.execPath, [path.join(repoRoot, "scripts/bun-lock-proof.mjs"), mode], { cwd: root, encoding: "utf8" });
+    const install = async args => {
+      if (args.includes("--frozen-lockfile")) {
+        const checked = proof("check");
+        if (checked.status !== 0) return checked;
+      }
+      const installed = await new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, args, { cwd: root, env: { ...process.env, CI: "true" }, stdio: ["ignore", "pipe", "pipe"] });
+        let stdout = "", stderr = "";
+        child.stdout.on("data", data => { stdout += data; });
+        child.stderr.on("data", data => { stderr += data; });
+        child.once("error", reject);
+        child.once("close", status => resolve({ status, stdout, stderr }));
+      });
+      if (installed.status === 0 && !args.includes("--frozen-lockfile")) {
+        const recorded = proof("write");
+        assert.equal(recorded.status, 0, recorded.stderr);
+      }
+      return installed;
+    };
     const success = (result) => assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     patch(drift === "patch" ? "old-patch" : "published-patch");
-    success(install(installArgs("Install dependencies")));
+    success(await install(installArgs("Install dependencies")));
     const staleLock = readFileSync(path.join(root, "bun.lock"));
     if (drift === "patch") {
       patch("published-patch");
     } else {
-      copyFileSync(path.join(root, "smoke-fixture-dependency-1.0.0.tgz"), path.join(root, "updated-dependency.tgz"));
-      manifest.dependencies["smoke-fixture-dependency"] = "file:updated-dependency.tgz";
+      manifest.dependencies["smoke-fixture-extra"] = "npm:smoke-fixture-dependency@1.0.0";
       writeFileSync(path.join(root, "package.json"), JSON.stringify(manifest));
     }
-    const before = install(installArgs("Install test dependencies"));
+    const before = await install(installArgs("Install test dependencies"));
     assert.notEqual(before.status, 0);
-    assert.match(before.stdout + before.stderr, drift === "patch" ? /ERR_PNPM_LOCKFILE_CONFIG_MISMATCH/ : /ERR_PNPM_OUTDATED_LOCKFILE/);
+    assert.match(before.stdout + before.stderr, drift === "patch"
+      ? /differs from the publisher's source-bound proof/ : /lockfile had changes, but lockfile is frozen/);
 
     // Capture the publisher's resolution, then reproduce its tracked-file restore
     // and a fresh smoke runner with no installed workspace dependencies.
-    success(install(installArgs("Install dependencies")));
+    success(await install(installArgs("Install dependencies")));
     const artifact = path.join(root, "publisher-lock.yaml");
     if (publish.includes("name: Save canary smoke lockfile")) {
       copyFileSync(path.join(root, "bun.lock"), artifact);
@@ -468,16 +489,16 @@ for (const drift of ["patch", "manifest"]) {
     if (smoke.includes("name: Restore canary smoke lockfile")) {
       copyFileSync(artifact, path.join(root, "bun.lock"));
     }
-    success(install(installArgs("Install test dependencies")));
+    success(await install(installArgs("Install test dependencies")));
     assert.equal(readFileSync(path.join(root, "node_modules/smoke-fixture-dependency/index.js"), "utf8"), 'module.exports = "published-patch";\n');
     assert.deepEqual(readFileSync(path.join(root, "bun.lock")), readFileSync(artifact));
 
     // A lockfile from the wrong source still fails closed; restoring an artifact
     // must not disable hash validation or resolve another version in the smoke job.
     patch("different-source");
-    const wrongSource = install(installArgs("Install test dependencies"));
+    const wrongSource = await install(installArgs("Install test dependencies"));
     assert.notEqual(wrongSource.status, 0);
-    assert.match(wrongSource.stdout + wrongSource.stderr, /ERR_PNPM_LOCKFILE_CONFIG_MISMATCH/);
+    assert.match(wrongSource.stdout + wrongSource.stderr, /differs from the publisher's source-bound proof/);
   });
 }
 
@@ -529,7 +550,7 @@ test("release verify workflow covers the same split test surface as stable PR ve
   assert.match(verifyWorkflow, /workflow_call:/);
   assert.match(
     verifyWorkflow,
-    /node \.\/scripts\/release-package-map\.mjs check/,
+    /bun \.\/scripts\/release-package-map\.mjs check/,
   );
   assert.match(verifyWorkflow, /bun run --workspaces --if-present typecheck/);
   assert.match(verifyWorkflow, /bun run build/);
@@ -547,7 +568,7 @@ test("release verify workflow covers the same split test surface as stable PR ve
   );
   assert.match(
     verifyWorkflow,
-    /runner_workflow_evals:[\s\S]*?Install dependencies\n\s+run: bun install --no-frozen-lockfile[\s\S]*?Run deterministic Runner workflow scorer tests/,
+    /runner_workflow_evals:[\s\S]*?Install dependencies\n\s+run: bun install --no-save[\s\S]*?Run deterministic Runner workflow scorer tests/,
   );
   assert.match(verifyWorkflow, /bun run test:runner-workflow-evals/);
 
@@ -881,7 +902,7 @@ test("direct Grok qualification installs the pinned binary and scopes the select
   const workflow = readWorkflow("runner-protocol-live-evals.yml");
   assert.ok(workflow.includes("XAI_API_KEY: ${{ matrix.credentialName == 'XAI_API_KEY' && secrets.XAI_API_KEY || '' }}"));
   assert.ok(workflow.includes("if [ -f packages/paperclip-runner/scripts/provision-grok.mjs ]; then"));
-  assert.ok(workflow.indexOf("sudo node packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok") < workflow.indexOf("bun run --filter @paperclipai/paperclip-runner deploy --prod"));
+  assert.ok(workflow.indexOf("sudo bun packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok") < workflow.indexOf("bun pm pack --cwd packages/paperclip-runner"));
   assert.ok(workflow.includes("PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET: ${{ matrix.credentialName == 'PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET' && secrets.GROK_AUTH_JSON || '' }}"));
   assert.equal((workflow.match(/secrets\.GROK_AUTH_JSON/gu) ?? []).length, 1);
 });
@@ -889,7 +910,7 @@ test("direct Grok qualification installs the pinned binary and scopes the select
 test("direct protocol concurrency override only lowers the configured ceiling", () => {
   const workflow = readWorkflow("runner-protocol-live-evals.yml");
   const start = workflow.indexOf('          if [ -n "${REQUESTED_MAX_PARALLEL:-}" ]; then');
-  const end = workflow.indexOf("          node packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs catalog", start);
+  const end = workflow.indexOf("          bun packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs catalog", start);
   assert.ok(start > 0 && end > start);
   const script = workflow.slice(start, end) + '\nprintf "%s" "$MAX_PARALLEL"\n';
   for (const [requested, expected] of [["", "8"], ["2", "2"], ["8", "8"], ["1", null], ["9", null], ["0", null], ["-1", null], ["2.5", null], ["garbage", null], ["9999999999999999999999", null]]) {
@@ -920,10 +941,10 @@ test("release daemon production uses exact-source native hosts and no publisher 
   assert.match(producer, /\[\[ "\$SOURCE_SHA" =~ \^\[a-f0-9\]\{40\}\$ \]\]/);
   assert.match(producer, /git rev-parse HEAD/);
   assert.match(producer, /process.platform \+ "-" \+ process.arch/);
-  assert.match(producer, /\['native', \['build:binary'\]/);
+  assert.match(producer, /\['native', 'cargo', \['build', '--manifest-path', 'runner\/Cargo\.toml', '--locked', '--workspace', '--bins'\]/);
   const runner = JSON.parse(readFileSync(path.join(repoRoot, 'packages/paperclip-runner/package.json'), 'utf8'));
   assert.match(runner.scripts['build:binary'], /cargo build --release --manifest-path runner\/Cargo.toml --locked/);
-  assert.match(runner.scripts['build:binary'], /&& node scripts\/stage-runner-binary.mjs$/);
+  assert.match(runner.scripts['build:binary'], /&& bun scripts\/stage-runner-binary.mjs$/);
   assert.match(producer, /stage-release-runner-binaries.mjs record/);
   for (const job of ["typecheck", "general_tests", "serialized_tests", "runner_workflow_evals", "verify_paperclip_runner", "build"]) {
     assert.ok(workflow.includes(`${job}:\n    if: \${{ !inputs.runner_binaries_only }}`));
@@ -1027,7 +1048,7 @@ test('native dependency caches are target-bound and unmerged master callers cann
 
 function nativePreparationScript() {
   const step = nativeProducer().split('      - name: Build TypeScript contract and host daemon concurrently\n')[1].split('\n      - ')[0];
-  const script = step.match(/bun --input-type=module <<'NODE'\n([\s\S]*?)\n          NODE/)?.[1];
+  const script = step.match(/bun --input-type=module - <<'NODE'\n([\s\S]*?)\n          NODE/)?.[1];
   assert.ok(script);
   return script.replace(/^ {10}/gm, '');
 }
@@ -1055,12 +1076,12 @@ async function withNativePreparationFixture(mode, check) {
       copyFileSync(path.join(repoRoot, 'scripts', helper), path.join(root, 'scripts', helper));
     }
     writeFileSync(path.join(root, 'prepare.mjs'), nativePreparationScript());
-    writeFileSync(path.join(root, 'tools/pnpm'), `#!${process.execPath}
+    writeFileSync(path.join(root, 'tools/bun'), `#!${process.execPath}
 const { spawn } = require('node:child_process');
 const { existsSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 const root = process.env.FIXTURE_ROOT;
-const name = process.argv.includes('build:binary') ? 'native' : 'typescript';
+const name = process.argv.includes('--bins') ? 'native' : 'typescript';
 writeFileSync(join(root, name + '.started'), JSON.stringify({ pid: process.pid, cwd: process.cwd(), args: process.argv.slice(2) }));
 const wait = setInterval(() => {
   if (!existsSync(join(root, 'native.started')) || !existsSync(join(root, 'typescript.started'))) return;
@@ -1080,6 +1101,7 @@ const wait = setInterval(() => {
   }, 10);
 }, 10);
 `, { mode: 0o755 });
+    copyFileSync(path.join(root, 'tools/bun'), path.join(root, 'tools/cargo'));
     controller = spawn(process.execPath, ['prepare.mjs'], { cwd: root, env: {
       ...process.env, PATH: `${path.join(root, 'tools')}:${process.env.PATH}`, RUNNER_TEMP: path.join(root, 'logs'), FIXTURE_ROOT: root, FIXTURE_MODE: mode,
     }, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -1114,8 +1136,8 @@ test('native preparation overlaps independent outputs and joins both before reco
     assert.equal(result.status, 0, result.stderr);
     for (const name of ['native', 'typescript']) assert.equal(readFileSync(path.join(root, name + '.finished'), 'utf8'), 'joined');
     assert.equal(JSON.parse(readFileSync(path.join(root, 'native.started'), 'utf8')).cwd, path.join(root, 'packages/paperclip-runner'));
-    assert.deepEqual(JSON.parse(readFileSync(path.join(root, 'native.started'), 'utf8')).args, ['build:binary']);
-    assert.deepEqual(JSON.parse(readFileSync(path.join(root, 'typescript.started'), 'utf8')).args, ['--filter', '@paperclipai/paperclip-runner', 'build:typescript']);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(root, 'native.started'), 'utf8')).args, ['build', '--manifest-path', 'runner/Cargo.toml', '--locked', '--workspace', '--bins']);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(root, 'typescript.started'), 'utf8')).args, ['run', '--filter', '@paperclipai/paperclip-runner', 'build:typescript']);
     const results = result.stdout.split('\n').filter(line => line.startsWith('{')).map(line => JSON.parse(line));
     assert.deepEqual(results.map(item => [item.build, item.status, item.exitCode]), [['typescript', 'fulfilled', 0], ['native', 'fulfilled', 0]]);
   });
