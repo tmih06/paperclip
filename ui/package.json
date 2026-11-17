@@ -14,12 +14,12 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vp dev",
+    "build": "vp build",
     "build:preview": "vp build --config vite.preview.config.mjs",
     "storybook": "storybook dev -p 6006 -c storybook/.storybook",
     "build-storybook": "storybook build -c storybook/.storybook -o storybook-static",
-    "preview": "vite preview",
+    "preview": "vp preview",
     "typecheck": "node ../scripts/storybook-catalog.mjs && node ../scripts/run-tsc.mjs -b",
     "clean": "rm -rf dist dist-preview storybook-static tsconfig.tsbuildinfo",
     "prepack": "rm -f package.dev.json && cp package.json package.dev.json && node ../scripts/generate-ui-package-json.mjs",
@@ -106,7 +106,8 @@
     "typescript": "^7.0.2",
     "vite": "npm:@voidzero-dev/vite-plus-core@1.6.0",
     "vitest": "^5.0.3",
-    "web-vitals": "6.2.3"
+    "web-vitals": "6.2.3",
+    "vite-plus": "1.6.0"
   },
   "engines": {
     "node": ">=24.11.0",
