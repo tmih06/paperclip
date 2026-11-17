@@ -109,7 +109,7 @@ jobs:
           save-if: ${{ github.repository == 'paperclipai/paperclip' && github.event_name == 'push' && github.ref == 'refs/heads/master' && inputs.ref == github.sha }}
 
       - name: Validate release package manifest
-        run: node ./scripts/release-package-map.mjs check
+        run: bun ./scripts/release-package-map.mjs check
 
       - name: Restore materialized dependencies and shared builds
         if: hashFiles('.github/actions/setup-ci-dependencies/action.yml') != ''
@@ -736,7 +736,7 @@ jobs:
           SOURCE_SHA: ${{ inputs.ref }}
           TARGET: ${{ matrix.target }}
         run: |
-          node packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs record "$SOURCE_SHA" "$TARGET" \
+          bun packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs record "$SOURCE_SHA" "$TARGET" \
             packages/paperclip-runner/dist/bin/paperclip-runnerd "$RUNNER_TEMP/runner-release/$TARGET"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -754,7 +754,7 @@ jobs:
         run: |
           set -euo pipefail
           pack="$RUNNER_TEMP/provider-pack"
-          PAPERCLIP_RUNNER_SOURCE_REVISION="$SOURCE_SHA" node packages/paperclip-runner/scripts/build-provider-pack.mjs "$pack"
+          PAPERCLIP_RUNNER_SOURCE_REVISION="$SOURCE_SHA" bun packages/paperclip-runner/scripts/build-provider-pack.mjs "$pack"
           bun --input-type=module - "$pack/provider-pack.json" <<'NODE'
           import { readFileSync } from 'node:fs';
           import { verifyReleaseProviderPack } from './packages/paperclip-runner/scripts/release-provider-pack.mjs';

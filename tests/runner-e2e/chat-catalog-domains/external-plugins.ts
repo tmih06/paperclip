@@ -70,7 +70,7 @@ export const pluginExternalCases = ["configure-plugin", "disable-plugin"].map(id
   }
 }, gradePluginManagement, {
   oracleVersion: "paperclip.chat-catalog.external-plugin-management.v2",
-  sourceFiles: ["chat-catalog-domains/external-plugins.ts", "chat-catalog-domains/external-plugin-tool-identity.ts", "chat-catalog-domains/external-plugin-fixture.ts", "chat-catalog-domains/external-support.ts", "chat-catalog-domains/internal-support.ts", "chat-catalog-domains/identity-support.ts", "../../cli/node_modules/tsx/dist/loader.mjs", "../../cli/src/index.ts", "../../packages/plugins/create-paperclip-plugin/src/index.ts", "../../packages/plugins/sdk/src/index.ts", "../../packages/plugins/sdk/dist/index.js", "chat-scenarios/plugins.yaml"],
+  sourceFiles: ["chat-catalog-domains/external-plugins.ts", "chat-catalog-domains/external-plugin-tool-identity.ts", "chat-catalog-domains/external-plugin-fixture.ts", "chat-catalog-domains/external-support.ts", "chat-catalog-domains/internal-support.ts", "chat-catalog-domains/identity-support.ts", "../../packages/shared/src/bun-version.ts", "../../cli/src/index.ts", "../../packages/plugins/create-paperclip-plugin/src/index.ts", "../../packages/plugins/sdk/src/index.ts", "../../packages/plugins/sdk/dist/index.js", "chat-scenarios/plugins.yaml"],
   async act(ctx, state) {
     await waitForReply(ctx);
     const before = await ctx.input.api.get<PluginRecord>(`/api/plugins/${state.pluginId}`);

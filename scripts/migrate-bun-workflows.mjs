@@ -27,6 +27,8 @@ async function workspaceDirectories(read) {
 // Bun does not accept. The comment states the observed Bun 1.4.4 behavior.
 export function migrationRules(directories) {
   return [
+    [/\bnode (?=(?:\.\/|\.testops-trusted\/|packages\/|scripts\/|tests\/))/g, "bun "],
+    [/\bpnpm storybook-visual:baseline/g, "bun run storybook-visual:baseline"],
     // `bun run --filter <pkg>` only runs package.json scripts, so pnpm's
     // `--filter <pkg> exec <bin>` fails with `Script "exec" not found`.
     // `bun x --cwd <dir>` resolves the binary from the declaring package.

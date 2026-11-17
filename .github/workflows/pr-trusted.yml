@@ -223,7 +223,7 @@ jobs:
 
       - name: Validate Dockerfile deps stage
         run: |
-          node ./scripts/check-docker-deps-stage.mjs
+          bun ./scripts/check-docker-deps-stage.mjs
           bun "$CI_NODE_TEST" ./scripts/docker-deps-postinstall.test.mjs
 
       - name: Validate Bun runtime and scoped Node.js version policy
@@ -237,7 +237,7 @@ jobs:
           fi
 
       - name: Reject git push in adapter/runtime code
-        run: node ./scripts/check-no-git-push.mjs
+        run: bun ./scripts/check-no-git-push.mjs
 
       - name: Test no-git-push check
         run: bun "$CI_NODE_TEST" ./scripts/check-no-git-push.test.mjs
@@ -280,13 +280,13 @@ jobs:
         run: bun "$CI_NODE_TEST" ./scripts/__tests__/build-standalone-concurrency.test.mjs
 
       - name: Validate release package manifest
-        run: node ./scripts/release-package-map.mjs check
+        run: bun ./scripts/release-package-map.mjs check
 
       - name: Verify release package bootstrap for changed manifests
         run: |
           mapfile -t changed_paths < <(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")
           PAPERCLIP_RELEASE_BOOTSTRAP_BASE_SHA="${{ github.event.pull_request.base.sha }}" \
-            node ./scripts/check-release-package-bootstrap.mjs "${changed_paths[@]}"
+            bun ./scripts/check-release-package-bootstrap.mjs "${changed_paths[@]}"
 
       # Each lane resolves a stale lockfile inline; this early check still
       # fails fast when the merge tree cannot resolve at all.
@@ -1782,7 +1782,7 @@ jobs:
           # Playwright's own --shard balances by test count, and one spec
           # (smoke-lab) is ~40% of the lane's wall clock. Partition by recorded
           # spec duration instead so both runners finish together.
-          specs="$(node ./scripts/e2e-shard.mjs \
+          specs="$(bun ./scripts/e2e-shard.mjs \
             --shard-index ${{ matrix.shard_index }} --shard-count ${{ matrix.shard_count }})"
           echo "shard ${{ matrix.shard_label }} specs: $specs"
           # specs is an intentional argument list.

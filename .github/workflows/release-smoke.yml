@@ -267,7 +267,7 @@ jobs:
         run: |
           pack_args=()
           if [[ -d "$RUNNER_TEMP/release-provider-pack-inputs" ]]; then pack_args=("$RUNNER_TEMP/release-provider-pack-inputs"); fi
-          node packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs \
+          bun packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs \
             assemble-daemons "$RUNNER_TEMP/release-runner-inputs" "$SOURCE_SHA" "${pack_args[@]}"
           cp -R packages/paperclip-runner/dist/bin/. server/dist/vendor/paperclip-runner/bin/
           if [[ -d packages/paperclip-runner/dist/remote-provider-packs ]]; then

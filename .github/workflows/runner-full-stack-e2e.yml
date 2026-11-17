@@ -920,7 +920,7 @@ jobs:
 
       - name: Materialize verified pinned OpenCode executable
         if: needs.catalog.outputs.needs_remote_provider_pack == 'true'
-        run: node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
+        run: bun packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
 
       - name: Download immutable shared campaign outputs
         if: needs.catalog.outputs.needs_remote_provider_pack == 'true'
@@ -950,7 +950,7 @@ jobs:
           # content ID. Matching that revision lets remote execution reuse the
           # verified pack already installed in the immutable image.
           PAPERCLIP_RUNNER_SOURCE_REVISION: ${{ needs.daytona_image.outputs.source_revision }}
-        run: node packages/paperclip-runner/scripts/build-provider-pack.mjs packages/paperclip-runner/provider-pack
+        run: bun packages/paperclip-runner/scripts/build-provider-pack.mjs packages/paperclip-runner/provider-pack
 
       - name: Package verified remote provider pack
         if: needs.catalog.outputs.needs_remote_provider_pack == 'true'
@@ -1197,11 +1197,11 @@ jobs:
 
       - name: Materialize verified pinned OpenCode executable
         if: matrix.environmentId == 'local' && (matrix.profileId == 'legacy-opencode' || startsWith(matrix.profileId, 'runner-opencode') || matrix.suiteId == 'openrouter-model-breadth')
-        run: node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
+        run: bun packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
 
       - name: Install checksum-verified Grok executable
         if: matrix.environmentId == 'local' && (matrix.profileId == 'runner-acpx-grok' || matrix.profileId == 'runner-acpx-grok-subscription')
-        run: sudo node packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok
+        run: sudo bun packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok
 
       - name: Download immutable campaign outputs
         if: startsWith(matrix.profileId, 'runner-') || matrix.suiteId == 'openrouter-model-breadth'

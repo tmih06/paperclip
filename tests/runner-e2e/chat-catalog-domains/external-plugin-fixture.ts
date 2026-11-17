@@ -24,7 +24,7 @@ export async function createPreviewFixture(ctx: ChatCatalogContext) {
   const temporary = await realpath(await mkdtemp(path.join(tmpdir(), "paperclip-preview-eval-")));
   const packageRoot = path.join(temporary, "website-preview");
   const cli = fileURLToPath(new URL("../../../cli/src/index.ts", import.meta.url));
-  const loader = fileURLToPath(new URL("../../../cli/node_modules/tsx/dist/loader.mjs", import.meta.url));
+  const runtimePolicy = fileURLToPath(new URL("../../../packages/shared/src/bun-version.ts", import.meta.url));
   const sdkUrl = new URL("../../../packages/plugins/sdk/dist/index.js", import.meta.url).href;
   try {
     const mirror = await mirrorPreviewSdk(fileURLToPath(new URL("../../../packages/plugins/sdk/", import.meta.url)), temporary);
@@ -50,7 +50,7 @@ const plugin=definePlugin({
     await writeFile(path.join(packageRoot, "package.json"), JSON.stringify({ name: "@paperclip-eval/website-preview", version: "0.1.0", type: "module", private: true, paperclipPlugin: { manifest: "./dist/manifest.js", worker: "./dist/worker.js" } }));
     await writeFile(path.join(packageRoot, "dist/manifest.js"), manifestSource); await writeFile(path.join(packageRoot, "dist/worker.js"), workerSource);
     const digest = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
-    await ctx.input.evidence("chat-catalog-vetted-preview-package.json", { synthetic: true, cliMode: "supported-source-cli-tsx", cliLoaderSha256: digest(await readFile(loader)), pluginKey: key, sdkMirror: { files: mirror.files, archiveWrites: mirror.archiveWrites, packageBuilds: mirror.packageBuilds, packagePacks: mirror.packagePacks }, manifestSha256: digest(manifestSource), workerSha256: digest(workerSource), cliSha256: digest(await readFile(cli)), sdkEntrySha256: digest(await readFile(fileURLToPath(sdkUrl))) });
+    await ctx.input.evidence("chat-catalog-vetted-preview-package.json", { synthetic: true, cliMode: "supported-source-cli-bun", runtimePolicySha256: digest(await readFile(runtimePolicy)), bunVersion: process.versions.bun, pluginKey: key, sdkMirror: { files: mirror.files, archiveWrites: mirror.archiveWrites, packageBuilds: mirror.packageBuilds, packagePacks: mirror.packagePacks }, manifestSha256: digest(manifestSource), workerSha256: digest(workerSource), cliSha256: digest(await readFile(cli)), sdkEntrySha256: digest(await readFile(fileURLToPath(sdkUrl))) });
     return { key, packageRoot, marker, async close() { await rm(temporary, { recursive: true, force: true }); } };
   } catch { await rm(temporary, { recursive: true, force: true }); throw new Error("Disposable plugin scaffold failed; command output withheld"); }
 }

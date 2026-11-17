@@ -70,10 +70,10 @@ jobs:
           key: storybook-visual-baseline-${{ runner.os }}-${{ hashFiles('tests/storybook-visual/baseline-manifest.json') }}
 
       - name: Download Storybook visual baseline
-        run: pnpm storybook-visual:baseline download
+        run: bun run storybook-visual:baseline download
 
       - name: Verify Storybook visual baseline
-        run: pnpm storybook-visual:baseline verify
+        run: bun run storybook-visual:baseline verify
 
       - name: Build Storybook
         run: bun run build-storybook
@@ -88,7 +88,7 @@ jobs:
 
       - name: Pack updated baseline review bundle
         if: ${{ github.event.inputs.update_snapshots == 'true' }}
-        run: pnpm storybook-visual:baseline pack
+        run: bun run storybook-visual:baseline pack
 
       - name: Upload Storybook visual report
         uses: actions/upload-artifact@v7

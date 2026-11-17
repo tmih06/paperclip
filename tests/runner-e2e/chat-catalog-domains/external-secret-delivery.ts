@@ -309,7 +309,7 @@ export const secretDeliveryExternalCases = [
         "../../server/src/services/agent-lifecycle-driver.ts",
         "../../server/src/services/heartbeat/run-preparation.ts",
         "../../cli/src/index.ts",
-        "../../cli/node_modules/tsx/dist/loader.mjs",
+        "../../packages/shared/src/bun-version.ts",
         "chat-catalog-domains/external-plugin-sdk-mirror.ts",
         "../../packages/plugins/sdk/package.json",
         "../../packages/plugins/create-paperclip-plugin/src/index.ts",

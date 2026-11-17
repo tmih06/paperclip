@@ -314,7 +314,7 @@ jobs:
           if [ -z "$RUNNER_TESTOPS_REQUESTED_JOB_RUN_ID" ]; then
             selection_args+=("$RUNNER_TEMP/runner-protocol-testplan.json")
           fi
-          allurectl watch -- node packages/paperclip-runner/scripts/runner-protocol-testops.mjs "${selection_args[@]}"
+          allurectl watch -- bun packages/paperclip-runner/scripts/runner-protocol-testops.mjs "${selection_args[@]}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: runner-protocol-testops-selection-${{ github.run_id }}-${{ github.run_attempt }}
@@ -386,7 +386,7 @@ jobs:
           elif [ "$MAX_PARALLEL" -gt "$MAX_PARALLEL_LIMIT" ]; then
             MAX_PARALLEL="$MAX_PARALLEL_LIMIT"
           fi
-          node packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs catalog \
+          bun packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs catalog \
             --evals-root .paperclip-evals \
             --rosters "$ROSTERS" \
             --grok-authentication "$GROK_AUTHENTICATION" \
@@ -403,7 +403,7 @@ jobs:
       - name: Apply the exact selected protocol cases before fan-out
         id: filter
         if: needs.authorize.outputs.testops_enabled == 'true'
-        run: node packages/paperclip-runner/scripts/runner-protocol-testops.mjs filter-catalog runner-protocol-eval-catalog.json runner-protocol-testops-selection/runner-protocol-testops-selection.json
+        run: bun packages/paperclip-runner/scripts/runner-protocol-testops.mjs filter-catalog runner-protocol-eval-catalog.json runner-protocol-testops-selection/runner-protocol-testops-selection.json
 
       - name: Enforce controlled limits against the selected catalog
         if: needs.authorize.outputs.accounting_mode == 'controlled'
@@ -486,12 +486,12 @@ jobs:
       - run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Materialize the pinned OpenCode executable before packaging
-        run: node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
+        run: bun packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
 
       - name: Materialize the pinned Grok executable when the target includes it
         run: |
           if [ -f packages/paperclip-runner/scripts/provision-grok.mjs ]; then
-            sudo node packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok
+            sudo bun packages/paperclip-runner/scripts/provision-grok.mjs /opt/paperclip/providers/grok/1.0.13/grok
           fi
 
       - name: Build runner CLI, daemon, and canonical attempt viewer
@@ -587,7 +587,7 @@ jobs:
           # The controller installs exactly the committed lockfile of the trusted revision.
           git diff --quiet HEAD -- bun.lock
           bun install --frozen-lockfile --ignore-scripts --cache-dir "$RUNNER_TEMP/runner-controller-pnpm-store"
-          node packages/paperclip-runner/scripts/controlled-evals/build-runtime.mjs \
+          bun packages/paperclip-runner/scripts/controlled-evals/build-runtime.mjs \
             "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" > "$RUNNER_TEMP/controller-runtime-receipt.json"
           echo "runtime_receipt_sha256=$(jq -r .receiptSha256 "$RUNNER_TEMP/controller-runtime-receipt.json")" >> "$GITHUB_OUTPUT"
 
@@ -692,7 +692,7 @@ jobs:
           RUNTIME_RECEIPT_SHA256: ${{ needs.build_controller.outputs.runtime_receipt_sha256 }}
         run: |
           set -euo pipefail
-          node packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
+          bun packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           committed="$(sha256sum bun.lock | cut -d ' ' -f 1)"
           test "$(jq -r '.inputs["bun.lock"]' "$RUNNER_TEMP/runner-protocol-runtime/runtime.json")" = "$committed"
@@ -842,7 +842,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p cell-output
-          node packages/paperclip-runner/scripts/stage-runner-provider-node.mjs \
+          bun packages/paperclip-runner/scripts/stage-runner-provider-node.mjs \
             "$RUNNER_TEMP/runner-protocol-provider-node" \
             "$GITHUB_WORKSPACE/runner-protocol-build/extracted/portable/dist/cli/acpx-runtime-sidecar.cjs" \
             cell-output/provider-node-receipt.json
@@ -855,7 +855,7 @@ jobs:
         run: |
           set -euo pipefail
           root="/tmp/paperclip-runner-controlled-${GITHUB_RUN_ID}"
-          node packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$root/runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
+          bun packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$root/runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
           cp -a runner-protocol-build/extracted "$root/runner"
 
       # Keep the host policy aligned with runner-full-stack-e2e.yml. This is
@@ -1176,7 +1176,7 @@ jobs:
           RUNTIME_RECEIPT_SHA256: ${{ needs.prepare_controller.outputs.runtime_receipt_sha256 }}
         run: |
           set -euo pipefail
-          node packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
+          bun packages/paperclip-runner/scripts/controlled-evals/verify-runtime.mjs "$RUNNER_TEMP/runner-protocol-runtime" "$GITHUB_SHA" "$RUNTIME_RECEIPT_SHA256"
 
       - name: Obtain private archive credentials for transfer steps only
         if: needs.authorize.outputs.accounting_mode == 'controlled'
@@ -1252,7 +1252,7 @@ jobs:
           PAPERCLIP_PROTOCOL_EVALS_SHA: ${{ needs.authorize.outputs.evals_sha }}
           PAPERCLIP_PROTOCOL_EVAL_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          node packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs aggregate \
+          bun packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs aggregate \
             --catalog runner-protocol-catalog/runner-protocol-eval-catalog.json \
             --downloads downloaded-runner-protocol-evals \
             --evals-root .paperclip-evals \
@@ -1283,7 +1283,7 @@ jobs:
       - name: Project safe run records for reporting
         if: needs.authorize.outputs.accounting_mode == 'legacy' || needs.authorize.outputs.testops_enabled == 'true'
         run: |
-          node packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs sanitize \
+          bun packages/paperclip-runner/scripts/runner-protocol-eval-campaign.mjs sanitize \
             --runs-root runner-protocol-merged/runs \
             --output runner-protocol-merged/public-runs
 
@@ -1308,13 +1308,13 @@ jobs:
           mkdir -m 700 runner-protocol-testops-projection
           case "$ACCOUNTING_MODE" in
             controlled)
-              node packages/paperclip-runner/scripts/runner-protocol-testops.mjs export-runs \
+              bun packages/paperclip-runner/scripts/runner-protocol-testops.mjs export-runs \
                 runner-protocol-testops-selection/runner-protocol-testops-selection.json \
                 runner-protocol-merged/campaign.json runner-protocol-merged/public-runs \
                 runner-protocol-testops-projection/results
               ;;
             legacy)
-              node packages/paperclip-runner/scripts/runner-protocol-testops.mjs export \
+              bun packages/paperclip-runner/scripts/runner-protocol-testops.mjs export \
                 runner-protocol-testops-selection/runner-protocol-testops-selection.json \
                 runner-protocol-merged/public-report runner-protocol-testops-projection/results
               ;;
@@ -1341,8 +1341,8 @@ jobs:
         run: |
           bun install --frozen-lockfile --ignore-scripts --cache-dir "$RUNNER_TEMP/runner-report-pnpm-store"
           bun x --cwd packages/paperclip-runner playwright install --with-deps chromium
-          node packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/public-report --screenshots runner-protocol-merged/viewer-proof
-          node packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/report
+          bun packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/public-report --screenshots runner-protocol-merged/viewer-proof
+          bun packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/report
 
       - name: Enforce the static public allowlist
         if: needs.authorize.outputs.accounting_mode == 'legacy'
@@ -1430,7 +1430,7 @@ jobs:
         if: steps.projection.outcome != 'success'
         run: |
           mkdir -m 700 runner-protocol-testops-fallback
-          node packages/paperclip-runner/scripts/runner-protocol-testops.mjs export \
+          bun packages/paperclip-runner/scripts/runner-protocol-testops.mjs export \
             runner-protocol-testops-selection/runner-protocol-testops-selection.json \
             runner-protocol-testops-unavailable runner-protocol-testops-fallback/results
           echo "RUNNER_PROTOCOL_TESTOPS_RESULTS=runner-protocol-testops-fallback/results" >> "$GITHUB_ENV"
@@ -1449,7 +1449,7 @@ jobs:
       - name: Verify the persisted status and same-run case bindings
         env:
           ALLURE_TOKEN: ${{ secrets.ALLURE_TOKEN }}
-        run: node packages/paperclip-runner/scripts/runner-protocol-testops.mjs verify "${RUNNER_PROTOCOL_TESTOPS_RESULTS}-receipt.json"
+        run: bun packages/paperclip-runner/scripts/runner-protocol-testops.mjs verify "${RUNNER_PROTOCOL_TESTOPS_RESULTS}-receipt.json"
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -1512,4 +1512,4 @@ jobs:
           RUNNER_PROTOCOL_EVAL_HISTORY_S3_BUCKET: ${{ vars.RUNNER_PROTOCOL_EVAL_HISTORY_S3_BUCKET || vars.RUNNER_E2E_HISTORY_S3_BUCKET }}
           RUNNER_PROTOCOL_EVAL_HISTORY_PREFIX: ${{ vars.RUNNER_PROTOCOL_EVAL_HISTORY_PREFIX || 'runner-protocol-evals' }}
           RUNNER_PROTOCOL_EVAL_HISTORY_PUBLIC_BASE_URL: ${{ vars.RUNNER_PROTOCOL_EVAL_HISTORY_PUBLIC_BASE_URL || vars.RUNNER_E2E_HISTORY_PUBLIC_BASE_URL }}
-        run: node packages/paperclip-runner/scripts/publish-runner-protocol-eval-history.mjs
+        run: bun packages/paperclip-runner/scripts/publish-runner-protocol-eval-history.mjs

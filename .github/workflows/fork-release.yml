@@ -135,7 +135,7 @@ jobs:
           set -euo pipefail
           bun install --no-save
           bun run build
-          node packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs assemble-daemons native-daemons "$SOURCE" native-packs
+          bun packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs assemble-daemons native-daemons "$SOURCE" native-packs
           cp -R packages/paperclip-runner/dist/bin/. server/dist/vendor/paperclip-runner/bin/
           cp -R packages/paperclip-runner/dist/remote-provider-packs server/dist/vendor/paperclip-runner/
           bun scripts/build-standalone-public-packages.mjs
