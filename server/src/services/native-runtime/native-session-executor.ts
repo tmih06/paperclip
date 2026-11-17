@@ -18620,11 +18620,14 @@ async function createRunnerdBackendWithinSessionClaim(
           ? {
               providerNodeCommand: posix.join(
                 activeRemoteProviderPackRoot,
-                expectedProviderPackManifest.payload.artifacts.nodeCommand.path,
+                expectedProviderPackManifest.payload.artifacts[
+                  input.execution.provider.kind === "opencode" ? "bunCommand" : "nodeCommand"
+                ].path,
               ),
               providerNodeCommandSha256:
-                expectedProviderPackManifest.payload.artifacts.nodeCommand
-                  .sha256,
+                expectedProviderPackManifest.payload.artifacts[
+                  input.execution.provider.kind === "opencode" ? "bunCommand" : "nodeCommand"
+                ].sha256,
               providerPackAuthorityDigest: expectedProviderPackManifest.digest,
               opencodeCommand: posix.join(
                 activeRemoteProviderPackRoot,
