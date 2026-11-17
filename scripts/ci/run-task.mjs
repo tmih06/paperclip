@@ -49,7 +49,7 @@ const scope = {
 const force = process.env.CI_FORCE_TASKS === "true" || uncacheable;
 // --no-install keeps a cached result from needing a registry round trip to
 // resolve turbo, which is already in the root node_modules.
-const result = spawnSync("bun", ["x", "--no-install", "turbo", "run", execution.target,
+const result = spawnSync("bun", ["x", "--bun", "--no-install", "turbo", "run", execution.target,
   "--root-turbo-json", runtimeConfig, "--summarize", force ? "--cache=" : "--cache=local:rw", "--cache-dir=.turbo/cache",
   ...(process.env.CI_TASK_DRY_RUN === "true" ? ["--dry=json"] : []),
   "--", ...execution.args], {

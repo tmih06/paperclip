@@ -77,7 +77,7 @@ test("repository-wide guidance guards run uncached for every scanned UI file typ
   const guidance = planLane({ buildGapPackages: [], testLayers: [] }).prepare.find((task) => task.name === "CLI guidance safety");
   // `bun x --no-install` is Bun's `pnpm exec`: it runs the workspace binary
   // without resolving or downloading a different one.
-  assert.deepEqual(guidance.args, ["x", "--no-install", "vitest", "run", "--project", "@paperclipai/server", "server/src/__tests__/cli-invocation-safety.test.ts"]);
+  assert.deepEqual(guidance.args, ["x", "--bun", "--no-install", "vitest", "run", "--project", "@paperclipai/server", "server/src/__tests__/cli-invocation-safety.test.ts"]);
   assert.ok(!job.includes("uses: ./.github/actions/run-ci-task"));
 });
 

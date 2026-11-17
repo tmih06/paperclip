@@ -484,7 +484,7 @@ test("the PR workflow wiring for the native-runner lane holds", () => {
   const runnerPackage = JSON.parse(
     readFileSync(path.join(repoRoot, "packages/paperclip-runner/package.json"), "utf8"),
   );
-  assert.equal(runnerPackage.scripts["test:typescript:vitest"], "node ./scripts/run-pr-vitest-lane.mjs");
+  assert.equal(runnerPackage.scripts["test:typescript:vitest"], "bun ./scripts/run-pr-vitest-lane.mjs");
 });
 
 const laneWrapper = path.join(repoRoot, "packages/paperclip-runner/scripts/run-pr-vitest-lane.mjs");
@@ -513,8 +513,8 @@ test("the PR lanes separate complete package and native workloads without changi
     const plan = wrapperPlan(args, envOverrides);
     assert.equal(plan.runNativeRunnerGroup, native);
     assert.equal(plan.runPackageTests, packageArgs !== null);
-    const vitest = plan.plannedCommands.find(command => command.args[0] === "exec");
-    assert.deepEqual(vitest?.args ?? null, packageArgs === null ? null : ["exec", "vitest", "run", ...packageArgs]);
+    const vitest = plan.plannedCommands.find(command => command.args[0] === "x");
+    assert.deepEqual(vitest?.args ?? null, packageArgs === null ? null : ["x", "--bun", "--no-install", "vitest", "run", ...packageArgs]);
     assert.equal(plan.plannedCommands.some(command => command.args.includes("general-server-native-runner")), native);
     assert.ok(plan.plannedCommands.some(command => command.args.includes("build:rust")), "both workloads require debug fixtures");
   }
@@ -529,12 +529,12 @@ test("the PR lanes separate complete package and native workloads without changi
 
 const runnerRoot = path.join(repoRoot, "packages/paperclip-runner");
 const prepCommands = [
-  { command: "pnpm", args: ["run", "ensure:eval-build-deps"], cwd: runnerRoot },
-  { command: "pnpm", args: ["run", "build:rust"], cwd: runnerRoot },
+  { command: "bun", args: ["run", "ensure:eval-build-deps"], cwd: runnerRoot },
+  { command: "bun", args: ["run", "build:rust"], cwd: runnerRoot },
 ];
 const nativeCommand = {
-  command: "pnpm",
-  args: ["test:run:general", "--", "--group", "general-server-native-runner"],
+  command: "bun",
+  args: ["run", "test:run:general", "--", "--group", "general-server-native-runner"],
   cwd: repoRoot,
 };
 
@@ -543,7 +543,7 @@ const nativeCommand = {
 test("the master-pinned --shard lane commands plan exactly what they did before package lanes", () => {
   assert.deepEqual(wrapperPlan(["--shard=1/2"], { GITHUB_WORKFLOW: "PR" }).plannedCommands, [
     ...prepCommands,
-    { command: "pnpm", args: ["exec", "vitest", "run"], cwd: runnerRoot },
+    { command: "bun", args: ["x", "--bun", "--no-install", "vitest", "run"], cwd: runnerRoot, profile: "vitest" },
   ]);
   assert.deepEqual(wrapperPlan(["--shard=2/2"], { GITHUB_WORKFLOW: "PR" }).plannedCommands, [...prepCommands, nativeCommand]);
   for (const plan of [wrapperPlan(["--shard=1/2"], { GITHUB_WORKFLOW: "PR" }), wrapperPlan(["--shard=2/2"], { GITHUB_WORKFLOW: "PR" })]) {
@@ -722,6 +722,20 @@ test("default chat isolation leaves explicit groups and shared databases unchang
   assert.equal(dryRunJson(["--mode", "serialized"], { PAPERCLIP_TEST_DATABASE_URL: "" }).chatVitestShards, null);
 });
 
+function fakeVitestPreload(directory, fakeCli) {
+  const preload = path.join(directory, "vitest-preload.cjs");
+  writeFileSync(preload, `const cp = require("node:child_process");
+const spawn = cp.spawn;
+cp.spawn = (command, args, options) => {
+  if (args[0]?.endsWith("/vitest.mjs") || args[0]?.endsWith("/run-selected-vitest.mjs")) {
+    return spawn(command, [${JSON.stringify(fakeCli)}, ...args.slice(1)], options);
+  }
+  throw new Error("Unexpected fixture child: " + command + " " + args.join(" "));
+};
+`);
+  return ["--preload", preload];
+}
+
 function defaultLauncher({ shared = false, failureIndex = null } = {}) {
   const directory = mkdtempSync(path.join(os.tmpdir(), "default-chat-launch-"));
   const file = path.join(repoRoot, chatSuitePath);
@@ -762,7 +776,7 @@ function defaultLauncher({ shared = false, failureIndex = null } = {}) {
       }
     `);
     chmodSync(fakePnpm, 0o755);
-    const result = spawnSync(process.execPath, [script, "--mode", "general"], {
+    const result = spawnSync(process.execPath, [...fakeVitestPreload(directory, fakePnpm), script, "--mode", "general"], {
       cwd: repoRoot, encoding: "utf8", timeout: 30_000,
       env: workflowEnv({ GITHUB_WORKFLOW: "PR", PATH: `${directory}${path.delimiter}${process.env.PATH}`,
         PAPERCLIP_TEST_DATABASE_URL: shared ? "postgresql://shared/test" : "", PAPERCLIP_CI_PROFILE: "false" }),
@@ -849,7 +863,7 @@ test("a failed chat child fails the job after its sibling finishes", { skip: pro
       else setTimeout(() => fs.writeFileSync(${JSON.stringify(receipt)}, 'finished'), 200);
     `);
     chmodSync(fakePnpm, 0o755);
-    const result = spawnSync(process.execPath, [script, "--mode", "general", "--group", "general-chat",
+    const result = spawnSync(process.execPath, [...fakeVitestPreload(directory, fakePnpm), script, "--mode", "general", "--group", "general-chat",
       "--shard-index", "0", "--shard-count", "3"], {
       cwd: repoRoot, encoding: "utf8", timeout: 30_000,
       env: { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}`,
@@ -884,7 +898,7 @@ for (const [group, parallelWorkers, shardArgs] of [
       const env = workflowEnv({ PATH: `${directory}${path.delimiter}${process.env.PATH}`, PAPERCLIP_CI_PROFILE: "false" });
       for (const key of Object.keys(env)) if (key.endsWith("_TEST_DATABASE_URL")) delete env[key];
       Object.assign(env, databaseEnv);
-      const result = spawnSync(process.execPath, ["--require", cpuFixture, script, "--mode", "general", "--group", group, ...shardArgs], {
+      const result = spawnSync(process.execPath, ["--preload", cpuFixture, ...fakeVitestPreload(directory, fakePnpm), script, "--mode", "general", "--group", group, ...shardArgs], {
         cwd: repoRoot, encoding: "utf8", env,
       });
       assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -910,7 +924,7 @@ test("native suites reserve CPU for their Runner, sidecars, and database process
       writeFileSync(cpuFixture, `require('node:os').availableParallelism = () => ${cpus};\n`);
       const env = workflowEnv({ PATH: `${directory}${path.delimiter}${process.env.PATH}`, PAPERCLIP_CI_PROFILE: "false" });
       for (const key of Object.keys(env)) if (key.endsWith("_TEST_DATABASE_URL")) delete env[key];
-      const result = spawnSync(process.execPath, ["--require", cpuFixture, script, "--mode", "general", "--group", "general-server-native-runner"], { cwd: repoRoot, env, encoding: "utf8" });
+      const result = spawnSync(process.execPath, ["--preload", cpuFixture, ...fakeVitestPreload(directory, fakePnpm), script, "--mode", "general", "--group", "general-server-native-runner"], { cwd: repoRoot, env, encoding: "utf8" });
       assert.equal(result.status, 0, result.stdout + result.stderr);
       const args = JSON.parse(readFileSync(receipt, "utf8"));
       assert.ok(args.includes(`--maxWorkers=${workers}`), `${cpus} CPUs: ${args.join(" ")}`);

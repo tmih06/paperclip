@@ -41,7 +41,7 @@ export function planLane({ buildGapPackages, testLayers, projects = PROJECTS }) 
     {
       name: CLI_GUIDANCE_SAFETY,
       command: "bun",
-      args: ["x", "--no-install", "vitest", "run", "--project", "@paperclipai/server", "server/src/__tests__/cli-invocation-safety.test.ts"],
+      args: ["x", "--bun", "--no-install", "vitest", "run", "--project", "@paperclipai/server", "server/src/__tests__/cli-invocation-safety.test.ts"],
     },
   ];
   const needsDeclarations = [SERVER_DECLARATIONS];
