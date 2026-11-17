@@ -47,7 +47,9 @@ export function removeTsxPreloads(file, source) {
     if (node.type === "ArrayExpression") {
       const elements = node.elements;
       const removed = new Set();
-      if (/\/tsx\/dist\/cli\.mjs|\/node_modules\/\.bin\/tsx["']/.test(textOf(elements[0]))) removed.add(0);
+      if (elements[0]?.type !== "ArrayExpression"
+        && !(typeof elements[0]?.value === "string" && /^node\s/.test(elements[0].value))
+        && /\/tsx\/dist\/cli\.mjs|\/node_modules\/\.bin\/tsx["']/.test(textOf(elements[0]))) removed.add(0);
       for (let i = 0; i < elements.length - 1; i++) {
         if (elements[i]?.value === "--import" && elements[i + 1]
           && loaderPattern.test(textOf(elements[i + 1]))) {
@@ -71,7 +73,8 @@ export function removeTsxPreloads(file, source) {
   const dead = new Map();
   for (const [name, candidate] of candidates) {
     const { declaration, parent, text } = candidate;
-    if (exported.has(declaration) || !loaderPattern.test(text)) continue;
+    if (exported.has(declaration) || declaration.init?.type === "ArrayExpression"
+      || !loaderPattern.test(text)) continue;
     const live = nodes.some(node => node.type === "Identifier" && node.name === name
       && !(node.start >= declaration.start && node.end <= declaration.end)
       && !ranges.some(([start, end]) => node.start >= start && node.end <= end));

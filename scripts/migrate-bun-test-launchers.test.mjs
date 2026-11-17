@@ -10,6 +10,7 @@ for (const [name, source, expected] of [
   ["multiple preloads", 'spawn(exec, ["--import", "tsx", "a", "--import", "tsx/esm"]);', 'spawn(exec, ["a"]);'],
   ["unrelated imports", 'spawn(exec, ["--import", "./preload.mjs", "source.tsx"]);', 'spawn(exec, ["--import", "./preload.mjs", "source.tsx"]);'],
   ["CLI shim", 'spawn(exec, [path.join(root, "cli/node_modules/tsx/dist/cli.mjs"), "x.ts"]);', 'spawn(exec, ["x.ts"]);'],
+  ["shell command fixture", 'const cases = [["node ../../cli/node_modules/tsx/dist/cli.mjs x.ts", "bun x.ts"]];', 'const cases = [["node ../../cli/node_modules/tsx/dist/cli.mjs x.ts", "bun x.ts"]];'],
   ["bin shim", 'spawn(exec, [fileURLToPath(new URL("../../node_modules/.bin/tsx", import.meta.url)), "x.ts"]);', 'spawn(exec, ["x.ts"]);'],
   ["bound preload", 'const loader=require.resolve("tsx"); spawn(exec, ["--import", loader, "x.ts"]);', ' spawn(exec, ["x.ts"]);'],
   ["mixed declaration", 'const loader=require.resolve("tsx"), worker="worker.ts"; spawn(exec, ["--import", loader, worker]);', 'const worker="worker.ts"; spawn(exec, [worker]);'],
