@@ -379,7 +379,7 @@ async function runBun(args: string[], options: {
     const spawned = spawn(bunBin, args, {
       stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
       env: options.env ?? process.env,
-      cwd: options.cwd,
+      cwd: options.cwd ?? repoRoot,
       shell: process.platform === "win32",
     });
 
@@ -713,7 +713,7 @@ async function startServerChild() {
   child = spawn(
     bunBin,
     ["run", "--filter", "@paperclipai/server", serverScript, ...forwardedArgs],
-    { stdio: "inherit", env, shell: process.platform === "win32" },
+    { stdio: "inherit", env, cwd: repoRoot, shell: process.platform === "win32" },
   );
 
   childExitPromise = new Promise((resolve, reject) => {
