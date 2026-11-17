@@ -1294,7 +1294,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if bun x playwright install ffmpeg; then
+            if bun x --bun --no-install playwright install ffmpeg; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -1309,7 +1309,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if bun x playwright install --with-deps --only-shell chromium; then
+            if bun x --bun --no-install playwright install --with-deps --only-shell chromium; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -1979,9 +1979,9 @@ jobs:
         run: |
           if [ "${{ needs.authorize.outputs.evidence_retention }}" = private ]; then
             mkdir -p runner-e2e-merged-report
-            bun x playwright merge-reports --config tests/runner-e2e/merge.config.ts merged-blob-reports > runner-e2e-merged-report/merge.log 2>&1
+            bun x --bun --no-install playwright merge-reports --config tests/runner-e2e/merge.config.ts merged-blob-reports > runner-e2e-merged-report/merge.log 2>&1
           else
-            bun x playwright merge-reports --config tests/runner-e2e/merge.config.ts merged-blob-reports
+            bun x --bun --no-install playwright merge-reports --config tests/runner-e2e/merge.config.ts merged-blob-reports
           fi
 
       - name: Aggregate normalized campaign results
@@ -2194,7 +2194,7 @@ jobs:
         run: bun install --frozen-lockfile --ignore-scripts --cache-dir "${{ runner.temp }}/eval-publisher-store"
 
       - name: Install publisher-only Chromium
-        run: bun x playwright install --with-deps --only-shell chromium
+        run: bun x --bun --no-install playwright install --with-deps --only-shell chromium
 
       - name: Download access-controlled normalized campaign
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8

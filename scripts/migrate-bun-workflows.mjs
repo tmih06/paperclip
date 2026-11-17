@@ -34,7 +34,7 @@ export function migrationRules(directories) {
     // `bun x --cwd <dir>` resolves the binary from the declaring package.
     [/\bbun run --filter (\S+) exec (\S+)/g, (match, name, binary) => {
       const directory = directories.get(name);
-      return directory ? `bun x --cwd ${directory} ${binary}` : match;
+      return directory ? `bun x --bun --no-install --cwd ${directory} ${binary}` : match;
     }],
     // Bun accepts --store-dir but ignores its value, so a relocated cache
     // silently stays in the default location. --cache-dir moves it.
@@ -57,7 +57,7 @@ export function migrationRules(directories) {
     // Remaining pnpm command spellings with direct Bun equivalents.
     [/\bpnpm run /g, "bun run "],
     [/\bpnpm --silent /g, "bun --silent run "],
-    [/\bpnpm exec /g, "bun x "],
+    [/\bpnpm exec /g, "bun x --bun --no-install "],
     [/\bpnpm install\b/g, "bun install"],
   ];
 }

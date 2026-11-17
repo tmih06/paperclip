@@ -1340,7 +1340,7 @@ jobs:
         if: needs.authorize.outputs.accounting_mode == 'legacy'
         run: |
           bun install --frozen-lockfile --ignore-scripts --cache-dir "$RUNNER_TEMP/runner-report-pnpm-store"
-          bun x --cwd packages/paperclip-runner playwright install --with-deps chromium
+          bun x --bun --no-install --cwd packages/paperclip-runner playwright install --with-deps chromium
           bun packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/public-report --screenshots runner-protocol-merged/viewer-proof
           bun packages/paperclip-runner/scripts/verify-runner-evalbook-viewer.mjs --report-root runner-protocol-merged/report
 

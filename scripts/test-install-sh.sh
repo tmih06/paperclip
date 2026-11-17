@@ -242,7 +242,7 @@ assert_log_empty "dry run with --install-service does not invoke bun"
 new_case "help"
 run_installer --help >"$CASE_DIR/out" 2>&1 || fail "--help exits 0"
 assert_output_has "--help documents the pinned Bun version" 'Bun 1\.4\.4'
-assert_output_has "--help documents the Bun CLI ref form" 'bun x paperclipai install --ref'
+assert_output_has "--help documents the Bun CLI ref form" 'bun x --bun paperclipai install --ref'
 
 # ---------------------------------------------------------------------------
 # Bun bootstrap: pinned artifact verification against the real SHA-256 pins

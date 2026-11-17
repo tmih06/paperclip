@@ -221,7 +221,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          bun install --resolution-only --ignore-scripts --ignore-pnpmfile --no-frozen-lockfile
+          bun install --lockfile-only --ignore-scripts --no-frozen-lockfile
           echo "TOOLS_EPOCH=$(date -u +%G-W%V)" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
         with:

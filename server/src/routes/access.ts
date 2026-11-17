@@ -1654,7 +1654,7 @@ function buildOnboardingDiscoveryDiagnostics(input: {
       code: "openclaw_onboarding_private_loopback_bind",
       level: "warn",
       message: "Paperclip is bound to loopback in authenticated/private mode.",
-      hint: "Use a reachable private bind mode such as `pnpm dev --bind lan` or `pnpm dev --bind tailnet` for private-network onboarding."
+      hint: "Use a reachable private bind mode such as `bun run dev --bind lan` or `bun run dev --bind tailnet` for private-network onboarding."
     });
   }
 

@@ -163,7 +163,7 @@ jobs:
 
       - name: Exercise restored dependencies for cache-only changes
         if: steps.test_scope.outputs.run != 'true' && steps.qualification.outputs.cacheable == 'true'
-        run: bun x vitest run --project @paperclipai/shared
+        run: bun x --bun --no-install vitest run --project @paperclipai/shared
 
       - name: Retain timings, inventories and failure logs
         if: always()

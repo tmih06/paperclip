@@ -53,7 +53,7 @@ SHA-256 pin and needs no elevated privileges. Node.js is not required to install
 or run Paperclip, though external agent providers may need it.
 
 To install from a git branch, tag, or commit, use the Paperclip CLI directly:
-bun x paperclipai install --ref <ref>
+bun x --bun paperclipai install --ref <ref>
 EOF
 }
 
@@ -165,7 +165,7 @@ if [ "$CANARY" = "1" ] && [ -n "$VERSION" ]; then
 fi
 
 if [ -n "$REF" ] || [ -n "$REPO" ]; then
-  fail "git-ref installs are not supported by install.sh; run 'bun x paperclipai install --ref <ref>' instead"
+  fail "git-ref installs are not supported by install.sh; run 'bun x --bun paperclipai install --ref <ref>' instead"
 fi
 
 if { [ ! -t 0 ] || [ ! -t 1 ]; } && [ "$NO_PROMPT" != "1" ]; then

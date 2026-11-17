@@ -500,7 +500,7 @@ jobs:
           bun scripts/typecheck-test-programs.mjs --low-memory
           bun run --filter @paperclipai/server typecheck
           bun scripts/typecheck-test-projects.mjs --low-memory --reuse-declarations
-          bun x vitest run --project @paperclipai/server server/src/__tests__/cli-invocation-safety.test.ts
+          bun x --bun --no-install vitest run --project @paperclipai/server server/src/__tests__/cli-invocation-safety.test.ts
           bun run test:release-registry
 
       - name: Upload CI profile timings

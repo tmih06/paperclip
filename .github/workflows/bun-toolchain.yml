@@ -56,14 +56,14 @@ jobs:
           fi
 
       - name: Report the Vite+ toolchain
-        run: bun x --no-install vp --version
+        run: bun x --bun --no-install vp --version
 
       - name: Build shared SDK dependencies
         run: bun run --filter @paperclipai/plugin-sdk ensure-build-deps
 
       - name: Run focused tests
         run: |
-          bun x --no-install vp test \
+          bun x --bun --no-install vp test \
             server/src/__tests__/network.test.ts \
             server/src/__tests__/network-routes.test.ts \
             packages/adapters/ompig-slim/src/server/execute.test.ts \

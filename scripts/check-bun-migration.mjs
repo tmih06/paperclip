@@ -5,6 +5,7 @@ import { removeTsxPreloads } from "./migrate-bun-test-launchers.mjs";
 const files = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" })
   .split("\0")
   .filter(Boolean)
+  .filter(file => !/-fixtures\.[cm]?[jt]sx?$/.test(file))
   .filter(file => !/(^|\/)(node_modules|dist|vendor|fixtures|generated)\//.test(file));
 const findings = [];
 const launch = /\b(?:spawn|spawnSync|execFile|execFileSync|run|runCommand|exec)\s*\(\s*["'](?:pnpm|corepack|tsx|node)["']|\b(?:command|cmd|executable):\s*["'](?:pnpm|corepack|tsx|node)["']/;
@@ -41,7 +42,10 @@ for (const file of files) {
         && line.includes("process.versions.node.split")
       || /^scripts\/verify-(?:cursor|grok)-npm-install\.mjs$/.test(file)
         && line.includes("postinstall:") && line.includes("lifecycle-ran");
-    const invalid = code && (launch.test(line) || /^#!.*\b(?:node|tsx)\b/.test(line)
+    const implicitBunx = !file.startsWith("scripts/migrate-")
+      && (/\bbun x (?:(?:--no-install|--cwd\s+\S+)\s+)*(?:vp|vite|vitest|playwright|tsc|storybook)\b/.test(line)
+        || /\["x", "--no-install", "(?:vp|vite|vitest|playwright|tsc|turbo)"/.test(line));
+    const invalid = (code || commands) && implicitBunx || code && (launch.test(line) || /^#!.*\b(?:node|tsx)\b/.test(line)
       || !externalNodeEval && /(?<![\w/-])node\s+(?:-e|--eval)\s/.test(line)
       || /["'`]\s*(?:node|tsx|pnpm|corepack)\s+(?:--import\s+[^"'`]*tsx|[^"'`]*node_modules\/tsx\/)/.test(line)
       || /node_modules\/(?:\.bin\/tsx|tsx\/dist\/(?:cli|loader)\.mjs)|["']node_modules["']\s*,\s*["']tsx["']/.test(line))

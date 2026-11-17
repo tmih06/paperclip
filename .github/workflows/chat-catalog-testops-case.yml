@@ -125,7 +125,7 @@ jobs:
           bun packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
           bun -e 'const fs=require("node:fs");fs.chmodSync(process.execPath,fs.statSync(process.execPath).mode&~0o022);if(fs.statSync(process.execPath).mode&0o022)throw Error("Writable provider Node")'
           google-chrome --version
-          bun x playwright install ffmpeg
+          bun x --bun --no-install playwright install ffmpeg
       - name: Bind exact private evidence under the authenticated TestOps authority
         id: private
         env:

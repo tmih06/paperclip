@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 const checker = fileURLToPath(new URL("./check-bun-migration.mjs", import.meta.url));
 for (const [name, file, source, status] of [
   ["remote shell eval requires Bun", "server/probe.ts", "const command = `node -e 'console.log(process.argv[1])' value`;", 1],
+  ["bunx must force the runtime", "scripts/tool.mjs", 'const command = "bun x --no-install vitest run";', 1],
+  ["bunx accepts an explicit runtime", "scripts/tool.mjs", 'const command = "bun x --bun --no-install vitest run";', 0],
   ["remote shell eval accepts Bun", "server/probe.ts", "const command = `bun -e 'console.log(process.argv[1])' value`;", 0],
   ["external Node version probe remains allowed", "packages/adapter-utils/src/sandbox-install-command.ts", 'const probe = "node -e \'const v=process.versions.node.split(\".\")\'";', 0],
   ["external exception does not hide other commands", "packages/adapter-utils/src/sandbox-install-command.ts", 'const command = "node -e \'runFirstParty()\'";', 1],
