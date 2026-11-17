@@ -54,3 +54,37 @@ tree and must not be presented as fresh passes.
   is accidentally launched with Bun. Do not remove the hooks or relax confinement.
 - Source SDK proofs require the sanctioned committed-revision refresh tools.
 - Production entrypoint qualification and final broad CI remain outstanding.
+
+## Recovered-tree qualification checkpoint
+
+These results are fresh recovered-tree evidence, not reinstated historical passes.
+Bun 1.4.4 was used throughout. Local checkpoints through `79db4b14d` include:
+
+- Native-session execution: 1,526 tests passed after fixing remote Bun argv,
+  ownership probes, artifact selection, and successful filesystem-access receipts.
+- Provider archive, verification, and OpenCode artifacts: 83 tests passed.
+- CI and foundation contracts: 886 tests passed.
+- Runner support: 99 tests passed; retained Pi Node stream bytes were not changed.
+  Historical grading requires an explicit runtime choice; current prompts use Bun.
+- exe.dev setup: 38 tests and typecheck passed. The default installs digest-verified
+  Bun 1.4.4 while retaining true Node for external providers. No VM was provisioned.
+- Migration tooling and launcher audit: 43 tests passed; residual audit passed.
+- Release publishing helper: 15 offline tests passed after replacing obsolete
+  npx mocks with fail-closed Bun mocks. Registry publication remains on npm for
+  provenance; unit tests never delegate to a real publisher.
+- Server layered typecheck and production build passed. The rebuilt production
+  entrypoint reached healthy status in an isolated temporary instance. Earlier
+  recovered source and dev-runner boot smokes also passed; the latter exposed and
+  fixed workspace launches that inherited the caller's working directory.
+- SDK source proof refresh against `d3ea533d5` reported unchanged public inputs.
+
+The broad release-registry run did not pass and was stopped at its time limit.
+It exposed remaining retry-launcher, package-lane inventory, standalone install,
+release-staging assertion, and Rust-cache contract failures. The publishing-helper
+fixture bypass found during that run was fixed and independently retested. The
+other failures still need reconciliation; do not claim release readiness or broad
+CI qualification. A concurrent build interrupted with that run was superseded by
+an independently completed server build.
+
+No push, tag, publication, paid-provider execution, live deployment change, or host
+isolation change was performed. Surviving Docker bind mounts remain untouched.

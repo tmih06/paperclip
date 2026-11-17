@@ -9,8 +9,8 @@ subsystem behaves belong in that subsystem's doc; see
 
 ## Prerequisites
 
-- Node.js 24.11+
 - Bun 1.4.4
+- Node.js 24.11+ only when needed by external providers or registry tools
 
 Bun runs the server, CLI, development tools, and tests. Node.js is required only
 by external provider distributions and registry tools that require it.
@@ -159,9 +159,9 @@ Use `test-drive` when you want to exercise the UI from a fresh checkout or SHA
 without completing onboarding by hand:
 
 ```sh
-ANTHROPIC_API_KEY=... node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts test-drive
-OPENAI_API_KEY=... node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts test-drive --harness codex --model gpt-5.4
-OPENROUTER_API_KEY=... node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts test-drive \
+ANTHROPIC_API_KEY=... bun cli/src/index.ts test-drive
+OPENAI_API_KEY=... bun cli/src/index.ts test-drive --harness codex --model gpt-5.4
+OPENROUTER_API_KEY=... bun cli/src/index.ts test-drive \
   --harness opencode \
   --model openrouter/anthropic/claude-sonnet-4.5
 ```
