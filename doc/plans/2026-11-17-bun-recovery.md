@@ -88,3 +88,45 @@ an independently completed server build.
 
 No push, tag, publication, paid-provider execution, live deployment change, or host
 isolation change was performed. Surviving Docker bind mounts remain untouched.
+
+## Final local qualification
+
+The follow-up work through `8346cdb5c` resolves the release-contract failures
+listed above. Fresh final checks include:
+
+- Full release-registry lane: 389 passed across 37 files.
+- Canary workflow, patch-proof, and CI contracts: 886 passed across 33 files.
+- Final launcher/cache contracts: 814 passed across 32 files.
+- Isolated shard launcher contracts: 47 passed; protocol workflow security:
+  20 passed. Test fixtures intercept current Bun commands rather than obsolete
+  pnpm or npx commands. No test delegates publication to a real publisher.
+- Installer: 64 assertions passed. Standalone package installation and worktree
+  provisioning contracts passed, including failure and integrity handling.
+- Server layered typecheck, Runner TypeScript/Rust checks, UI typecheck, and UI
+  production build passed. UI runtime resolution/watch contracts: 9 passed.
+- The final server production build passed, and its rebuilt entrypoint reached
+  healthy status in an isolated temporary instance. Rust dead-code and UI chunk
+  warnings remain warnings; no performance improvement is claimed.
+- Frozen Bun installation passed with no changes. Reporting proof returned
+  `already-reviewed`; the sanctioned SDK refresh confirmed 548 unchanged public
+  inputs after the updated registry was committed.
+- Release package map validated. The migration residual check and full
+  recovery-base-to-HEAD whitespace check passed. No tracked pnpm lock/workspace
+  files remain; historical evidence and external graph-layout fixtures are kept.
+
+Bun frozen installation does not reject changed patch bytes. Canary publishing
+now records a proof of the resolved lock and declared patch digests alongside
+its lock artifact; the smoke job checks that proof before installation. Tests
+reject changed lock/patch bytes, outside paths, and symlinked patch inputs.
+
+This is local source qualification, not a claim of official CI, live browser
+acceptance, production rollout, or paid-provider qualification. Final
+`bun run verify --explain` returned exit 2 for changed global CI inputs and
+selected the broad required CI surface; the focused passes do not replace it.
+No publication or deployment was attempted. Read-only inspection found `docker-server-1`
+already stopped; the Compose controller is not currently serving port 3100.
+The original persisted mounts were not changed or repointed. Kubernetes still
+has the two-task-pod quota and the 2 CPU / 4 GiB per-pod limit. Full mapped
+sandbox execution was blocked during earlier qualification by the host's
+unprivileged-user-namespace restriction; it was not requalified here. No
+privilege or sysctl workaround was used.
