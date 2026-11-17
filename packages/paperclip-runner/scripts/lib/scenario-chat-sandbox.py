@@ -15,9 +15,10 @@ library only: every restriction is a Linux kernel feature reached through
 ``ctypes``. No JavaScript runs here; the command it executes is Bun.
 
 Usage:
-  scenario-chat-sandbox.py --uid 65534 --gid 65534 [--netns]
+  scenario-chat-sandbox.py --uid 65534 --gid 65534 [--netns] [--deny-tcp]
       --as-mb 512 --nofile 128 --fsize-kb 1024
-      [--read PATH]... [--exec PATH]... [--write PATH]... [--bind-tcp PORT]...
+      [--read PATH]... [--list PATH]... [--exec PATH]... [--write PATH]...
+      [--bind-tcp PORT]...
       -- COMMAND [ARG]...
 
 Every failure to apply a policy is fatal (exit 78): a capability that is
@@ -126,12 +127,13 @@ def call_sys(libc, what, *args):
 
 def parse(argv):
     options = {
-        "uid": None, "gid": None, "netns": False,
+        "uid": None, "gid": None, "netns": False, "deny_tcp": False,
         "as_mb": None, "nofile": None, "fsize_kb": None,
-        "read": [], "exec": [], "write": [], "bind_tcp": [],
+        "read": [], "list": [], "exec": [], "write": [], "bind_tcp": [],
     }
     numeric = {"--as-mb": "as_mb", "--nofile": "nofile", "--fsize-kb": "fsize_kb"}
-    repeatable = {"--read": "read", "--exec": "exec", "--write": "write", "--bind-tcp": "bind_tcp"}
+    repeatable = {"--read": "read", "--list": "list", "--exec": "exec",
+                  "--write": "write", "--bind-tcp": "bind_tcp"}
     index = 0
     while index < len(argv):
         token = argv[index]
@@ -142,6 +144,10 @@ def parse(argv):
             return options, command
         if token == "--netns":
             options["netns"] = True
+            index += 1
+            continue
+        if token == "--deny-tcp":
+            options["deny_tcp"] = True
             index += 1
             continue
         if token in ("--uid", "--gid") or token in numeric or token in repeatable:
@@ -242,7 +248,9 @@ def apply_landlock(libc, options):
     """
     abi = landlock_abi(libc)
     handled_fs = handled_fs_rights(abi)
-    managed_net = bool(options["bind_tcp"])
+    # Handling a Landlock network right with no rule denies it, so --deny-tcp
+    # needs no rules: every bind and connect fails with EACCES.
+    managed_net = bool(options["bind_tcp"]) or options["deny_tcp"]
     handled_net = (NET_BIND_TCP | NET_CONNECT_TCP) if managed_net else 0
     if managed_net and abi < 4:
         raise SandboxFailure("Landlock ABI %d cannot restrict TCP ports" % abi)
@@ -272,6 +280,10 @@ def apply_landlock(libc, options):
 
     for path in options["read"]:
         add_path(path, FS_READ_FILE | FS_READ_DIR)
+    # Bun's resolver lists ancestor directories while walking to node_modules.
+    # Listing grants no file contents: entries are visible, reads still fail.
+    for path in options["list"]:
+        add_path(path, FS_READ_DIR)
     for path in options["exec"]:
         add_path(path, FS_READ_FILE | FS_EXECUTE)
     for path in options["write"]:
@@ -282,7 +294,7 @@ def apply_landlock(libc, options):
     # ("search" on a directory). Without it the grant is unreachable and every
     # exec fails with EACCES. Search is granted without read: parents stay
     # traversable but unlistable.
-    for path in options["read"] + options["exec"] + options["write"]:
+    for path in options["read"] + options["list"] + options["exec"] + options["write"]:
         add_searchable_ancestors(add_path, path)
     for port in options["bind_tcp"]:
         rule = ctypes.create_string_buffer(struct.pack("=Qi", NET_BIND_TCP, port), 12)
@@ -408,14 +420,21 @@ def apply_limits(options):
     """Bound total address space, descriptors, and file growth.
 
     These are RLIMITs, not runtime heap hints: they cap the whole process,
-    including native buffers. ``--max-old-space-size`` - the old flag - is a
-    V8 option that Bun does not implement, so the previous 256 MB/64 MB numbers
-    limited nothing. Limits cover address space rather than resident memory, so
-    the value has to clear the runtime's mapping footprint: Bun needs at least
-    ~448 MB of address space to start this server here.
+    including native buffers. ``--max-old-space-size`` - the old flag - is a V8
+    option Bun does not implement, so the previous 256 MB/64 MB numbers bounded
+    nothing.
+
+    RLIMIT_AS bounds virtual address space, and Bun reserves a large JIT region
+    up front (VmSize is several gigabytes at rest). Below roughly 1 GB the
+    reservation fails and Bun silently disables the JIT, which breaks
+    ``bun:ffi``; between roughly 1.25 GB and 1.6 GB the failure is intermittent.
+    The cap therefore has to clear the reservation rather than track resident
+    size. It still bounds a runaway process, which the old heap hint did not,
+    but it is a loose bound: resident memory at the top of the range is what the
+    runtime actually uses.
     """
     def set_limit(which, value, label):
-        soft, hard = resource.getrlimit(which)
+        _, hard = resource.getrlimit(which)
         if hard != resource.RLIM_INFINITY and value > hard:
             value = hard
         try:
@@ -429,16 +448,39 @@ def apply_limits(options):
     set_limit(resource.RLIMIT_CORE, 0, "RLIMIT_CORE")
 
 
-def verify(libc, options):
-    """Prove the policy took effect before handing control to Bun."""
-    read_a_denied = [path for path in options["read"] if os.path.exists(path)]
-    if not read_a_denied:
+def namespace_link(name):
+    return os.readlink("/proc/self/ns/%s" % name)
+
+
+def verify(libc, options, identities):
+    """Prove the policy took effect before handing control to Bun.
+
+    Each check re-reads kernel state. A launcher that silently failed to apply
+    a policy would otherwise let Bun start unconfined.
+    """
+    if not [path for path in options["read"] if os.path.exists(path)]:
         raise SandboxFailure("Landlock granted no readable path")
     status = open("/proc/self/status").read()
-    if "Seccomp:\t" not in status or status.split("Seccomp:\t", 1)[1].split("\n", 1)[0].startswith("0"):
+    fields = dict(line.split(":", 1) for line in status.splitlines() if ":" in line)
+    if fields.get("Seccomp", "0").strip().startswith("0"):
         raise SandboxFailure("seccomp filter is not active")
-    if "NoNewPrivs:\t1" not in status:
+    if fields.get("NoNewPrivs", "0").strip() != "1":
         raise SandboxFailure("no_new_privs is not set")
+    # Only checked when a mapping was requested: the entry point always
+    # requests one, and a caller that applies the remaining policies on its own
+    # has no mapping to confirm.
+    if options["uid"] is not None and (os.getuid() != options["uid"] or os.getgid() != options["gid"]):
+        raise SandboxFailure("uid/gid mapping did not take effect")
+    if options["netns"]:
+        # /proc/self/ns/net is unreadable while the new user namespace has no
+        # mapping yet on hosts that refuse one, so the interface list is the
+        # check: a private namespace has no route out, and the host's
+        # interfaces are gone.
+        interfaces = [line.split(":", 1)[0].strip()
+                      for line in open("/proc/net/dev").read().splitlines()[2:]]
+        if any(name != "lo" for name in interfaces):
+            raise SandboxFailure("network namespace still exposes host interfaces: %s"
+                                 % ", ".join(interfaces))
 
 
 def main():
@@ -447,17 +489,20 @@ def main():
         fail(EX_CONFIG, "--uid and --gid are required; an unmapped namespace is not a sandbox")
     if options["as_mb"] is None:
         fail(EX_CONFIG, "--as-mb is required")
+    if options["nofile"] is None:
+        fail(EX_CONFIG, "--nofile is required")
+    if options["fsize_kb"] is None:
+        fail(EX_CONFIG, "--fsize-kb is required")
     libc = libc_handle()
     try:
         if libc.prctl(PR_SET_PDEATHSIG, signal.SIGTERM, 0, 0, 0) != 0:
             raise SandboxFailure("prctl(PR_SET_PDEATHSIG) failed: %s" % os.strerror(ctypes.get_errno()))
         apply_limits(options)
+        identities = {"net": namespace_link("net")}
         apply_namespaces(libc, options)
-        if options["netns"] and not os.listdir("/proc/self/ns"):
-            raise SandboxFailure("network namespace is not active")
         abi = apply_landlock(libc, options)
         count = apply_seccomp(libc)
-        verify(libc, options)
+        verify(libc, options, identities)
         sys.stderr.write("%s: landlock_abi=%d seccomp_insns=%d uid=%d gid=%d netns=%s\n"
                          % ("scenario_chat_sandbox", abi, count, os.getuid(), os.getgid(),
                             "private" if options["netns"] else "shared"))

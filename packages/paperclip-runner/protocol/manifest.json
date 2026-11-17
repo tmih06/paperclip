@@ -208,7 +208,7 @@
     },
     {
       "path": "fixtures/local-runner/scripts/happy-path.json",
-      "sha256": "ccdeef3df1e2020b692da3bd361958643f2f3d5ec6e1e0b16cca9e0d9890da2f",
+      "sha256": "e2dd70b9ef1701172fa84a609ae5456e32054a4675e8c1ee1ee83c75e17b38d7",
       "expectation": "accept",
       "compatibilityCase": "canonical"
     },

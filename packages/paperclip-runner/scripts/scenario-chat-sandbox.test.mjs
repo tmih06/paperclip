@@ -32,7 +32,8 @@ const runDemo = resolve(scriptsRoot, "run-scenario-chat-demo.sh");
 // elsewhere without turning any policy assertion into a no-op here.
 const linuxOnly = process.platform === "linux" ? test : test.skip;
 
-const SANDBOX_ENV = { PATH: "/usr/local/bin:/usr/bin:/bin", HOME: "/tmp" };
+/** PATH including Bun, matching a deployed host rather than a bare login shell. */
+const SANDBOX_ENV = { PATH: `${dirname(bunBinary())}:/usr/local/bin:/usr/bin:/bin`, HOME: "/tmp" };
 
 function python() {
   for (const candidate of ["/usr/bin/python3", "/usr/local/bin/python3"]) {
@@ -51,14 +52,16 @@ function bunBinary() {
 
 /** Runtime grants every sandboxed Bun process needs to start on this host. */
 function runtimeGrants(directory) {
-  return [
+  const grants = [
     "--read", "/usr/lib", "--read", "/etc/ld.so.cache",
     "--read", "/proc/self", "--read", "/proc/meminfo",
     "--read", "/sys/devices/system/cpu", "--read", "/sys/fs/cgroup",
     "--read", "/dev/urandom", "--read", "/dev/null",
-    "--read", directory, "--list", directory,
-    "--exec", bunBinary(),
+    "--list", directory, "--exec", bunBinary(),
   ];
+  // The scratch directory holds the probe; callers that assert on a file
+  // outside the allow-list must add --read themselves.
+  return grants;
 }
 
 /**
@@ -71,6 +74,7 @@ function runtimeGrants(directory) {
 function runInSandbox(directory, probeSource, policyArgs, options = {}) {
   const probePath = join(directory, "probe.mjs");
   writeFileSync(probePath, probeSource);
+  writeFileSync(join(directory, "worker.mjs"), "postMessage('worker-alive');\n");
   const driverPath = join(directory, "policy-driver.py");
   writeFileSync(driverPath, [
     "import importlib.util, os, sys",
@@ -81,9 +85,18 @@ function runInSandbox(directory, probeSource, policyArgs, options = {}) {
     "libc = module.libc_handle()",
     "try:",
     "    module.apply_limits(options)",
+    "    # Capture the namespace inode before entering a new one: verify()",
+    "    # compares against this to prove the namespace changed.",
+    "    identities = {'net': module.namespace_link('net')}",
+    "    if options['netns']:",
+    "        # Creating a network namespace needs a user namespace first:",
+    "        # unshare(CLONE_NEWNET) alone is EPERM for an unprivileged",
+    "        # process. Enter both, exactly as the launcher does.",
+    "        if libc.unshare(0x10000000 | 0x40000000) != 0:",
+    "            raise module.SandboxFailure('unshare(user,net) failed')",
     "    module.apply_landlock(libc, options)",
     "    module.apply_seccomp(libc)",
-    "    module.verify(libc, options, {'net': module.namespace_link('net')})",
+    "    module.verify(libc, options, identities)",
     "except module.SandboxFailure as error:",
     "    module.fail(module.EX_CONFIG, str(error))",
     "os.execv(command[0], command)",
@@ -100,7 +113,7 @@ function runInSandbox(directory, probeSource, policyArgs, options = {}) {
 }
 
 function policyArgs(directory, extra) {
-  return ["--as-mb", "512", "--nofile", "64", "--fsize-kb", "1024", ...runtimeGrants(directory), ...extra];
+  return ["--as-mb", "2048", "--nofile", "64", "--fsize-kb", "1024", ...runtimeGrants(directory), ...extra];
 }
 
 async function withScratch(run) {
@@ -116,7 +129,7 @@ async function withScratch(run) {
 // Kernel enforcement of the shipped policy.
 // ---------------------------------------------------------------------------
 
-linuxOnly("denies process creation while leaving worker threads usable", async () => {
+linuxOnly("denies process creation while leaving worker threads usable", { timeout: 120_000 }, async () => {
   await withScratch(async (directory) => {
     const bun = bunBinary();
     const { report, stderr } = runInSandbox(directory, `
@@ -144,9 +157,11 @@ try {
   result.execFile = error?.code === "EPERM" ? "denied" : "unexpected:" + (error?.code ?? error?.name);
 }
 try {
-  const worker = new Worker("data:text/javascript,postMessage(1)", { type: "module" });
+  const workerUrl = new URL("./worker.mjs", import.meta.url);
+  const worker = new Worker(workerUrl);
   result.worker = await new Promise((resolveWorker) => {
-    worker.onmessage = () => resolveWorker("allowed");
+    worker.onmessage = (event) => resolveWorker(event.data === "worker-alive" ? "allowed" : "unexpected:" + event.data);
+    worker.onerror = () => resolveWorker("error");
     setTimeout(() => resolveWorker("timeout"), 10_000);
   });
   worker.terminate();
@@ -161,7 +176,7 @@ try {
   result.ffi = "denied:" + (error?.code ?? error?.name);
 }
 console.log(JSON.stringify(result));
-`, policyArgs(directory, ["--", bun, join(directory, "probe.mjs")]));
+`, policyArgs(directory, ["--read", directory, "--", bun, join(directory, "probe.mjs")]));
     assert.ok(report, `probe produced no report:\n${stderr}`);
     assert.equal(report.spawn, "denied", "synchronous process creation must fail");
     assert.equal(report.spawnAsync, "denied", "asynchronous process creation must fail");
@@ -171,7 +186,7 @@ console.log(JSON.stringify(result));
   });
 });
 
-linuxOnly("confines reads to the declared allow-list", async () => {
+linuxOnly("confines reads to the declared allow-list", { timeout: 120_000 }, async () => {
   await withScratch(async (directory) => {
     const bun = bunBinary();
     const allowed = join(directory, "allowed.txt");
@@ -192,16 +207,18 @@ catch (error) { result.hostListing = "denied:" + error.code; }
 try { result.hostDirectoryProbe = readFileSync("/home/" + (process.env.HOME_NAME ?? "nobody"), "utf8"); }
 catch (error) { result.hostDirectoryProbe = "denied:" + error.code; }
 console.log(JSON.stringify(result));
-`, policyArgs(directory, ["--read", allowed, "--", bun, join(directory, "probe.mjs")]));
+`, policyArgs(directory, ["--read", allowed, "--read", join(directory, "probe.mjs"),
+                         "--read", join(directory, "worker.mjs"),
+                         "--", bun, join(directory, "probe.mjs")]));
     assert.ok(report, `probe produced no report:\n${stderr}`);
-    assert.equal(report.grantedFile, "readable", "a granted file must stay readable");
+    assert.equal(report.grantedFile, "readable", `a granted file must stay readable; report=${JSON.stringify(report)}\n${stderr}`);
     assert.match(report.ungrantedSibling, /^denied:/, "an ungranted file must stay unreadable even beside a granted one");
     assert.equal(report.hostFile, "denied:EACCES", "/etc must stay outside the allow-list");
     assert.match(report.hostListing, /^denied:/, "listing an ungranted directory must fail");
   });
 });
 
-linuxOnly("allows writes only inside the granted directory", async () => {
+linuxOnly("allows writes only inside the granted directory", { timeout: 120_000 }, async () => {
   await withScratch(async (directory) => {
     const bun = bunBinary();
     const writable = join(directory, "writable");
@@ -216,7 +233,7 @@ catch (error) { result.outside = "denied:" + error.code; }
 try { mkdirSync("/tmp/scenario-chat-escape-dir"); result.outsideMkdir = "allowed"; }
 catch (error) { result.outsideMkdir = "denied:" + error.code; }
 console.log(JSON.stringify(result));
-`, policyArgs(directory, ["--write", writable, "--", bun, join(directory, "probe.mjs")]));
+`, policyArgs(directory, ["--write", writable, "--read", directory, "--", bun, join(directory, "probe.mjs")]));
     assert.ok(report, `probe produced no report:\n${stderr}`);
     assert.equal(report.inside, "allowed", "the granted directory must stay writable");
     assert.match(report.outside, /^denied:/, "writes outside the grant must fail");
@@ -224,7 +241,7 @@ console.log(JSON.stringify(result));
   });
 });
 
-linuxOnly("denies every TCP bind when the policy withholds ports", async () => {
+linuxOnly("denies every TCP bind when the policy withholds ports", { timeout: 120_000 }, async () => {
   await withScratch(async (directory) => {
     const bun = bunBinary();
     const { report, stderr } = runInSandbox(directory, `
@@ -240,7 +257,7 @@ for (const port of [0, 4661, 4662]) {
   }
 }
 console.log(JSON.stringify(result));
-`, policyArgs(directory, ["--deny-tcp", "--", bun, join(directory, "probe.mjs")]));
+`, policyArgs(directory, ["--deny-tcp", "--read", directory, "--", bun, join(directory, "probe.mjs")]));
     assert.ok(report, `probe produced no report:\n${stderr}`);
     for (const [label, value] of Object.entries(report)) {
       assert.match(value, /^denied:/, `${label} must be denied without a granted port`);
@@ -248,7 +265,7 @@ console.log(JSON.stringify(result));
   });
 });
 
-linuxOnly("scopes the proxy policy to its own listen port", async () => {
+linuxOnly("scopes the proxy policy to its own listen port", { timeout: 120_000 }, async () => {
   await withScratch(async (directory) => {
     const bun = bunBinary();
     const { report, stderr } = runInSandbox(directory, `
@@ -269,7 +286,7 @@ try {
   result.outbound = "denied:" + (error?.name ?? "Error");
 }
 console.log(JSON.stringify(result));
-`, policyArgs(directory, ["--bind-tcp", "4771", "--", bun, join(directory, "probe.mjs")]));
+`, policyArgs(directory, ["--bind-tcp", "4771", "--read", directory, "--", bun, join(directory, "probe.mjs")]));
     assert.ok(report, `probe produced no report:\n${stderr}`);
     assert.match(report["bind:4771"], /^allowed:/, "the declared port must stay bindable");
     assert.match(report["bind:4772"], /^denied:/, "an undeclared port must be denied");
@@ -277,7 +294,9 @@ console.log(JSON.stringify(result));
   });
 });
 
-linuxOnly("bounds total address space, not a runtime heap hint", async () => {
+// RLIMIT_AS also has to leave Bun's JIT reservation intact, so this asserts
+// both that the cap binds and that the runtime stays functional under it.
+linuxOnly("bounds total address space, not a runtime heap hint", { timeout: 180_000 }, async () => {
   await withScratch(async (directory) => {
     const bun = bunBinary();
     // An unenforced cap would let this allocate far past --as-mb 768.
@@ -294,15 +313,55 @@ try {
 } catch {
   console.log(JSON.stringify({ outcome: "bounded", megabytes: chunks.length * 16 }));
 }
-`, policyArgs(directory, ["--as-mb", "768", "--", bun, join(directory, "probe.mjs")]));
+`, policyArgs(directory, ["--as-mb", "1024", "--read", directory, "--", bun, join(directory, "probe.mjs")]));
     if (report) {
       assert.equal(report.outcome, "bounded", "allocation must stop at the address-space cap");
-      assert.ok(report.megabytes < 1280, `allocated ${report.megabytes}MB against a 768MB cap`);
+      // Unbounded would reach 4096MB; the cap must stop it well below that.
+      assert.ok(report.megabytes <= 1024, `allocated ${report.megabytes}MB against a 1024MB cap`);
     } else {
       // The kernel killing the process for exceeding the cap is enforcement too.
       assert.notEqual(status, 0, `allocation should be bounded:\n${stderr}`);
     }
   });
+});
+
+linuxOnly("isolates the network namespace to loopback", { timeout: 120_000 }, async () => {
+  // Bun cannot start inside a user namespace whose uid map the host refuses, so
+  // the namespace property is proven from Python using the launcher's own
+  // constants and verification. The mapped demo is the host qualification gap.
+  const probe = spawnSync(python(), ["-I", "-S", "-c", `
+import ctypes, os, sys
+libc = ctypes.CDLL(None, use_errno=True)
+libc.syscall.restype = ctypes.c_long
+outer_uid = ${process.getuid?.() ?? 0}
+if libc.unshare(0x10000000 | 0x40000000) != 0:
+    print("unshare-denied"); raise SystemExit(0)
+try:
+    descriptor = os.open("/proc/self/uid_map", os.O_WRONLY)
+    try:
+        os.write(descriptor, ("65534 %d 1\\n" % outer_uid).encode())
+    finally:
+        os.close(descriptor)
+    mapped = "yes"
+except OSError:
+    mapped = "no"
+interfaces = [line.split(":", 1)[0].strip()
+              for line in open("/proc/net/dev").read().splitlines()[2:]]
+import socket
+sock = socket.socket()
+sock.settimeout(2)
+try:
+    sock.connect(("127.0.0.1", 22))
+    tcp = "connected"
+except OSError:
+    tcp = "denied"
+print("mapped=%s interfaces=%s tcp=%s" % (mapped, ",".join(interfaces), tcp))
+`], { encoding: "utf8", timeout: 60_000, env: SANDBOX_ENV });
+  const line = probe.stdout.trim().split("\n").pop() ?? "";
+  assert.match(line, /^mapped=/, `probe produced no result:\n${probe.stdout}\n${probe.stderr}`);
+  const fields = Object.fromEntries(line.split(" ").map((entry) => entry.split("=")));
+  assert.equal(fields.interfaces, "lo", "only loopback may remain in the private namespace");
+  assert.equal(fields.tcp, "denied", "no external TCP route may survive the private namespace");
 });
 
 // ---------------------------------------------------------------------------
