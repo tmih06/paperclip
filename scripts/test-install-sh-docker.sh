@@ -92,7 +92,7 @@ assert_contains "$RESULTS_DIR/install.out" "[paperclip] Installed Bun 1.4.4"
 assert_contains "$RESULTS_DIR/install.out" "install-exit=0"
 assert_contains "$RESULTS_DIR/install.out" "npm is not installed; bridging npm 11.18.0 through Bun"
 assert_contains "$RESULTS_DIR/install.out" "Installed paperclipai"
-assert_line "$RESULTS_DIR/shim.out" "$(grep -o '^[0-9][^(]*' "$RESULTS_DIR/shim.out" | head -1)"
+assert_contains "$RESULTS_DIR/shim.out" "managed npm"
 
 echo "==> piped install without Bun refuses the bootstrap"
 if docker run --rm \

@@ -16,7 +16,10 @@ while [ "$#" -gt 0 ]; do
       destination="${2:-}"
       shift 2
       ;;
-    --proto|--proto=*|--tlsv1.[0-9]|--tlsv1.[0-9]=*)
+    --proto)
+      shift 2
+      ;;
+    --proto=*|--tlsv1.[0-9]|--tlsv1.[0-9]=*)
       shift
       ;;
     -*)
@@ -34,8 +37,7 @@ done
 
 {
   printf 'URL=%s\n' "$url"
-  printf 'ARGS=%s\n' "$*"
-} >>"$PAPERCLIP_INSTALL_TEST_LOG"
+} >>"${PAPERCLIP_INSTALL_TEST_CURL_LOG:-$PAPERCLIP_INSTALL_TEST_LOG}"
 
 if [ -z "$url" ] || [ -z "$destination" ]; then
   printf 'curl stub requires a URL and -o <destination>\n' >&2

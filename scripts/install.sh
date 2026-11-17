@@ -8,7 +8,6 @@ set -euo pipefail
 BUN_VERSION="1.4.4"
 PAPERCLIP_PACKAGE="paperclipai"
 PUBLIC_NPM_REGISTRY="https://registry.npmjs.org"
-BUN_ARTIFACT_REGISTRY="${PAPERCLIP_INSTALL_BUN_REGISTRY:-$PUBLIC_NPM_REGISTRY}"
 
 CANARY=0
 VERSION=""
@@ -285,7 +284,7 @@ bun_artifact_sha256() {
 }
 
 bun_artifact_url() {
-  printf '%s/@oven/bun-%s/-/bun-%s-%s.tgz' "$BUN_ARTIFACT_REGISTRY" "$1" "$1" "$BUN_VERSION"
+  printf '%s/@oven/bun-%s/-/bun-%s-%s.tgz' "$PUBLIC_NPM_REGISTRY" "$1" "$1" "$BUN_VERSION"
 }
 
 sha256_of() {
@@ -355,27 +354,21 @@ install_bun() {
 # Prints the usable Bun (>= BUN_VERSION) to use, preferring the installer's own
 # ~/.bun/bin so repeated installs stay on the pinned runtime.
 find_usable_bun() {
-  local candidate version candidates
+  local candidate on_path
   on_path="$(command -v bun 2>/dev/null || true)"
   # An unset HOME leaves BUN_DIR empty, so never probe a bare "/bin/bun".
   if [ -n "$BUN_DIR" ]; then
-    candidates=("$BUN_DIR/bin/bun")
-  else
-    candidates=()
-  fi
-  if [ -n "$on_path" ]; then
-    candidates+=("$on_path")
-  fi
-  for candidate in ${candidates[@]+"${candidates[@]}"}; do
-    if [ ! -x "$candidate" ]; then
-      continue
-    fi
-    version="$(bun_version "$candidate")"
-    if version_at_least "$version" "$BUN_VERSION"; then
+    candidate="$BUN_DIR/bin/bun"
+    if [ -x "$candidate" ] && version_at_least "$(bun_version "$candidate")" "$BUN_VERSION"; then
       printf '%s' "$candidate"
       return 0
     fi
-  done
+  fi
+  if [ -n "$on_path" ] && [ -x "$on_path" ] &&
+    version_at_least "$(bun_version "$on_path")" "$BUN_VERSION"; then
+    printf '%s' "$on_path"
+    return 0
+  fi
   return 1
 }
 

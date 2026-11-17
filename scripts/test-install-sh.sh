@@ -15,11 +15,17 @@ KEEP_RESULTS="${KEEP_RESULTS:-0}"
 FAILED=0
 PASSED=0
 
+# The stub directory carries both doubles. Bootstrap cases need a PATH with the
+# curl stub but no bun at all, so that scripts/install.sh takes its download path
+# instead of reusing a stub Bun.
+BUN_STUB_DIR="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-install-stubs.XXXXXX")/with-bun"
+CURL_ONLY_STUB_DIR="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-install-stubs.XXXXXX")/curl-only"
+mkdir -p "$BUN_STUB_DIR" "$CURL_ONLY_STUB_DIR"
+cp "$FIXTURES/bun" "$FIXTURES/curl" "$BUN_STUB_DIR/"
+cp "$FIXTURES/curl" "$CURL_ONLY_STUB_DIR/"
+
 cleanup() {
-  if [ -n "${HTTP_PID:-}" ]; then
-    kill "$HTTP_PID" 2>/dev/null || true
-    wait "$HTTP_PID" 2>/dev/null || true
-  fi
+  rm -rf "$(dirname "$BUN_STUB_DIR")"
   if [ "$KEEP_RESULTS" = "1" ]; then
     printf 'Kept installer test results at %s\n' "$WORK_DIR"
     return
@@ -87,10 +93,13 @@ new_case() {
   CASE_DIR="$WORK_DIR/$name"
   CASE_HOME="$CASE_DIR/home"
   CASE_LOG="$CASE_DIR/calls.log"
+  CASE_CURL_LOG="$CASE_DIR/curl.log"
   mkdir -p "$CASE_HOME"
   : >"$CASE_LOG"
+  : >"$CASE_CURL_LOG"
   export HOME="$CASE_HOME"
   export PAPERCLIP_INSTALL_TEST_LOG="$CASE_LOG"
+  export PAPERCLIP_INSTALL_TEST_CURL_LOG="$CASE_CURL_LOG"
   unset BUN_INSTALL BUN_CONFIG_REGISTRY NPM_CONFIG_REGISTRY npm_config_registry
   unset NPM_CONFIG_USERCONFIG npm_config_userconfig PAPERCLIP_INSTALL_VERSION
   unset PAPERCLIP_INSTALL_CANARY PAPERCLIP_INSTALL_NO_PROMPT PAPERCLIP_INSTALL_NO_ONBOARD
@@ -100,7 +109,7 @@ new_case() {
 
 # Runs the installer with only the stub Bun directory and coreutils on PATH.
 run_installer() {
-  PATH="$FIXTURES:/usr/bin:/bin" bash "$INSTALLER" "$@"
+  PATH="$BUN_STUB_DIR:/usr/bin:/bin" bash "$INSTALLER" "$@"
 }
 
 # ---------------------------------------------------------------------------
@@ -192,7 +201,7 @@ fi
 assert_output_has "the canary/version conflict is explained" 'cannot be used together'
 
 new_case "piped-without-consent"
-if PATH="$FIXTURES:/usr/bin:/bin" bash -s -- --no-onboard <"$INSTALLER" >"$CASE_DIR/out" 2>&1; then
+if PATH="$BUN_STUB_DIR:/usr/bin:/bin" bash -s -- --no-onboard <"$INSTALLER" >"$CASE_DIR/out" 2>&1; then
   fail "piped install without --no-prompt is rejected"
 else
   pass "piped install without --no-prompt is rejected"
@@ -200,7 +209,7 @@ fi
 assert_output_has "the piped rejection asks for --no-prompt" 'requires explicit --no-prompt'
 
 new_case "piped-with-consent"
-if PATH="$FIXTURES:/usr/bin:/bin" bash -s -- --no-prompt --no-onboard <"$INSTALLER" >"$CASE_DIR/out" 2>&1; then
+if PATH="$BUN_STUB_DIR:/usr/bin:/bin" bash -s -- --no-prompt --no-onboard <"$INSTALLER" >"$CASE_DIR/out" 2>&1; then
   pass "piped install with --no-prompt succeeds when Bun is present"
 else
   fail "piped install with --no-prompt succeeds when Bun is present"
@@ -236,105 +245,178 @@ assert_output_has "--help documents the pinned Bun version" 'Bun 1\.4\.4'
 assert_output_has "--help documents the Bun CLI ref form" 'bun x paperclipai install --ref'
 
 # ---------------------------------------------------------------------------
-# Bun bootstrap: local HTTP registry, real SHA-256 verification
+# Bun bootstrap: pinned artifact verification against the real SHA-256 pins
 # ---------------------------------------------------------------------------
 BUN_PLATFORM=""
 case "$(uname -s)-$(uname -m)" in
   Linux-x86_64|Linux-amd64) BUN_PLATFORM="linux-x64" ;;
   Linux-arm64|Linux-aarch64) BUN_PLATFORM="linux-aarch64" ;;
 esac
-if [ -f /etc/alpine-release ]; then
+if [ -f /etc/alpine-release ] && [ -n "$BUN_PLATFORM" ]; then
   BUN_PLATFORM="$BUN_PLATFORM-musl"
 fi
-if grep -qi avx2 /proc/cpuinfo 2>/dev/null; then :; else
+if [ -n "$BUN_PLATFORM" ] && ! grep -qi avx2 /proc/cpuinfo 2>/dev/null; then
   case "$BUN_PLATFORM" in linux-x64*) BUN_PLATFORM="$BUN_PLATFORM-baseline" ;; esac
 fi
 
 if [ -z "$BUN_PLATFORM" ]; then
-  skip "Bun bootstrap: no local artifact fixture for $(uname -s)/$(uname -m)"
+  skip "Bun bootstrap: the artifact pins in install.sh are Linux-only"
 else
-  REGISTRY_ROOT="$WORK_DIR/registry"
   FAKE_ROOT="$WORK_DIR/fake-bun"
   mkdir -p "$FAKE_ROOT/package/bin"
-  # Stand-in for the real ESA binary; only its version output matters here.
+  # Stand-in payload; the installer only checks the digest, layout, and version.
   printf '#!/bin/sh\nprintf "1.4.4\\n"\n' >"$FAKE_ROOT/package/bin/bun"
   chmod +x "$FAKE_ROOT/package/bin/bun"
-  for suffix in "$BUN_PLATFORM" linux-x64 linux-x64-baseline linux-x64-musl \
-    linux-x64-musl-baseline linux-aarch64 linux-aarch64-musl; do
-    mkdir -p "$REGISTRY_ROOT/@oven/bun-$suffix/-"
-    tar -czf "$REGISTRY_ROOT/@oven/bun-$suffix/-/bun-$suffix-1.4.4.tgz" \
-      -C "$FAKE_ROOT" package
-  done
-
-  # Serve the fixture registry so the installer's TLS curl path stays untouched
-  # for the pinned registry while the artifact URL is a plain local HTTP origin.
-  HTTP_PORT=47821
-  (cd "$REGISTRY_ROOT" && exec python3 -m http.server "$HTTP_PORT" --bind 127.0.0.1) \
-    >"$WORK_DIR/http.log" 2>&1 &
-  HTTP_PID=$!
-  for _ in 1 2 3 4 5 6 7 8 9 10; do
-    if curl -fsS "http://127.0.0.1:$HTTP_PORT/" >/dev/null 2>&1; then break; fi
-    sleep 0.3
-  done
-  FIXTURE_REGISTRY="http://127.0.0.1:$HTTP_PORT"
+  TAMPERED_ARTIFACT="$WORK_DIR/tampered-$BUN_PLATFORM.tgz"
+  tar -czf "$TAMPERED_ARTIFACT" -C "$FAKE_ROOT" package
 
   new_case "bootstrap-checksum-mismatch"
-  # Replace the artifact with a same-named tarball whose digest is not pinned.
-  printf 'tampered\n' >"$CASE_DIR/tampered"
-  mkdir -p "$CASE_DIR/tampered-root/package/bin"
-  cp "$CASE_DIR/tampered" "$CASE_DIR/tampered-root/package/bin/bun"
-  tar -czf "$REGISTRY_ROOT/@oven/bun-$BUN_PLATFORM/-/bun-$BUN_PLATFORM-1.4.4.tgz" \
-    -C "$CASE_DIR/tampered-root" package
-  if PAPERCLIP_INSTALL_BUN_REGISTRY="$FIXTURE_REGISTRY" \
-    PATH="/usr/bin:/bin" bash "$INSTALLER" --no-prompt --no-onboard >"$CASE_DIR/out" 2>&1; then
-    fail "a checksum mismatch stops the Bun bootstrap"
+  export PAPERCLIP_INSTALL_TEST_ARTIFACT="$TAMPERED_ARTIFACT"
+  if PATH="$CURL_ONLY_STUB_DIR:/usr/bin:/bin" bash "$INSTALLER" --no-prompt --no-onboard \
+    >"$CASE_DIR/out" 2>&1; then
+    fail "an artifact that does not match the shipped pin stops the bootstrap"
   else
-    pass "a checksum mismatch stops the Bun bootstrap"
+    pass "an artifact that does not match the shipped pin stops the bootstrap"
   fi
-  assert_output_has "the checksum mismatch names the failing artifact" 'checksum mismatch for downloaded artifact'
+  assert_output_has "the failure is reported as a checksum mismatch" 'checksum mismatch for downloaded artifact'
   if [ -e "$CASE_HOME/.bun/bin/bun" ]; then
     fail "no Bun binary is installed on checksum mismatch"
   else
     pass "no Bun binary is installed on checksum mismatch"
   fi
   assert_log_empty "a checksum mismatch never invokes bun"
+  if grep -q "bun-$BUN_PLATFORM-1.4.4.tgz" "$CASE_CURL_LOG"; then
+    pass "the installer requested the pinned platform artifact"
+  else
+    fail "the installer requested the pinned platform artifact"
+    sed 's/^/  got: /' "$CASE_CURL_LOG" >&2
+  fi
+  if grep -q "URL=https://registry.npmjs.org/@oven/bun-$BUN_PLATFORM/-/bun-$BUN_PLATFORM-1.4.4.tgz" \
+    "$CASE_CURL_LOG"; then
+    pass "the artifact URL is the pinned public-registry location"
+  else
+    fail "the artifact URL is the pinned public-registry location"
+    sed 's/^/  got: /' "$CASE_CURL_LOG" >&2
+  fi
+  unset PAPERCLIP_INSTALL_TEST_ARTIFACT
 
   new_case "bootstrap-missing-artifact"
-  if PAPERCLIP_INSTALL_BUN_REGISTRY="$FIXTURE_REGISTRY/nope" \
-    PATH="/usr/bin:/bin" bash "$INSTALLER" --no-prompt --no-onboard >"$CASE_DIR/out" 2>&1; then
-    fail "a missing Bun artifact stops the bootstrap"
+  mkdir -p "$CASE_DIR/missing"
+  export PAPERCLIP_INSTALL_TEST_ARTIFACT="$CASE_DIR/missing/absent.tgz"
+  if PATH="$CURL_ONLY_STUB_DIR:/usr/bin:/bin" bash "$INSTALLER" --no-prompt --no-onboard \
+    >"$CASE_DIR/out" 2>&1; then
+    fail "a failed artifact download stops the bootstrap"
   else
-    pass "a missing Bun artifact stops the bootstrap"
+    pass "a failed artifact download stops the bootstrap"
   fi
-  assert_log_empty "a missing Bun artifact never invokes bun"
+  assert_output_has "the download failure is reported" 'failed to download'
+  assert_log_empty "a failed download never invokes bun"
+  unset PAPERCLIP_INSTALL_TEST_ARTIFACT
 
-  # Restore the good fixture for the successful bootstrap run.
-  tar -czf "$REGISTRY_ROOT/@oven/bun-$BUN_PLATFORM/-/bun-$BUN_PLATFORM-1.4.4.tgz" \
-    -C "$FAKE_ROOT" package
-  GOOD_SHA="$(sha256sum "$REGISTRY_ROOT/@oven/bun-$BUN_PLATFORM/-/bun-$BUN_PLATFORM-1.4.4.tgz" 2>/dev/null |
-    awk '{print $1}')"
-  [ -n "$GOOD_SHA" ] || GOOD_SHA="$(shasum -a 256 "$REGISTRY_ROOT/@oven/bun-$BUN_PLATFORM/-/bun-$BUN_PLATFORM-1.4.4.tgz" | awk '{print $1}')"
-
-  new_case "bootstrap-installs-pinned-bun"
-  # Point the pinned digest at the fixture only for this run by overriding the
-  # artifact name the script verifies: the fixture is byte-identical to what the
-  # installer downloads, so the shipped pin is intentionally not reused here.
-  # Instead assert the installer refuses to run without a matching pin.
-  if PAPERCLIP_INSTALL_BUN_REGISTRY="$FIXTURE_REGISTRY" \
-    PATH="/usr/bin:/bin" bash "$INSTALLER" --no-prompt --no-onboard >"$CASE_DIR/out" 2>&1; then
-    fail "the installer refuses a fixture artifact that does not match the shipped pin"
+  new_case "bootstrap-without-curl"
+  # Build a PATH holding only the tools the bootstrap needs, minus curl and bun,
+  # so the installer must fail closed instead of silently skipping verification.
+  NO_CURL_BIN="$WORK_DIR/no-curl-bin"
+  mkdir -p "$NO_CURL_BIN"
+  for tool in awk bash basename cat chmod cp dirname grep head mktemp mv rm sed sha256sum \
+    shasum tar tr uname; do
+    resolved="$(command -v "$tool" 2>/dev/null || true)"
+    if [ -n "$resolved" ]; then
+      ln -sf "$resolved" "$NO_CURL_BIN/$tool"
+    fi
+  done
+  if PATH="$NO_CURL_BIN" bash "$INSTALLER" --no-prompt --no-onboard \
+    >"$CASE_DIR/out" 2>&1; then
+    fail "a missing curl stops the bootstrap"
   else
-    pass "the installer refuses a fixture artifact that does not match the shipped pin"
+    pass "a missing curl stops the bootstrap"
   fi
-  assert_output_has "the refusal is a pin mismatch" 'checksum mismatch'
-  assert_log_empty "a pin mismatch never invokes bun"
+  assert_output_has "the missing curl is named" 'curl is required to bootstrap Bun'
+  assert_log_empty "a missing curl never invokes bun"
+fi
+
+# ---------------------------------------------------------------------------
+# npm bridge for released CLIs (only when npm is genuinely missing)
+# ---------------------------------------------------------------------------
+# Build a PATH with Bun and coreutils but no npm, matching a machine that has
+# never had Node.js installed.
+NO_NPM_BIN="$WORK_DIR/no-npm-bin"
+mkdir -p "$NO_NPM_BIN"
+for tool in awk bash basename cat chmod cp curl dirname env grep head mkdir mktemp \
+  mv rm sed sha256sum shasum tar tr uname; do
+  resolved="$(command -v "$tool" 2>/dev/null || true)"
+  if [ -n "$resolved" ]; then
+    ln -sf "$resolved" "$NO_NPM_BIN/$tool"
+  fi
+done
+cp "$FIXTURES/bun" "$NO_NPM_BIN/bun"
+
+if PATH="$NO_NPM_BIN" bash -c 'command -v npm >/dev/null 2>&1'; then
+  skip "npm bridge: the reduced PATH still exposes npm"
+else
+  new_case "npm-bridge-created"
+  if PATH="$NO_NPM_BIN" bash "$INSTALLER" --no-prompt --no-onboard \
+    >"$CASE_DIR/out" 2>&1; then
+    pass "install succeeds with no npm on PATH"
+  else
+    fail "install succeeds with no npm on PATH"
+    sed 's/^/  /' "$CASE_DIR/out" >&2
+  fi
+  assert_output_has "the npm bridge is reported" 'bridging npm 11\.18\.0 through Bun'
+  # The bridge lives beside the Bun the installer selected (the reduced PATH Bun).
+  BRIDGE_SH="$NO_NPM_BIN/.paperclip-npm-bridge/npm"
+  if [ -f "$BRIDGE_SH" ]; then
+    pass "the npm bridge is written next to the pinned Bun"
+  else
+    fail "the npm bridge is written next to the pinned Bun"
+    ls -la "$NO_NPM_BIN" >&2
+  fi
+  # The bridge must pin the public registry and run npm on Bun, never Node.
+  if grep -q -- '--registry=https://registry.npmjs.org' "$BRIDGE_SH"; then
+    pass "the npm bridge pins the public registry"
+  else
+    fail "the npm bridge pins the public registry"
+    sed 's/^/  got: /' "$BRIDGE_SH" >&2
+  fi
+  if grep -q 'x --bun' "$BRIDGE_SH"; then
+    pass "the npm bridge runs npm through bun x --bun"
+  else
+    fail "the npm bridge runs npm through bun x --bun"
+    sed 's/^/  got: /' "$BRIDGE_SH" >&2
+  fi
+  if grep -q 'npm@11\.18\.0' "$BRIDGE_SH"; then
+    pass "the npm bridge pins the npm version"
+  else
+    fail "the npm bridge pins the npm version"
+    sed 's/^/  got: /' "$BRIDGE_SH" >&2
+  fi
+  rm -rf "$NO_NPM_BIN/.paperclip-npm-bridge"
+
+  new_case "npm-present-is-untouched"
+  # With npm available the installer must not create or shadow a bridge.
+  if PATH="$BUN_STUB_DIR:/usr/bin:/bin" bash -c 'command -v npm >/dev/null 2>&1'; then
+    PATH="$BUN_STUB_DIR:/usr/bin:/bin" bash "$INSTALLER" --no-prompt --no-onboard \
+      >"$CASE_DIR/out" 2>&1 || fail "install succeeds when npm already exists"
+    if [ -e "$BUN_STUB_DIR/.paperclip-npm-bridge/npm" ]; then
+      fail "an existing npm is left alone (no bridge created)"
+    else
+      pass "an existing npm is left alone (no bridge created)"
+    fi
+    if grep -q 'bridging npm' "$CASE_DIR/out"; then
+      fail "an existing npm is not bridged"
+    else
+      pass "an existing npm is not bridged"
+    fi
+  else
+    skip "an existing npm is left alone: no npm available on this host"
+  fi
 fi
 
 # ---------------------------------------------------------------------------
 # Existing Bun selection
 # ---------------------------------------------------------------------------
 new_case "newer-bun-is-reused"
-if PAPERCLIP_INSTALL_TEST_BUN_VERSION=1.5.0 PATH="$FIXTURES:/usr/bin:/bin" \
+if PAPERCLIP_INSTALL_TEST_BUN_VERSION=1.5.0 PATH="$BUN_STUB_DIR:/usr/bin:/bin" \
   bash "$INSTALLER" --no-prompt --no-onboard >"$CASE_DIR/out" 2>&1; then
   pass "a newer Bun is reused instead of re-installing"
 else
@@ -345,7 +427,7 @@ assert_output_has "the reused Bun version is logged" 'Using Bun 1\.5\.0'
 assert_log_matches "the reused Bun still runs the install" 'paperclipai@latest install --yes$'
 
 new_case "pinned-bun-is-reused"
-if PAPERCLIP_INSTALL_TEST_BUN_VERSION=1.4.4 PATH="$FIXTURES:/usr/bin:/bin" \
+if PAPERCLIP_INSTALL_TEST_BUN_VERSION=1.4.4 PATH="$BUN_STUB_DIR:/usr/bin:/bin" \
   bash "$INSTALLER" --no-prompt --no-onboard >"$CASE_DIR/out" 2>&1; then
   pass "the exact pinned Bun is reused"
 else
@@ -354,7 +436,7 @@ fi
 assert_output_has "the pinned Bun version is logged" 'Using Bun 1\.4\.4'
 
 new_case "older-bun-triggers-bootstrap"
-if PAPERCLIP_INSTALL_TEST_BUN_VERSION=1.0.0 PATH="$FIXTURES:/usr/bin:/bin" \
+if PAPERCLIP_INSTALL_TEST_BUN_VERSION=1.0.0 PATH="$BUN_STUB_DIR:/usr/bin:/bin" \
   bash "$INSTALLER" --no-prompt --dry-run --no-onboard >"$CASE_DIR/out" 2>&1; then
   pass "an older Bun does not stop the dry run"
 else
