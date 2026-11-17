@@ -19,8 +19,7 @@ it.skipIf(process.env.PAPERCLIP_SLEEP_CONFIGURED_ACCEPTANCE !== '1')('exports an
   });
   await withMaintenanceProvider(collector, async origin => {
     const startedAt = performance.now();
-    const { stderr } = await promisify(execFile)(process.execPath, ['--import', fileURLToPath(new URL('../../node_modules/tsx/dist/loader.mjs', import.meta.url)),
-      fileURLToPath(new URL('./helpers/maintenance/otel-child.ts', import.meta.url)), '--observe-exporters'], {
+    const { stderr } = await promisify(execFile)(process.execPath, [fileURLToPath(new URL('./helpers/maintenance/otel-child.ts', import.meta.url)), '--observe-exporters'], {
       env: { PATH: process.env.PATH, NODE_ENV: 'production', OTEL_EXPORTER_OTLP_ENDPOINT: origin, OTEL_EXPORTER_OTLP_PROTOCOL: 'http/json' },
       timeout: 110_000, maxBuffer: 2 * 1024 * 1024,
     });
@@ -34,8 +33,7 @@ it.skipIf(process.env.PAPERCLIP_SLEEP_CONFIGURED_ACCEPTANCE !== '1')('exports an
 
 
 it('keeps the optional SDK and exporters inactive without an endpoint', async () => {
-  const { stdout, stderr } = await promisify(execFile)(process.execPath, ['--import', fileURLToPath(new URL('../../node_modules/tsx/dist/loader.mjs', import.meta.url)),
-    fileURLToPath(new URL('./helpers/maintenance/otel-child.ts', import.meta.url))], {
+  const { stdout, stderr } = await promisify(execFile)(process.execPath, [fileURLToPath(new URL('./helpers/maintenance/otel-child.ts', import.meta.url))], {
     env: { PATH: process.env.PATH, NODE_ENV: 'production' }, timeout: 15_000, maxBuffer: 2 * 1024 * 1024,
   });
   expect(stdout).not.toContain('OpenTelemetry service.version=');

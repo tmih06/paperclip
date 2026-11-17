@@ -53,17 +53,11 @@ export async function privatePublicSignIn(
     const worker = fileURLToPath(
       new URL("./external-public-signin-worker.ts", import.meta.url),
     );
-    const loader = fileURLToPath(
-      new URL(
-        "../../../server/node_modules/tsx/dist/loader.mjs",
-        import.meta.url,
-      ),
-    );
     let stdout: string;
     try {
       const result = await promisify(execFile)(
         process.execPath,
-        ["--import", loader, worker, request],
+        [worker, request],
         {
           timeout: 120000,
           maxBuffer: 16384,

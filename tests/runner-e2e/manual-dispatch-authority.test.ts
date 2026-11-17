@@ -70,8 +70,8 @@ it("actual prepare admits a dispatched cell without a stored approval and record
   for (const name of ["manual-private-handoff.ts", "manual-private-retention.ts", "manual-private-report-assets.ts"]) await copyFile(path.join(import.meta.dirname, name), path.join(modules, name));
   const eventPath = path.join(root, "event.json"), output = path.join(root, "outputs.txt");
   await writeFile(eventPath, JSON.stringify(event()));
-  const trusted = path.resolve(import.meta.dirname, "../.."), require = createRequire(import.meta.url), tsx = require.resolve("tsx", { paths: [path.join(trusted, "server")] });
-  const run = (extra: Record<string, string>) => spawnSync(process.execPath, ["--import", tsx, path.join(import.meta.dirname, "manual-private-transfer.ts"), "prepare"], {
+  const trusted = path.resolve(import.meta.dirname, "../.."), require = createRequire(import.meta.url);
+  const run = (extra: Record<string, string>) => spawnSync(process.execPath, [path.join(import.meta.dirname, "manual-private-transfer.ts"), "prepare"], {
     encoding: "utf8", timeout: 10000,
     env: { PATH: process.env.PATH, NODE_OPTIONS: "", NODE_PATH: "", ...env(), SELECTED_EXECUTION_ID: ids[0]!, GITHUB_EVENT_PATH: eventPath,
       TARGET_ROOT: target, RUNNER_TEMP: root, RUNNER_E2E_PRIVATE_HISTORY_S3_BUCKET: "private-bucket", GITHUB_OUTPUT: output, ...extra } as NodeJS.ProcessEnv,

@@ -27,8 +27,7 @@ describe("browser event ownership", () => {
       await delay(60);
       assert.equal(observed, 1); assert.equal(acted, 1);
     `;
-    const result = spawnSync(process.execPath, ["--unhandled-rejections=strict", "--import",
-      fileURLToPath(new URL("../../cli/node_modules/tsx/dist/loader.mjs", import.meta.url)), "--input-type=module", "-e", script],
+    const result = spawnSync(process.execPath, ["--unhandled-rejections=strict", "--input-type=module", "-e", script],
     { encoding: "utf8", timeout: 10_000 });
     expect(result.error).toBeUndefined();
     expect(result.status, result.stderr).toBe(0);

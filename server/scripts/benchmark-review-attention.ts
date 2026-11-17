@@ -262,8 +262,7 @@ register(new URL("./hooks.mjs", import.meta.url), { data: ${JSON.stringify(redir
         // between rounds and sizes, so load on the host reaches both.
         for (let turn = 0; turn < rounds; turn++) for (const arm of (sizeIndex + turn) % 2 === 0 ? arms : [...arms].reverse()) {
           const output = await new Promise<string>((resolve, reject) => {
-            const child = spawn(process.execPath, ["--expose-gc", "--import", "tsx",
-              ...(arm === "baseline" ? ["--import", pathToFileURL(path.join(baselineDir!, "register.mjs")).href] : []),
+            const child = spawn(process.execPath, ["--expose-gc", ...(arm === "baseline" ? ["--import", pathToFileURL(path.join(baselineDir!, "register.mjs")).href] : []),
               scriptPath, `--arm=${arm}`, `--database-url=${temporary.connectionString}`, `--company=${fixture.companyId}`,
               `--user=${fixture.userId}`, `--samples=${samples}`,
               ...(arg("cpu-profile-dir") ? [`--cpu-profile=${path.join(arg("cpu-profile-dir")!, `${arm}-${tasks}`)}`] : []),

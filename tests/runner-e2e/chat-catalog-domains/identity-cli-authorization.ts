@@ -149,7 +149,7 @@ async function runCli(ctx: ChatCatalogContext, args: string[], name: string): Pr
   const resources = owned.get(ctx); if (!resources) throw new Error("Owned CLI process state missing");
   const environment: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: resources.directory, USER: process.env.USER, LANG: process.env.LANG, TMPDIR: process.env.TMPDIR,
     PAPERCLIP_HOME: resources.directory, PAPERCLIP_AUTH_STORE: resources.store, PAPERCLIP_NO_BROWSER: "1", DO_NOT_TRACK: "1" };
-  const child = spawn(process.execPath, ["--import", path.join(root, "cli/node_modules/tsx/dist/loader.mjs"), path.join(root, "cli/src/index.ts"), ...args,
+  const child = spawn(process.execPath, [path.join(root, "cli/src/index.ts"), ...args,
     "--api-base", ctx.input.api.baseURL, "--json"], { cwd: root, env: environment, stdio: ["ignore", "pipe", "pipe"] });
   resources.processes.add(child); let stdout = ""; let writes = Promise.resolve();
   child.stdout.on("data", chunk => { stdout += String(chunk); writes = writes.then(() => appendFile(path.join(resources.directory, `${name}.stdout`), chunk, { mode: 0o600 })); });

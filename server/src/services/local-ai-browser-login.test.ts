@@ -51,8 +51,7 @@ function resolveFixtureCodexCommand(home: string): string {
     catch (error) { console.log(JSON.stringify({ error: error.message })); }
   `;
   const result = JSON.parse(execFileSync(process.execPath, [
-    "--no-global-search-paths", "--import", createRequire(import.meta.url).resolve("tsx"),
-    "--input-type=module", "--eval", source,
+    "--no-global-search-paths", "--input-type=module", "--eval", source,
   ], { cwd: root, env: { PATH: "/usr/bin:/bin", NODE_PATH: "", NODE_OPTIONS: "" },
     encoding: "utf8", timeout: 10000, maxBuffer: 16384 }));
   if (typeof result.error === "string") throw new Error(result.error);

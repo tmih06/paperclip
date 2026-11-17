@@ -229,7 +229,7 @@ describePostgres("Cloud runtime configuration in PostgreSQL", () => {
         envSentinel: process.env.PAPERCLIP_RUNTIME_CONFIG_ENV_SENTINEL ?? null }));
       await db.$client.end({ timeout: 1 });
     `);
-    const child = await promisify(execFile)(process.execPath, [path.join(root, "server/node_modules/tsx/dist/cli.mjs"), childScript], {
+    const child = await promisify(execFile)(process.execPath, [childScript], {
       cwd: replacementHome,
       env: { ...process.env },
       timeout: 30_000,

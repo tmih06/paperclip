@@ -20,8 +20,7 @@ it("hashes a maximum-size source repeatedly with an original copy retained on a 
       const hashes = [];
       for (let index = 0; index < 3; index++) hashes.push(await nativeControllerSourceDigest(${JSON.stringify(file)}, 256 * 1024 * 1024));
       console.log(JSON.stringify({ hashes, retainedBytes: globalThis.retainedController.length }));`;
-    const result = JSON.parse(execFileSync(process.execPath, ["--max-old-space-size=512", "--import", import.meta.resolve("tsx/esm"),
-      "--input-type=module", "--eval", code], { encoding: "utf8", timeout: 60_000, maxBuffer: 256 * 1024 }));
+    const result = JSON.parse(execFileSync(process.execPath, ["--max-old-space-size=512", "--input-type=module", "--eval", code], { encoding: "utf8", timeout: 60_000, maxBuffer: 256 * 1024 }));
     expect(result).toEqual({ hashes: Array(3).fill(expected.digest("hex")), retainedBytes: 256 * 1024 * 1024 });
   } finally { await rm(root, { recursive: true, force: true }); }
 }, 60_000);

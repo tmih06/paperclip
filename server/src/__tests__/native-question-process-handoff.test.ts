@@ -20,7 +20,7 @@ it("delivers a B-to-A native answer promptly after a competing claim and becomes
     sessionId = randomUUID(),
     runnerId = randomUUID();
   const child = fork(new URL("./helpers/native-question-owner.mjs", import.meta.url), [], {
-    execArgv: ["--import", import.meta.resolve("tsx")],
+    execArgv: [],
     stdio: ["ignore", "ignore", "ignore", "ipc"]
   });
   type Message = {

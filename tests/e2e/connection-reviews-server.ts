@@ -10,8 +10,6 @@ function launch(first: boolean) {
   const launched = spawn(
     process.execPath,
     [
-      "--import",
-      "./cli/node_modules/tsx/dist/loader.mjs",
       "cli/src/index.ts",
       ...(first ? ["onboard", "--yes", "--run"] : ["run"]),
     ],

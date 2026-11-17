@@ -88,7 +88,7 @@ it.each([true, false])("imports a synthetic %s receipt through the ordinary repo
   const repositoryRoot = path.resolve(import.meta.dirname, "../.."), rebuilt = path.join(output, "rebuilt");
   let exitCode = 0;
   try {
-    await promisify(execFile)(process.execPath, ["--import", path.join(repositoryRoot, "cli/node_modules/tsx/dist/loader.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+    await promisify(execFile)(process.execPath, [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: output, PAPERCLIP_RUNNER_E2E_REPORT_OUT: rebuilt,
         PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([input.executionId]) }, timeout: 30_000, maxBuffer: 1024 * 1024,
     });

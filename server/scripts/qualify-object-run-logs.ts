@@ -80,8 +80,6 @@ if (childMode) {
     child = spawn(
       process.execPath,
       [
-        "--import",
-        path.resolve("server/node_modules/tsx/dist/loader.mjs"),
         import.meta.filename,
         "--child-writer",
         bucket,

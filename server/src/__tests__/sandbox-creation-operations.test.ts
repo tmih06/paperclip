@@ -342,7 +342,7 @@ describe("durable sandbox creation through the runtime entry point", () => {
     const replacementDisk = await mkdtemp(join(tmpdir(), "replacement-sandbox-web-"));
     const fixture = fileURLToPath(new URL("./fixtures/sandbox-creation-receiver.ts", import.meta.url));
     async function receiver(action: string, disk: string) {
-      const result = await promisify(execFile)(process.execPath, ["--import", fileURLToPath(import.meta.resolve("tsx")), fixture], {
+      const result = await promisify(execFile)(process.execPath, [fixture], {
         cwd: fileURLToPath(new URL("../../..", import.meta.url)), timeout: 60_000,
         env: { ...process.env, CREATION_FIXTURE_ACTION: action, CREATION_FIXTURE_EMPTY_DISK: disk,
           CREATION_FIXTURE_DATABASE_URL: external ?? database!.connectionString, CREATION_FIXTURE_PROVIDER_URL: `http://127.0.0.1:${address.port}`,

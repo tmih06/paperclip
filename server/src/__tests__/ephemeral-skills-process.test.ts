@@ -52,7 +52,7 @@ describe.skipIf(!enabled)("skills survive web-server replacement", () => {
   async function start(name: string): Promise<Server> {
     const home = path.join(root, name);
     const child = fork(fileURLToPath(new URL("./helpers/ephemeral-skills-server.ts", import.meta.url)), [], {
-      execArgv: ["--import", fileURLToPath(import.meta.resolve("tsx"))], stdio: ["ignore", "pipe", "pipe", "ipc"],
+      execArgv: [], stdio: ["ignore", "pipe", "pipe", "ipc"],
       env: { ...process.env, DATABASE_URL: database.connectionString, PAPERCLIP_HOME: home, PAPERCLIP_INSTANCE_ID: "default",
         PAPERCLIP_STORAGE_PROVIDER: "s3", PAPERCLIP_STORAGE_S3_BUCKET: bucket,
         PAPERCLIP_STORAGE_S3_ENDPOINT: process.env.PAPERCLIP_TEST_S3_ENDPOINT, PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE: "true",

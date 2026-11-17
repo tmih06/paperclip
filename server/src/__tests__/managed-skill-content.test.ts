@@ -123,7 +123,6 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
     try {
       await companySkillService(db).createLocalSkill(companyId, { name: "Cloud CLI", markdown: "# Cloud CLI" });
       const run = (phase: string) => promisify(execFile)(process.execPath, [
-        "--import", fileURLToPath(import.meta.resolve("tsx")),
         fileURLToPath(new URL("../../scripts/migrate-skill-packages.ts", import.meta.url)),
         `--phase=${phase}`, `--company=${companyId}`, "--limit=50",
       ], { env: { ...process.env, ...credentials, DATABASE_URL: database.connectionString,
@@ -180,7 +179,6 @@ describe.skipIf(!support.supported)("managed skills use committed versions", () 
     expect(local.results).toEqual([expect.objectContaining({ versionId: skill.currentVersionId, status: "local_storage" })]);
     const key = "cloud-runtime-config:v1";
     const run = (phase: string, storageProvider?: "s3" | "local_disk") => promisify(execFile)(process.execPath, [
-      "--import", fileURLToPath(import.meta.resolve("tsx")),
       fileURLToPath(new URL("../../scripts/migrate-skill-packages.ts", import.meta.url)),
       `--phase=${phase}`, `--company=${companyId}`, "--limit=50",
     ], { env: { ...process.env, DATABASE_URL: database.connectionString,

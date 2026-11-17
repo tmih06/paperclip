@@ -1794,7 +1794,7 @@ describe("ACPX installation integrity", () => {
       );
 
       const owner = fork(ownerScript, [], {
-        execArgv: ["--import", "tsx"],
+        execArgv: [],
         stdio: ["pipe", "ignore", "pipe", "ipc"],
       });
       let guardianPid = 0;
@@ -1893,7 +1893,7 @@ describe("ACPX installation integrity", () => {
       );
 
       const owner = fork(ownerScript, [], {
-        execArgv: ["--import", "tsx"],
+        execArgv: [],
         stdio: ["pipe", "ignore", "pipe", "ipc"],
       });
       let guardianPid = 0;

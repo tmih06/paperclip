@@ -49,8 +49,7 @@ export async function recordHistoricalListenerFailure(input: {
   const { execution, native } = await prepare(input.db, input.runId, input.cwd, input.leaseId);
   await input.db.insert(nativeRunFinalizations).values({ runId: input.runId, companyId: execution.binding.companyId,
     issueId: execution.binding.issueId, phase: "observed" });
-  const child = spawn(process.execPath, ["--import", createRequire(import.meta.url).resolve("tsx"),
-    resolve(import.meta.dirname, "native-drain-controller.test-worker.ts")], { stdio: ["ignore", "pipe", "pipe", "ipc"], env: process.env });
+  const child = spawn(process.execPath, [resolve(import.meta.dirname, "native-drain-controller.test-worker.ts")], { stdio: ["ignore", "pipe", "pipe", "ipc"], env: process.env });
   const logs: string[] = [];
   child.stdout?.on("data", data => logs.push(String(data)));
   child.stderr?.on("data", data => logs.push(String(data)));

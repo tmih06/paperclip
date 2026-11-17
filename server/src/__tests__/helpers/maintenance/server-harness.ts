@@ -160,7 +160,7 @@ export async function startMaintenanceServer(databaseUrl: string, options: Maint
     let settledDiagnosticId = 0;
     const child = fork(fileURLToPath(options.childEntry ?? new URL("./server-child.ts", import.meta.url)), [], {
       cwd: fileURLToPath(new URL("../../../../..", import.meta.url)),
-      execArgv: [...(options.childPreload ? ["--require", fileURLToPath(options.childPreload)] : []), ...((configuration?.announcements || options.captureIdleWork || options.childEntry) ? ['--experimental-test-module-mocks'] : []), "--import", fileURLToPath(new URL("../../../../node_modules/tsx/dist/loader.mjs", import.meta.url))],
+      execArgv: [...(options.childPreload ? ["--require", fileURLToPath(options.childPreload)] : []), ...((configuration?.announcements || options.captureIdleWork || options.childEntry) ? ['--experimental-test-module-mocks'] : [])],
       env: {
         ...(captureStartedAt === undefined ? {} : {
           PAPERCLIP_MAINTENANCE_IDLE_WORK_CAPTURE: '1',

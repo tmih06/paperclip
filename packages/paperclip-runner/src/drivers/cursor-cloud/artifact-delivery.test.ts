@@ -49,7 +49,7 @@ async function postLinkWriter(f: Awaited<ReturnType<typeof fixture>>) {
       client: { listArtifacts: async () => ({ items: [{ path: "artifacts/result.txt", sizeBytes: bytes.length }] }), downloadArtifact: async () => bytes }, signal: new AbortController().signal });
     process.send({ name: "completed", result }, () => process.disconnect());
   `, { mode: 0o600 });
-  const child = spawn(process.execPath, ["--import", new URL("../../../node_modules/tsx/dist/loader.mjs", import.meta.url).pathname, script], { env: {}, stdio: ["ignore", "ignore", "pipe", "ipc"] });
+  const child = spawn(process.execPath, [script], { env: {}, stdio: ["ignore", "ignore", "pipe", "ipc"] });
   let stderr = ""; child.stderr?.on("data", bytes => { stderr = (stderr + bytes).slice(-4_096); });
   const exited = once(child, "exit");
   try {
@@ -383,7 +383,7 @@ describe("Cursor Cloud artifact registration boundary", () => {
         client: { listArtifacts: async () => ({ items: [{ path: "artifacts/result.txt", sizeBytes: bytes.length }] }), downloadArtifact: async () => bytes }, signal: new AbortController().signal });
       process.send("unexpected-completed");
     `, { mode: 0o600 });
-    const child = spawn(process.execPath, ["--import", new URL("../../../node_modules/tsx/dist/loader.mjs", import.meta.url).pathname, script], { env: {}, stdio: ["ignore", "ignore", "pipe", "ipc"] });
+    const child = spawn(process.execPath, [script], { env: {}, stdio: ["ignore", "ignore", "pipe", "ipc"] });
     let stderr = ""; child.stderr?.on("data", bytes => { stderr = (stderr + bytes).slice(-4_096); });
     const exited = once(child, "exit");
     try {

@@ -22,7 +22,7 @@ const replacements = [
   ["pnpm test", "bun run test"],
   ["pnpm build", "bun run build"],
   ["node --test ", "bun test "],
-  ["node cli/node_modules/tsx/dist/cli.mjs ", "bun "],
+  ["bun "],
   ["node scripts/", "bun scripts/"],
   ["node tests/", "bun tests/"],
 ];

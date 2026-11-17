@@ -87,7 +87,7 @@ async function verifyMacConsumer(packageDirectory, sourceRevision, receiptPath) 
     const claude = probe('claude-probe.mjs', installedClaudeProbeSource(join(installed, 'index.js')));
     const startupScript = macInstalledStartupProbeSource(consumer, server, daemon.sha256, join(repo, 'tests/runner-e2e/installed-cli.ts'));
     const startupFile = join(root, 'startup-probe.mts'); writeFileSync(startupFile, startupScript);
-    const startup = JSON.parse(run(process.execPath, ['--import', 'tsx', startupFile], join(repo, 'server')).trim());
+    const startup = JSON.parse(run(process.execPath, [startupFile], join(repo, 'server')).trim());
     const receipt = { schema: 'paperclip.runner.mac-public-install.v1', sourceRevision, platform: process.platform, architecture: process.arch,
       cleanNpmInstall: true, packageCount: manifest.archives.length, codexPackedPayloadsOmitted: true,
       consumerLockPreserved: true, lifecycleSentinelVerified: true, lifecycleNodeHeadersVerified: true, lifecycleNodeVersion: process.versions.node,

@@ -22,10 +22,9 @@ export async function privateBrowserEntry(input: { mode: "secure-key" | "canary"
     const channel = process.env.PAPERCLIP_PLAYWRIGHT_CHANNEL;
     await writeFile(request, JSON.stringify({ ...input, executablePath: process.env.PAPERCLIP_RUNNER_E2E_CHROMIUM_EXECUTABLE ?? (channel ? undefined : chromium.executablePath()), channel }), { mode: 0o600 });
     const worker = fileURLToPath(new URL("./external-private-browser-worker.ts", import.meta.url));
-    const loader = fileURLToPath(new URL("../../../server/node_modules/tsx/dist/loader.mjs", import.meta.url));
     let output: string;
     try {
-      const result = await promisify(execFile)(process.execPath, ["--import", loader, worker, request], { timeout: 120_000, maxBuffer: 16_384,
+      const result = await promisify(execFile)(process.execPath, [worker, request], { timeout: 120_000, maxBuffer: 16_384,
         env: { PATH: process.env.PATH ?? "", NODE_ENV: "test", DO_NOT_TRACK: "1", HOME: directory, TMPDIR: directory } }); output = result.stdout;
     } catch { throw new Error(`Private browser entry failed${await readPrivateChildFailure(directory, PRIVATE_BROWSER_STEPS)}; child output and credential-bearing request withheld`); }
     let receipt: PrivateBrowserReceipt; try { receipt = JSON.parse(output) as PrivateBrowserReceipt; } catch { throw new Error("Private browser returned invalid closed receipt"); }

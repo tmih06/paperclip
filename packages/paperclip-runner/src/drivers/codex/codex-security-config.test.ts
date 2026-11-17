@@ -254,8 +254,7 @@ describe("Codex security configuration", () => {
       process.stdout.write("PINNED_CODEX_ISOLATION_VERIFIED");
     `;
     expect(execFileSync(process.execPath, [
-      "--no-global-search-paths", "--import", createRequire(import.meta.url).resolve("tsx"),
-      "--input-type=module", "--eval", source,
+      "--no-global-search-paths", "--input-type=module", "--eval", source,
     ], { env: { ...process.env, NODE_PATH: "", NODE_OPTIONS: "" }, encoding: "utf8", timeout: 10_000,
       maxBuffer: 32 * 1024 })).toBe("PINNED_CODEX_ISOLATION_VERIFIED");
   });

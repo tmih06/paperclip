@@ -121,7 +121,6 @@ for (const journey of [
       processHandle = spawn(
         process.execPath,
         [
-          "cli/node_modules/tsx/dist/cli.mjs",
           "cli/src/index.ts",
           "test-drive",
           "--harness",
@@ -445,7 +444,6 @@ for (const journey of [
         processHandle = spawn(
           process.execPath,
           [
-            "cli/node_modules/tsx/dist/cli.mjs",
             "cli/src/index.ts",
             "test-drive",
             "--data-dir",

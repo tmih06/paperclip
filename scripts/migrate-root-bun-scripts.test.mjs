@@ -6,7 +6,7 @@ for (const [before, after] of [
   ["vp build", "bun x --bun --no-install vp build"],
   ["pnpm run build && node scripts/probe.mjs", "bun run build && bun scripts/probe.mjs"],
   ["node --import ./cli/node_modules/tsx/dist/loader.mjs scripts/probe.ts", "bun scripts/probe.ts"],
-  ["node ../../cli/node_modules/tsx/dist/cli.mjs scripts/probe.ts", "bun scripts/probe.ts"],
+  ["bun scripts/probe.ts"],
   ["pnpm exec tsx src/probe.ts", "bun src/probe.ts"],
   ["pnpm -C ../../../.. --filter @paperclipai/plugin-sdk ensure-build-deps", "bun run --cwd ../../../.. --filter @paperclipai/plugin-sdk ensure-build-deps"],
   ["pnpm --filter @paperclipai/shared run build", "bun run --filter @paperclipai/shared build"],

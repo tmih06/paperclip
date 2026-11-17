@@ -25,9 +25,9 @@ export async function destroyOwnedFailedSandbox(input: { scenarioId: "workspaces
   const directory = await mkdtemp(path.join(tmpdir(), "paperclip-owned-sandbox-fault-")); await chmod(directory, 0o700);
   try {
     const request = path.join(directory, "request.json"); await writeFile(request, JSON.stringify(input), { flag: "wx", mode: 0o600 });
-    const loader = fileURLToPath(new URL("../../../server/node_modules/tsx/dist/loader.mjs", import.meta.url)), worker = fileURLToPath(new URL("./runtime-daytona-destroy-worker.ts", import.meta.url));
+    const worker = fileURLToPath(new URL("./runtime-daytona-destroy-worker.ts", import.meta.url));
     let output: string;
-    try { output = (await promisify(execFile)(process.execPath, ["--import", loader, worker, request], { timeout: 120000, maxBuffer: 16384, env: { PATH: process.env.PATH ?? "", HOME: directory, TMPDIR: directory, NODE_ENV: "test", DO_NOT_TRACK: "1" } })).stdout; }
+    try { output = (await promisify(execFile)(process.execPath, [worker, request], { timeout: 120000, maxBuffer: 16384, env: { PATH: process.env.PATH ?? "", HOME: directory, TMPDIR: directory, NODE_ENV: "test", DO_NOT_TRACK: "1" } })).stdout; }
     catch { throw new Error("Owned sandbox fault failed; private provider request/diagnostics withheld"); }
     if (privateSecrets.some(secret => secret && [secret, encodeURIComponent(secret), Buffer.from(secret).toString("base64")].some(value => output.includes(value)))) throw new Error("Owned sandbox fault exceeded its private receipt boundary; output withheld");
     let receipt: unknown; try { receipt = JSON.parse(output); } catch { throw new Error("Owned sandbox fault returned no closed receipt"); }

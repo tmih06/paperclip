@@ -165,7 +165,7 @@ describe.skipIf(process.platform === "win32")("durable directory creation", () =
       directory = path.join(root, "alias", "recovery", "company");
     }
     const source = new URL("../lib/durable-directory.ts", import.meta.url).href;
-    const child = (target: string, fail: boolean) => spawnSync(process.execPath, ["--import", createRequire(import.meta.url).resolve("tsx"), "--input-type=module", "-e", `
+    const child = (target: string, fail: boolean) => spawnSync(process.execPath, ["--input-type=module", "-e", `
       import { promises as fs } from "node:fs";
       import { ensureDurableDirectory } from ${JSON.stringify(source)};
       const [directory, parent, fail] = process.argv.slice(1);

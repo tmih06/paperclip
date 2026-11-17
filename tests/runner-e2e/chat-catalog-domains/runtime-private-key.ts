@@ -36,9 +36,9 @@ export async function privateKeyBrowser(input: { mode: "agent-key" | "canary"; b
   try {
     const request = path.join(directory, "request.json"), channel = process.env.PAPERCLIP_PLAYWRIGHT_CHANNEL;
     await writeFile(request, JSON.stringify({ ...input, executablePath: process.env.PAPERCLIP_RUNNER_E2E_CHROMIUM_EXECUTABLE ?? (channel ? undefined : chromium.executablePath()), channel }), { mode: 0o600 });
-    const worker = fileURLToPath(new URL("./runtime-private-key-worker.ts", import.meta.url)), loader = fileURLToPath(new URL("../../../server/node_modules/tsx/dist/loader.mjs", import.meta.url));
+    const worker = fileURLToPath(new URL("./runtime-private-key-worker.ts", import.meta.url));
     let output: string;
-    try { output = (await promisify(execFile)(process.execPath, ["--import", loader, worker, request], { timeout: 150_000, maxBuffer: 16_384,
+    try { output = (await promisify(execFile)(process.execPath, [worker, request], { timeout: 150_000, maxBuffer: 16_384,
       env: { PATH: process.env.PATH ?? "", NODE_ENV: "test", DO_NOT_TRACK: "1", HOME: directory, TMPDIR: directory } })).stdout; }
     catch { throw new Error("Private key browser failed; credential-bearing request and child diagnostics withheld"); }
     let value: unknown; try { value = JSON.parse(output); } catch { throw new Error("Invalid closed private key process receipt"); }

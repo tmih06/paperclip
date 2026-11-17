@@ -202,7 +202,7 @@ describe("Cursor Cloud replay bundle treatment", () => {
         if (result.status !== 0 || result.stdout !== "tsx proxy ran") throw new Error("tsx proxy prelude failed: " + result.stderr);
       }); process.stdout.write("tsx passed");`;
     const result = await new Promise<{ code: number | null; output: string }>((resolve, reject) => {
-      const child = spawn(process.execPath, ["--import", new URL("../../cli/node_modules/tsx/dist/loader.mjs", import.meta.url).href, "--input-type=module", "--eval", code], { stdio: ["ignore", "pipe", "pipe"], env: { PATH: process.env.PATH } });
+      const child = spawn(process.execPath, ["--input-type=module", "--eval", code], { stdio: ["ignore", "pipe", "pipe"], env: { PATH: process.env.PATH } });
       let output = ""; child.stdout.on("data", value => { output += value; }); child.stderr.on("data", value => { output += value; }); child.once("error", reject); child.once("exit", code => resolve({ code, output }));
     });
     expect(result).toEqual({ code: 0, output: "tsx passed" }); expect(await readFile(bundlePath, "utf8")).toBe(original);

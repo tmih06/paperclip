@@ -222,8 +222,6 @@ if (childMode) {
     const child = spawn(
       process.execPath,
       [
-        "--import",
-        path.resolve("server/node_modules/tsx/dist/loader.mjs"),
         fileURLToPath(import.meta.url),
         "--controller",
         configFile,

@@ -210,7 +210,7 @@ it("rebuilds a report with a missing cell and its saved experiment without rerun
   const receiptPath = path.join(root, "experiment.json");
   async function report(output: string, savedReceipt?: string) {
     const result = await promisify(execFile)(process.execPath,
-      [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+      [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
         cwd: repositoryRoot,
         env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: input, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
           PAPERCLIP_E2E_CAMPAIGN_ID: "retained-pilot", PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([original.executionId, missing.id]),

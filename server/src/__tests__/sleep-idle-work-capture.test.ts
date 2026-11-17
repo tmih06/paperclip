@@ -79,12 +79,10 @@ it('bounds settle samples and stores callsites once, while missing paths forbid 
   expect(() => missing.assertComplete()).toThrow('incomplete');
 });
 it('intercepts the actual Node24 TS module and preserves every other original export and existing state', async () => {
-  const result = await promisify(execFile)(process.execPath, ['--experimental-test-module-mocks', '--import', fileURLToPath(new URL('../../node_modules/tsx/dist/loader.mjs', import.meta.url)),
-    fileURLToPath(new URL('./helpers/maintenance/idle-work-capture-probe.ts', import.meta.url))], { timeout: 15_000, maxBuffer: 128 * 1024 });
+  const result = await promisify(execFile)(process.execPath, ['--experimental-test-module-mocks', fileURLToPath(new URL('./helpers/maintenance/idle-work-capture-probe.ts', import.meta.url))], { timeout: 15_000, maxBuffer: 128 * 1024 });
   expect(JSON.parse(result.stdout.trim())).toMatchObject({ identity: true, originalStatePreserved: true, finalActive: 0 });
 });
 it('preserves actual Node unhandledRejection with the same original tracked promise and reason', async () => {
-  const result = await promisify(execFile)(process.execPath, ['--experimental-test-module-mocks', '--import', fileURLToPath(new URL('../../node_modules/tsx/dist/loader.mjs', import.meta.url)),
-    fileURLToPath(new URL('./helpers/maintenance/idle-work-capture-probe.ts', import.meta.url)), 'unhandled'], { timeout: 15_000, maxBuffer: 128 * 1024 });
+  const result = await promisify(execFile)(process.execPath, ['--experimental-test-module-mocks', fileURLToPath(new URL('./helpers/maintenance/idle-work-capture-probe.ts', import.meta.url)), 'unhandled'], { timeout: 15_000, maxBuffer: 128 * 1024 });
   expect(JSON.parse(result.stdout.trim())).toMatchObject({ unhandledOriginalPromise: true, unhandledOriginalReason: true, finalActive: 0 });
 });

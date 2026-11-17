@@ -11,7 +11,7 @@ afterEach(() => vi.restoreAllMocks());
 
 it("removes immutable cache directories at process exit even after filesystem spies change", () => {
   const helper = fileURLToPath(new URL("./helpers/isolated-test-home.ts", import.meta.url));
-  const result = execFileSync(process.execPath, ["--import", createRequire(import.meta.url).resolve("tsx"), "--input-type=module", "-e", `
+  const result = execFileSync(process.execPath, ["--input-type=module", "-e", `
     import fs from 'node:fs';
     import path from 'node:path';
     const { createIsolatedTestHome } = await import(process.argv[1]);

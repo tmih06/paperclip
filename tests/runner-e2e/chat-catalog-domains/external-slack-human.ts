@@ -78,13 +78,6 @@ export async function privateSlackHumanConnect(
         await promisify(execFile)(
           process.execPath,
           [
-            "--import",
-            fileURLToPath(
-              new URL(
-                "../../../server/node_modules/tsx/dist/loader.mjs",
-                import.meta.url,
-              ),
-            ),
             fileURLToPath(
               new URL("./external-slack-human-worker.ts", import.meta.url),
             ),

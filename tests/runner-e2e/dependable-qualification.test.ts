@@ -153,8 +153,7 @@ it("makes the actual report command fail an incomplete checkpoint while retainin
     const manifest = path.join(root, "qualification.json"); await writeFile(manifest, JSON.stringify(config));
     const repository = path.resolve(import.meta.dirname, "../..");
     const output = path.join(root, "report");
-    await expect(promisify(execFile)(process.execPath, [path.join(repository, "cli/node_modules/tsx/dist/cli.mjs"),
-      path.join(repository, "tests/runner-e2e/report.ts")], { cwd: repository, timeout: 25_000,
+    await expect(promisify(execFile)(process.execPath, [path.join(repository, "tests/runner-e2e/report.ts")], { cwd: repository, timeout: 25_000,
       env: { PATH: process.env.PATH, HOME: process.env.HOME, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root,
         PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([rows[0]!.result.executionId]),
         PAPERCLIP_DEPENDABLE_QUALIFICATION_MANIFEST: manifest } })).rejects.toMatchObject({ code: 1 });
@@ -205,7 +204,7 @@ it.each(["missing", "duplicate", "linked", "unsafe"])("writes an incomplete repo
     const repository = path.resolve(import.meta.dirname, "../.."), output = path.join(root, "report");
     let exitCode = 0;
     try {
-      await promisify(execFile)(process.execPath, [path.join(repository, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repository, "tests/runner-e2e/report.ts")], {
+      await promisify(execFile)(process.execPath, [path.join(repository, "tests/runner-e2e/report.ts")], {
         cwd: repository, timeout: 25_000, env: { PATH: process.env.PATH, HOME: process.env.HOME, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root,
           PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([rows[0]!.result.executionId]),
           PAPERCLIP_DEPENDABLE_QUALIFICATION_MANIFEST: manifest },
