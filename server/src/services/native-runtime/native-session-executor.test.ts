@@ -1449,8 +1449,8 @@ describe("remote runner launch fingerprint compatibility", () => {
       await mkdir(bin);
       for (const name of ["dirname", "mkdir", "sh"]) await symlink(execFileSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" }).trim(), join(bin, name));
       await writeFile(join(bin, "nohup"), `#!/bin/sh\nprintf detached > '${detached}'\n`, { mode: 0o755 });
-      if (runtime === "working") await symlink(process.execPath, join(bin, "node"));
-      if (runtime === "broken") await writeFile(join(bin, "node"), "#!/bin/sh\nexit 7\n", { mode: 0o755 });
+      if (runtime === "working") await symlink(process.execPath, join(bin, "bun"));
+      if (runtime === "broken") await writeFile(join(bin, "bun"), "#!/bin/sh\nexit 7\n", { mode: 0o755 });
       const handle = createRemoteRunnerProcessLauncher({
         target: { kind: "remote", transport: "sandbox", environmentId: "environment", leaseId: "lease", remoteCwd: root },
         runner: { execute } as never, remoteBinary: "/runtime/runnerd", processIdentityPath: marker,
@@ -1483,7 +1483,7 @@ describe("remote runner launch fingerprint compatibility", () => {
       // Node is part of the remote runtime contract; awk is not required.
       const bin = join(root, "bin");
       await mkdir(bin);
-      await symlink(process.execPath, join(bin, "node"));
+      await symlink(process.execPath, join(bin, "bun"));
       for (const name of ["mkdir", "chmod", "date", "mv"]) await symlink(execFileSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" }).trim(), join(bin, name));
       const marker = join(root, "identity");
       const result = execFileSync("/bin/sh", ["-c", script, "launch", marker, "nonce", "runner", join(root, "diagnostics"), "/bin/sh", "-c", "printf launched"], { env: { ...process.env, PATH: bin }, encoding: "utf8" });
@@ -1642,7 +1642,7 @@ describe.skipIf(!existsSync("/proc/self/cmdline"))("remote runner launch stale s
     const wrappers = join(root, "wrappers");
     try {
       await mkdir(wrappers);
-      await writeFile(join(wrappers, "node"), `#!/bin/sh\nprintf "%s\\n" node >> '${join(root, "node.log")}'\nexec '${process.execPath}' "$@"\n`, { mode: 0o755 });
+      await writeFile(join(wrappers, "bun"), `#!/bin/sh\nprintf "%s\\n" node >> '${join(root, "node.log")}'\nexec '${process.execPath}' "$@"\n`, { mode: 0o755 });
       const result = spawnSync("/bin/sh", ["-c", `PATH='${wrappers}':"$PATH"; export PATH; ${REMOTE_RUNNER_CHILD_LAUNCH_SCRIPT}`, "launch", join(root, "identity"), "nonce", "runner",
         join(root, "diagnostics"), join(root, "bin", "paperclip-runnerd"), "--state-dir", join(root, "state")], { encoding: "utf8" });
       expect(result.stdout).toBe("launched");

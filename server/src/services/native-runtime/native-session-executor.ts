@@ -14647,7 +14647,7 @@ export async function stageRemoteRunnerDirectory(input: {
       `base64 -d > "$staging/archive" && ` +
       `tar "$@" -xzf "$staging/archive" -C "$staging/compare" && ` +
       `chmod ${input.mode.toString(8)} "$staging/compare" || exit 1; ` +
-      `if node -e '${compareImmutable}' "$staging/compare" '${escapedTarget}'; then exit 0; fi; ` +
+      `if bun -e '${compareImmutable}' "$staging/compare" '${escapedTarget}'; then exit 0; fi; ` +
       `tar "$@" -xzf "$staging/archive" -C '${escapedTarget}'`
     : `base64 -d | tar "$@" -xzf - -C '${escapedTarget}'`;
   const script =
@@ -15213,7 +15213,7 @@ const REMOTE_RUNNER_PROCESS_POLL_MS = 1_000;
 // Linux boot identity plus start ticks identifies a process generation across
 // PID reuse. exec preserves both the launch shell's PID and its start ticks.
 const REMOTE_RUNNER_PROCESS_FINGERPRINT_SCRIPT =
-  "process_fingerprint=$(node -e 'const fs=require(\"node:fs\");try{const stat=fs.readFileSync(\"/proc/\"+process.argv[1]+\"/stat\",\"utf8\");const end=stat.lastIndexOf(\") \");const ticks=stat.slice(end+2).trim().split(/\\s+/)[19];const boot=fs.readFileSync(\"/proc/sys/kernel/random/boot_id\",\"utf8\").trim();if(end<0||!/^\\d+$/.test(ticks||\"\")||!/^[-a-fA-F0-9]+$/.test(boot))process.exit(4);process.stdout.write(\"linux:\"+boot+\":\"+ticks)}catch{process.exit(4)}' \"$pid\")";
+  "process_fingerprint=$(bun -e 'const fs=require(\"node:fs\");try{const stat=fs.readFileSync(\"/proc/\"+process.argv[1]+\"/stat\",\"utf8\");const end=stat.lastIndexOf(\") \");const ticks=stat.slice(end+2).trim().split(/\\s+/)[19];const boot=fs.readFileSync(\"/proc/sys/kernel/random/boot_id\",\"utf8\").trim();if(end<0||!/^\\d+$/.test(ticks||\"\")||!/^[-a-fA-F0-9]+$/.test(boot))process.exit(4);process.stdout.write(\"linux:\"+boot+\":\"+ticks)}catch{process.exit(4)}' \"$pid\")";
 
 const REMOTE_RUNNER_IDENTITY_CHECK_SCRIPT =
   'set -eu; identity_path=$1; expected_nonce=$2; expected_runner_id=$3; expected_pid=$4; test -f "$identity_path" && test ! -L "$identity_path" || exit 3; { IFS= read -r nonce; IFS= read -r pid; IFS= read -r started_at; IFS= read -r runner_id; } < "$identity_path"; test "$nonce" = "$expected_nonce" && test "$runner_id" = "$expected_runner_id" && test "$pid" = "$expected_pid" && test -n "$started_at" || exit 4; kill -0 "$pid" 2>/dev/null || exit 3; if test -r "/proc/$pid/cmdline"; then command_line=$(tr "\\000" "\\n" < "/proc/$pid/cmdline"); printf "%s\\n" "$command_line" | grep -Fqx -- "--runner-id" || exit 4; printf "%s\\n" "$command_line" | grep -Fqx -- "$expected_runner_id" || exit 4; fi';
@@ -15349,7 +15349,7 @@ const REMOTE_RUNNER_STALE_STATE_FENCE_SCRIPT =
   // The same path rules as the stderr log below: never write through a symlink or into a non-file.
   `if test -n "$stale_pids"; then fence_log="$diagnostics_directory/${REMOTE_RUNNER_PROCESS_STDERR_FILE}"; ` +
   'if test -L "$fence_log" || { test -e "$fence_log" && test ! -f "$fence_log"; }; then fence_log=/dev/null; fi; ' +
-  `node -e "${REMOTE_RUNNER_STALE_LINEAGE_STOP_SCRIPT}" "$1" "$state_dir" $stale_pids 2>>"$fence_log" || exit 75; fi; fi; `;
+  `bun -e "${REMOTE_RUNNER_STALE_LINEAGE_STOP_SCRIPT}" "$1" "$state_dir" $stale_pids 2>>"$fence_log" || exit 75; fi; fi; `;
 
 export const REMOTE_RUNNER_CHILD_LAUNCH_SCRIPT =
   'set -eu; identity_path=$1; identity_nonce=$2; runner_instance_id=$3; diagnostics_directory=$4; shift 4; umask 077; ' +
@@ -15798,7 +15798,7 @@ async function injectRunnerBindConflictForTest(runner: CommandManagedRuntimeRunn
   const result = await runner.execute({
     command: "sh",
     args: ["-c",
-      'ready=$(mktemp); rm -f "$ready"; nohup node -e "const s = require(\'net\').createServer().listen(Number(process.argv[1]), process.argv[2], () => { require(\'fs\').writeFileSync(process.argv[3], \'\'); setTimeout(() => s.close(), 15000); })" "$1" "$2" "$ready" </dev/null >/dev/null 2>&1 & i=0; while [ ! -e "$ready" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done; test -e "$ready" && rm -f "$ready"',
+      'ready=$(mktemp); rm -f "$ready"; nohup bun -e "const s = require(\'net\').createServer().listen(Number(process.argv[1]), process.argv[2], () => { require(\'fs\').writeFileSync(process.argv[3], \'\'); setTimeout(() => s.close(), 15000); })" "$1" "$2" "$ready" </dev/null >/dev/null 2>&1 & i=0; while [ ! -e "$ready" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done; test -e "$ready" && rm -f "$ready"',
       "paperclip-runner-test-bind-fault", port, address],
     bypassSession: true,
     timeoutMs: 10_000,
@@ -15956,7 +15956,7 @@ export function createRemoteRunnerProcessLauncher(input: {
         command: "sh",
         args: [
           "-c",
-          'set -eu; node -e "process.kill(process.pid, 0)"; identity_path=$1; identity_nonce=$2; runner_instance_id=$3; child_script=$4; shift 4; umask 077; identity_dir=$(dirname -- "$identity_path"); mkdir -p -- "$identity_dir"; if command -v setsid >/dev/null 2>&1; then nohup setsid sh -c "$child_script" paperclip-runner-child "$identity_path" "$identity_nonce" "$runner_instance_id" "$@" </dev/null >/dev/null 2>&1 & else nohup sh -c "$child_script" paperclip-runner-child "$identity_path" "$identity_nonce" "$runner_instance_id" "$@" </dev/null >/dev/null 2>&1 & fi',
+          'set -eu; bun -e "process.kill(process.pid, 0)"; identity_path=$1; identity_nonce=$2; runner_instance_id=$3; child_script=$4; shift 4; umask 077; identity_dir=$(dirname -- "$identity_path"); mkdir -p -- "$identity_dir"; if command -v setsid >/dev/null 2>&1; then nohup setsid sh -c "$child_script" paperclip-runner-child "$identity_path" "$identity_nonce" "$runner_instance_id" "$@" </dev/null >/dev/null 2>&1 & else nohup sh -c "$child_script" paperclip-runner-child "$identity_path" "$identity_nonce" "$runner_instance_id" "$@" </dev/null >/dev/null 2>&1 & fi',
           "paperclip-runner-launch",
           input.processIdentityPath,
           identityNonce,

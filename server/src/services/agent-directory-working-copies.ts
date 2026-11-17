@@ -111,7 +111,7 @@ export function agentDirectoryWorkingCopyService(db: Db, get: (companyId: string
     if (row.executionRoot !== path.posix.join(target.remoteCwd, ".paperclip-runtime", "agent-files", row.agentId, origin)) throw new Error("Agent directory root changed");
     const quote = (value: string) => `'${value.replaceAll("'", `'"'"'`)}'`;
     const result = await runAdapterExecutionTargetShellCommand(row.runId, target,
-      `node -e ${quote(agentDirectoryProbeProgram)} ${quote(row.executionRoot)}`, { cwd: target.remoteCwd, env: {}, timeoutSec: 10 });
+      `bun -e ${quote(agentDirectoryProbeProgram)} ${quote(row.executionRoot)}`, { cwd: target.remoteCwd, env: {}, timeoutSec: 10 });
     if (result.exitCode !== 0 || result.timedOut || result.stdout.length > 1024) throw new Error("Agent directory observation unavailable");
     const value = JSON.parse(result.stdout);
     if (!value || typeof value.digest !== "string" || !/^[a-f0-9]{64}$/.test(value.digest) || typeof value.identity !== "string") throw new Error("Invalid agent directory observation");
@@ -237,7 +237,7 @@ export function agentDirectoryWorkingCopyService(db: Db, get: (companyId: string
       if (input.target?.kind === "remote") {
         const quote = (value: string) => `'${value.replaceAll("'", `'"'"'`)}'`;
         const excluded = await runAdapterExecutionTargetShellCommand(input.runId, input.target,
-          `node -e ${quote(instructionGitExcludeProgram)} ${quote(input.target.remoteCwd)}`,
+          `bun -e ${quote(instructionGitExcludeProgram)} ${quote(input.target.remoteCwd)}`,
           { cwd: input.target.remoteCwd, env: {}, timeoutSec: 15 });
         if (excluded.exitCode !== 0 || excluded.timedOut) throw new Error("Could not exclude agent files from task Git staging");
         const runtime = await transport(row, input.target, false);
