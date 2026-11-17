@@ -63,7 +63,7 @@ export async function verify({ root = process.cwd(), base, full = false, explain
     return plan.kind === "broad" ? 2 : 0;
   }
   if (plan.kind === "broad") {
-    console.log("[verify] Run focused checks and use required CI for broad coverage, or explicitly run pnpm verify --full.");
+    console.log("[verify] Run focused checks and use required CI for broad coverage, or explicitly run bun run verify --full.");
     writeRecord(root, `attempt-${key}`, { version: protocolVersion, key, status: "broad", plan });
     return 2;
   }
@@ -108,7 +108,7 @@ async function main() {
   const { values } = parseArgs({ options: { base: { type: "string" }, full: { type: "boolean" },
     explain: { type: "boolean" }, "no-cache": { type: "boolean" }, help: { type: "boolean" } } });
   if (values.help) {
-    console.log("Usage: pnpm verify [--base REF] [--explain] [--full] [--no-cache]\nRuns affected local Vitest checks. Exit 2 means broader coverage is required; use CI or --full.");
+    console.log("Usage: bun run verify [--base REF] [--explain] [--full] [--no-cache]\nRuns affected local Vitest checks. Exit 2 means broader coverage is required; use CI or --full.");
     return;
   }
   process.exitCode = await verify({ base: values.base, full: values.full, explain: values.explain, noCache: values["no-cache"] });

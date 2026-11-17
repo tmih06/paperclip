@@ -1,7 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, unlink, writeFile } from "node:fs/promises";
-import { stripTypeScriptTypes } from "node:module";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -9,6 +8,7 @@ import { promisify } from "node:util";
 import { PI_DISTRIBUTION_CLOSURE_SHA256 } from "../src/drivers/acpx/pi-closure-pins.ts";
 import { PI_NODE_DISTRIBUTIONS, PI_NODE_VERSION } from "../src/drivers/acpx/pi-node-pins.ts";
 import { buildNodeStartupTimeout } from "./build-node-startup-timeout.mjs";
+import { stripTypeScriptTypesArguments } from "./lib/strip-typescript.mjs";
 import acpxProfiles from "../acpx-profiles.json" with { type: "json" };
 import { inventoryPiRuntimeFiles, verifyPiRuntimeManifest } from "../src/drivers/acpx/pi-verified-runtime.ts";
 
@@ -19,7 +19,9 @@ const lockDirectory = join(packageRoot, "scripts/pi-distribution");
 const patchPath = join(workspaceRoot, "patches/pi-acp@0.0.33.patch");
 const securityPatchPath = join(workspaceRoot, "patches/brace-expansion@5.0.9.patch");
 export const PI_BRACE_SECURITY_PATCH_SHA256 = "5273a195b952f233336122842faaf650193c04f36b9359d20d4d63079b0ce814";
-const supportedTargets = new Set(["darwin-arm64", "darwin-x64", "linux-x64"]);
+/** Targets with a reviewed Pi Node release and closure pin. */
+export const PI_SUPPORTED_TARGETS = Object.freeze(["darwin-arm64", "darwin-x64", "linux-x64"]);
+const supportedTargets = new Set(PI_SUPPORTED_TARGETS);
 export const PI_DISTRIBUTION_PINS = Object.freeze({
   wrapper: "0.0.33", runtime: "1.0.0", sdk: "0.26.0", zod: "3.25.76", nodeVersion: PI_NODE_VERSION, undici: "8.10.2", nodeBundledUndici: "7.29.1",
   wrapperSha256: "9d129b3d38772e93e97080aa6c4e574ac5df4e47ce5bc331a484a9fbf8188b36",
@@ -243,19 +245,21 @@ export async function materializePiDistribution({ outputRoot, nodeExecutable, np
     const wrapper = join(runtimeRoot, "node_modules/pi-acp");
     await runOwned("git", ["apply", "--check", inputPatchPath], { cwd: wrapper, env: environment, timeout: 10_000 });
     await runOwned("git", ["apply", inputPatchPath], { cwd: wrapper, env: environment, timeout: 10_000 });
-    const [wrapperBytes, helperBytes, helperSource] = await Promise.all([
+    const [wrapperBytes, helperBytes] = await Promise.all([
       readFile(join(wrapper, "dist/index.js")), readFile(join(wrapper, "dist/paperclip-runtime.js")),
-      readFile(helperSourcePath, "utf8"),
     ]);
-    // Installed CLI users may run another supported Node patch. Generate the
-    // exact pinned closure with its verified Node, not the host's TS stripper.
-    const stripPinnedSource = async (path, source) => inputs
-      ? (await runOwned(node, ["--input-type=module", "-e", 'import {readFileSync} from "node:fs"; import {stripTypeScriptTypes} from "node:module"; process.stdout.write(stripTypeScriptTypes(readFileSync(process.argv[1],"utf8")));', path], { env: {}, timeout: buildNodeStartupTimeout(), maxBuffer: 4 * 1024 * 1024 })).stdout
-      : stripTypeScriptTypes(source);
-    const stripped = (await stripPinnedSource(helperSourcePath, helperSource)).split("\n").map((line) => line.trimEnd()).join("\n");
+    // The closure pins Node's own TypeScript stripper byte for byte, and Bun has
+    // no equivalent export, so always strip through a real Node executable. For
+    // an installed closure that is the verified pinned Node, which also keeps the
+    // result stable when the host Node is a different patch release.
+    const stripPinnedSource = async (path) => (await runOwned(
+      node, stripTypeScriptTypesArguments(path),
+      { env: {}, timeout: buildNodeStartupTimeout(), maxBuffer: 4 * 1024 * 1024 },
+    )).stdout;
+    const stripped = (await stripPinnedSource(helperSourcePath)).split("\n").map((line) => line.trimEnd()).join("\n");
     if (hash(wrapperBytes) !== PI_DISTRIBUTION_PINS.wrapperSha256 || hash(helperBytes) !== PI_DISTRIBUTION_PINS.helperSha256 || helperBytes.toString("utf8") !== stripped) throw new Error("Pi wrapper patch does not match its qualified source");
     await mkdir(join(runtimeRoot, "extensions"));
-    await writeFile(join(runtimeRoot, "extensions/paperclip.js"), (await stripPinnedSource(extensionSourcePath, await readFile(extensionSourcePath, "utf8"))).replace('from "./pi-acp-runtime.js"', 'from "../node_modules/pi-acp/dist/paperclip-runtime.js"'));
+    await writeFile(join(runtimeRoot, "extensions/paperclip.js"), (await stripPinnedSource(extensionSourcePath)).replace('from "./pi-acp-runtime.js"', 'from "../node_modules/pi-acp/dist/paperclip-runtime.js"'));
     await mkdir(join(runtimeRoot, "node/bin"), { recursive: true });
     const copiedNode = join(runtimeRoot, "node/bin/node");
     await copyFile(node, copiedNode); await chmod(copiedNode, 0o755);

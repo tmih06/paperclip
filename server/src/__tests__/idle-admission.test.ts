@@ -1,7 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { request as httpRequest } from "node:http";
-import { createServer as createViteServer } from "vite";
+import { createServer as createViteServer } from "vite-plus";
 import { afterEach, describe, expect, it } from "vitest";
 import { drainHttpRequestWork, idleAdmissionMiddleware, trackIdleRequestHandlers } from "../middleware/idle-admission.js";
 import { idleWorkSnapshot, startTaskDrain, stopTaskDrain, readTaskDrain, beginIdleTrackedWork } from "../services/task-admission.js";

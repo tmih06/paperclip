@@ -15,7 +15,6 @@ import {
   writeFile,
   type FileHandle,
 } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { createServer, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -327,12 +326,8 @@ describe("managed Codex credentials", () => {
     const childScript = join(fixture.root, "credential-owner.mjs");
     const credentialModule = new URL("./codex-credentials.ts", import.meta.url)
       .href;
-    // paperclip-runner intentionally does not ship a TS runtime dependency.
-    // Resolve the existing monorepo dev loader from a workspace that declares
-    // it, instead of asking the child to resolve an undeclared bare package.
-    const tsxLoader = createRequire(
-      new URL("../../../../../server/package.json", import.meta.url),
-    ).resolve("tsx");
+    // Bun runs the TypeScript module in the child directly, so the fork stays a
+    // single process that owns its credential lease.
     await writeFile(
       childScript,
       [
@@ -350,7 +345,6 @@ describe("managed Codex credentials", () => {
       ].join("\n"),
     );
     const owner = fork(childScript, [fixture.home], {
-      execArgv: ["--import", tsxLoader],
       stdio: ["ignore", "pipe", "pipe", "ipc"],
     });
     try {

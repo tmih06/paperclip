@@ -1,18 +1,18 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Typechecks the test files that no build or package typecheck reads.
 //
 // Most package tsconfigs exclude tests so that `tsc` does not emit them, and
 // Vitest strips types, so a type error in those tests fails nothing. Each program
 // in PROGRAMS reads them without emitting. Sandbox providers are outside the
 // workspace, so the root install has none of their dependencies. They install from
-// typecheck-sandbox-providers/pnpm-lock.yaml here, because their SDK types are part
+// typecheck-sandbox-providers/bun.lock here, because their SDK types are part
 // of what a test checks. A provider with its own lockfile (LOCKED_PROVIDERS) installs
 // from that lockfile instead, so each lockfile has one owner and one Dependabot entry.
 //
 // The script then fails if a tracked test file is in no program. tsc decides that,
 // not a glob: `include` silently drops foo.test.tsx when foo.test.ts exists.
 //
-// Usage: node scripts/typecheck-test-programs.mjs [--low-memory] [tsconfig ...]
+// Usage: bun scripts/typecheck-test-programs.mjs [--low-memory] [tsconfig ...]
 // Naming a tsconfig runs only that program and skips the coverage check.
 
 import { spawnSync } from "node:child_process";
@@ -20,6 +20,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { linkExcludedPlugins } from "./link-plugin-dev-sdk.mjs";
+import { resolveTscPath } from "./lib/tsc-path.mjs";
+import { listWorkspaceDirectories } from "./lib/workspace-packages.mjs";
 import { LOW_MEMORY_VARIABLE, runTsc } from "./run-tsc.mjs";
 import { PROJECTS } from "./typecheck-test-projects.mjs";
 
@@ -38,7 +40,7 @@ export const SANDBOX_PROVIDERS = [
   "packages/plugins/sandbox-providers/novita",
 ];
 
-// Providers that commit their own pnpm-lock.yaml. The release build and the Daytona
+// Providers that commit their own bun.lock. The release build and the Daytona
 // end-to-end job install it frozen, so the shared workspace leaves them out.
 export const LOCKED_PROVIDERS = ["packages/plugins/sandbox-providers/daytona"];
 
@@ -61,16 +63,16 @@ export const PROGRAMS = [
 export const CHECKED_ELSEWHERE = ["server/src/"];
 
 const PREPARE_STEPS = [
-  ["--filter", "@paperclipai/plugin-sdk", "ensure-build-deps"],
-  ["--filter", "@paperclipai/paperclip-runner", "run", "ensure:eval-build-deps"],
+  ["run", "--filter", "@paperclipai/plugin-sdk", "ensure-build-deps"],
+  ["run", "--filter", "@paperclipai/paperclip-runner", "ensure:eval-build-deps"],
 ];
-// Replacing a provider's standalone node_modules would otherwise ask for confirmation.
-const INSTALL_ARGS = ["install", "--frozen-lockfile", "--ignore-scripts", "--prefer-offline", "--config.confirmModulesPurge=false"];
+const INSTALL_ARGS = ["install", "--frozen-lockfile", "--ignore-scripts", "--prefer-offline"];
 const LOCKED_INSTALL_ARGS = ["install", "--ignore-workspace", ...INSTALL_ARGS.slice(1)];
 // Contributors do not commit provider lockfiles: the lockfile refresh workflow regenerates them after
-// merge, as it does the root pnpm-lock.yaml. Until then a changed manifest leaves the lockfile stale,
-// so resolve it in place, like the root install in CI.
-export const RESOLVE_ARGS = ["install", "--resolution-only", "--ignore-scripts", "--no-frozen-lockfile"];
+// merge, as it does the root bun.lock. Until then a changed manifest leaves the lockfile stale,
+// so rewrite the lockfile in place, like the root install in CI. Bun's equivalent of pnpm's
+// `--resolution-only` is `--lockfile-only`, which writes the lockfile without installing.
+export const RESOLVE_ARGS = ["install", "--lockfile-only", "--ignore-scripts", "--no-frozen-lockfile"];
 const LOCKED_RESOLVE_ARGS = ["install", "--ignore-workspace", ...RESOLVE_ARGS.slice(1)];
 
 export function findUncheckedTests({ trackedFiles, checkedFiles, checkedElsewhere = CHECKED_ELSEWHERE }) {
@@ -83,12 +85,12 @@ export function findUncheckedTests({ trackedFiles, checkedFiles, checkedElsewher
   );
 }
 
-function runPnpm(args, { cwd, env }) {
-  const result = spawnSync("pnpm", args, {
+function runBun(args, { cwd, env }) {
+  const result = spawnSync("bun", args, {
     cwd,
     env,
     stdio: "inherit",
-    // A bare `pnpm` on Windows is pnpm.cmd, which needs the shell to resolve.
+    // A bare `bun` on Windows is bun.exe, which needs the shell to resolve.
     shell: process.platform === "win32",
   });
   if (result.error) throw result.error;
@@ -96,8 +98,7 @@ function runPnpm(args, { cwd, env }) {
 }
 
 function listProgramFiles(config, { cwd, env }) {
-  const tsc = path.join(cwd, "node_modules", "typescript", "bin", "tsc");
-  const result = spawnSync(process.execPath, [tsc, "-p", config, "--listFilesOnly"], {
+  const result = spawnSync(process.execPath, [resolveTscPath(cwd), "-p", config, "--listFilesOnly"], {
     cwd,
     env,
     encoding: "utf8",
@@ -115,16 +116,8 @@ function listProgramFiles(config, { cwd, env }) {
 }
 
 function listWorkspaceConfigs(root) {
-  const result = spawnSync("pnpm", ["ls", "-r", "--depth", "-1", "--json"], {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: 1 << 26,
-    shell: process.platform === "win32",
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error("Unable to list pnpm workspace packages.");
-  return JSON.parse(result.stdout)
-    .map((workspace) => path.relative(root, path.join(workspace.path, "tsconfig.json")).split(path.sep).join("/"))
+  return listWorkspaceDirectories({ root })
+    .map((directory) => `${directory}/tsconfig.json`)
     .filter((config) => config !== "server/tsconfig.json" && existsSync(path.join(root, config)));
 }
 
@@ -146,7 +139,7 @@ export function checkCoverage({
   logError = console.error,
 }) {
   const checkedFiles = [];
-  // `pnpm build` and `typecheck:build-gaps` check each workspace's tsconfig.json.
+  // `bun run build` and `typecheck:build-gaps` check each workspace's tsconfig.json.
   // scripts/typecheck-test-projects.mjs checks these same files through tsconfig.layers.json.
   const projectConfigs = PROJECTS.map((project) => `${project}/tsconfig.json`);
   for (const config of [...workspaceConfigs(root), ...projectConfigs, ...programs]) {
@@ -163,25 +156,25 @@ export function checkCoverage({
 export function prepareTestPrograms({
   root,
   env = process.env,
-  pnpm = runPnpm,
+  bun = runBun,
   linkPlugins = linkExcludedPlugins,
   log = console.log,
   logError = console.error,
 }) {
   for (const args of PREPARE_STEPS) {
-    const status = pnpm(args, { cwd: root, env });
+    const status = bun(args, { cwd: root, env });
     if (status !== 0) return status;
   }
   const install = (directory, frozenArgs, resolveArgs) => {
     const cwd = path.join(root, directory);
-    let status = pnpm(frozenArgs, { cwd, env });
+    let status = bun(frozenArgs, { cwd, env });
     if (status !== 0) {
       log(
-        `typecheck:test-programs: ${directory}/pnpm-lock.yaml does not match its manifests. ` +
+        `typecheck:test-programs: ${directory}/bun.lock does not match its manifests. ` +
           `Resolving it in place. Do not commit it: the lockfile refresh workflow updates it after merge.`,
       );
-      status = pnpm(resolveArgs, { cwd, env });
-      if (status === 0) status = pnpm(frozenArgs, { cwd, env });
+      status = bun(resolveArgs, { cwd, env });
+      if (status === 0) status = bun(frozenArgs, { cwd, env });
     }
     if (status !== 0) logError(`typecheck:test-programs: could not install the sandbox providers in ${directory}`);
     return status;
@@ -203,7 +196,7 @@ export function typecheckTestPrograms({
   programs = PROGRAMS,
   coverage = true,
   prepare = true,
-  pnpm = runPnpm,
+  bun = runBun,
   linkPlugins = linkExcludedPlugins,
   run = runTsc,
   checkFiles = checkCoverage,
@@ -211,7 +204,7 @@ export function typecheckTestPrograms({
   logError = console.error,
 }) {
   if (prepare) {
-    const prepared = prepareTestPrograms({ root, env, pnpm, linkPlugins, log, logError });
+    const prepared = prepareTestPrograms({ root, env, bun, linkPlugins, log, logError });
     if (prepared !== 0) return prepared;
   }
 

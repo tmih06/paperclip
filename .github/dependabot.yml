@@ -38,7 +38,7 @@ updates:
   # Each lockfile has exactly one entry, so every pull request changes a
   # manifest and the lockfile that installs it together, and CI can pass.
   #
-  # scripts/typecheck-sandbox-providers is a small pnpm workspace that lists every
+  # scripts/typecheck-sandbox-providers is a small Bun workspace that lists every
   # provider without its own lockfile, and holds one lockfile for them. CI
   # installs that lockfile frozen. Dependabot updates this workspace as one unit:
   # one pull request per dependency changes every provider that uses the

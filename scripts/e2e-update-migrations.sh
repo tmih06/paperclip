@@ -151,7 +151,7 @@ fi
 BACKUPS_BEFORE="$(backup_count)"
 
 note "5. simulate time passing: tracked ref now points at $NEXT_REF (adds one migration)"
-node -e '
+bun -e '
   const fs = require("fs");
   const p = process.argv[1];
   const m = JSON.parse(fs.readFileSync(p, "utf8"));

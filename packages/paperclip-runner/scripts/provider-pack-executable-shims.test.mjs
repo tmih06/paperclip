@@ -73,6 +73,20 @@ function pnpmCopilot(pack, platform, executable) {
   return { name, entry: join(pack, "node_modules", ".pnpm", entry) };
 }
 
+// A hoisted install has one real directory per package and no virtual store, so
+// the same command must relocate without a store entry to remove.
+function hoistedCopilot(pack, platform, executable) {
+  const name = `copilot-${platform}`;
+  const installed = join(pack, "node_modules", "@github", name);
+  mkdirSync(installed, { recursive: true });
+  writeFileSync(join(installed, "package.json"), JSON.stringify({
+    name: `@github/${name}`, exports: { ".": "./copilot" }, bin: { [name]: "copilot" },
+  }));
+  writeFileSync(join(installed, "copilot"), executable, { mode: 0o755 });
+  writeFileSync(join(pack, "node_modules", ".bin", name), "#!/bin/sh\nexit 99\n");
+  return { name, entry: installed };
+}
+
 function providerAsset(pack, platform, executable) {
   const directory = join(pack, "provider-assets", "copilot", platform);
   mkdirSync(directory, { recursive: true });
@@ -87,6 +101,25 @@ test("points the Copilot command at the identical provider asset and drops the n
 
   writePortableCopilotShims(pack);
   assert.equal(existsSync(entry), false);
+  assert.equal(existsSync(join(pack, "node_modules", "@github")), false);
+  const relocated = join(root, "relocated pack");
+  renameSync(pack, relocated);
+  const result = spawnSync(join(relocated, "node_modules", ".bin", name), ["one argument"], {
+    cwd: root, env: { PATH: "/usr/bin:/bin" }, encoding: "utf8", timeout: 5_000,
+  });
+  assert.equal(result.status, 17);
+  assert.equal(result.stdout, "asset one argument\n");
+});
+
+test("drops the identical hoisted Copilot copy without needing a virtual store", (t) => {
+  const { root, pack } = fixture(t);
+  const executable = '#!/bin/sh\nprintf "asset %s\\n" "$@"\nexit 17\n';
+  const { name, entry } = hoistedCopilot(pack, "linux-x64", executable);
+  providerAsset(pack, "linux-x64", executable);
+
+  writePortableCopilotShims(pack);
+  assert.equal(existsSync(entry), false);
+  // The emptied scope goes with the only package it held.
   assert.equal(existsSync(join(pack, "node_modules", "@github")), false);
   const relocated = join(root, "relocated pack");
   renameSync(pack, relocated);

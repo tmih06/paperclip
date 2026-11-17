@@ -43,8 +43,7 @@ current_target() { readlink "$STORE/current" 2>/dev/null || echo "<missing>"; }
 
 note "0. Preflight — this machine"
 uname -a
-node --version && npm --version && curl --version | head -1
-command -v corepack >/dev/null || npm install -g corepack
+bun --version && curl --version | head -1
 [ -e "$SHIM" ] && { echo "shim already exists at $SHIM — not a clean machine"; exit 2; }
 [ -d "$STORE" ] && { echo "store already exists at $STORE — not a clean machine"; exit 2; }
 echo "repo=$E2E_REPO ref=$E2E_REF home=$HOME"

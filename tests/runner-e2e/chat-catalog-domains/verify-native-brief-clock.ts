@@ -1,4 +1,4 @@
-/** Explicit slow control: node --import ./cli/node_modules/tsx/dist/loader.mjs tests/runner-e2e/chat-catalog-domains/verify-native-brief-clock.ts --five-minute-control */
+/** Explicit slow control: bun tests/runner-e2e/chat-catalog-domains/verify-native-brief-clock.ts --five-minute-control */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";

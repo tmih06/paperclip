@@ -21,7 +21,7 @@ function assertConfinedSandboxPath(remoteDir: string, candidate: string, label: 
     throw new Error(`Daytona sync ${label} path escapes the workspace remote dir: ${candidate}`);
   }
 }
-const names = ["nodeCommand", "opencodeProxy", "opencodeExecutable"] as const;
+const names = ["bunCommand", "opencodeProxy", "opencodeExecutable"] as const;
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));

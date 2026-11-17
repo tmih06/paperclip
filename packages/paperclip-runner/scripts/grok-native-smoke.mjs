@@ -5,7 +5,6 @@ import { readFile, writeFile, mkdir, mkdtemp, rm, realpath } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { createRequire } from 'node:module';
 import { AcpxRuntimeHost } from '../dist/drivers/acpx/runtime-host.js';
 import { openQualifiedAcpxRuntime } from '../dist/drivers/acpx/acpx-runtime-adapter.js';
 import { acpxProviderSessionIdentity } from '../dist/drivers/acpx/recovery-identity.js';
@@ -24,9 +23,7 @@ if (values.auth === 'api') {
 } else {
   assert(values['auth-file'], 'An explicit subscription auth-file is required');
   assert.equal(basename(values['auth-file']), 'auth.json', 'Subscription copyback requires an auth.json source');
-  const serverRequire=createRequire(new URL('../../../server/package.json',import.meta.url));
-  const { tsImport } = await import(serverRequire.resolve('tsx/esm/api'));
-  ({ copyBackGrokAuth } = await tsImport('../../adapters/grok-local/src/server/grok-auth-copyback.ts', import.meta.url));
+  ({ copyBackGrokAuth } = await import('../../adapters/grok-local/src/server/grok-auth-copyback.ts'));
   environment.PAPERCLIP_ACPX_GROK_AUTH_JSON_SECRET = await readFile(values['auth-file'], 'utf8');
 }
 const report = { schema: 'paperclip.grok-native-smoke.v1', auth: values.auth, sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), sourceDirty: execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).length > 0, profile: QUALIFIED_ACPX_PROFILES.grok, platform: `${process.platform}-${process.arch}`, startedAt: new Date().toISOString(), attempts: [] };

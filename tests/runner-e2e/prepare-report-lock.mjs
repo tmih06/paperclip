@@ -8,19 +8,19 @@ import { pathToFileURL } from 'node:url';
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 export async function prepareReportLock(root = path.resolve(import.meta.dirname, '../..')) {
   const policy = JSON.parse(await readFile(path.join(root, 'tests/runner-e2e/report-lock.json'), 'utf8'));
-  const lockPath = path.join(root, 'pnpm-lock.yaml');
+  const lockPath = path.join(root, 'bun.lock');
   const bytes = await readFile(lockPath), current = sha256(bytes);
   if (current === policy.outputSha256) return 'already-reviewed';
   if (current !== policy.inputSha256) throw new Error('Reporting lock changed; review the dependency correction before install');
   const patch = await readFile(path.join(root, 'tests/runner-e2e/report-lock.patch'));
   if (sha256(patch) !== policy.patchSha256) throw new Error('Reviewed reporting lock patch changed');
   const result = execFileSync('git', ['apply', '--numstat', '-'], { cwd: root, input: patch, encoding: 'utf8' });
-  if (!/^\d+\s+\d+\s+pnpm-lock\.yaml\n$/.test(result)) throw new Error('Reporting correction must change only the lockfile');
+  if (!/^\d+\s+\d+\s+bun\.lock\n$/.test(result)) throw new Error('Reporting correction must change only the lockfile');
   const temporary = await mkdtemp(path.join(tmpdir(), 'eval-reviewed-lock-'));
   try {
-    await writeFile(path.join(temporary, 'pnpm-lock.yaml'), bytes);
+    await writeFile(path.join(temporary, 'bun.lock'), bytes);
     execFileSync('git', ['apply', '-'], { cwd: temporary, input: patch });
-    const corrected = await readFile(path.join(temporary, 'pnpm-lock.yaml'));
+    const corrected = await readFile(path.join(temporary, 'bun.lock'));
     if (sha256(corrected) !== policy.outputSha256) throw new Error('Reviewed reporting lock result changed');
     await writeFile(lockPath, corrected);
     return 'reviewed-correction';
@@ -32,14 +32,14 @@ export async function refreshReportLock(root = path.resolve(import.meta.dirname,
   const directory = path.join(root, 'tests/runner-e2e');
   const policyPath = path.join(directory, 'report-lock.json');
   const policy = JSON.parse(await readFile(policyPath, 'utf8'));
-  const committed = execFileSync('git', ['show', 'HEAD:pnpm-lock.yaml'], { cwd: root });
+  const committed = execFileSync('git', ['show', 'HEAD:bun.lock'], { cwd: root });
   const inputSha256 = sha256(committed);
   const reviewed = [policy.inputSha256, policy.outputSha256].includes(inputSha256);
   const trusted = typeof trustedLockSha256 === 'string' && trustedLockSha256 === inputSha256;
   if (!reviewed && !trusted) {
     throw new Error('Committed report lock is not reviewed; refusing to refresh its proof');
   }
-  const resolved = await readFile(path.join(root, 'pnpm-lock.yaml'));
+  const resolved = await readFile(path.join(root, 'bun.lock'));
   if (resolved.equals(committed)) {
     if (reviewed) return 'unchanged';
     // The trusted lock already resolves, so admit it exactly. No correction is needed.
@@ -48,9 +48,9 @@ export async function refreshReportLock(root = path.resolve(import.meta.dirname,
       basis: 'Admitted by the trusted master lockfile refresh after a verified Dependabot lockfile merged. No correction is needed.' }, null, 2) + '\n');
     return 'refreshed';
   }
-  const patch = execFileSync('git', ['diff', '--no-ext-diff', '--no-textconv', '--no-color', 'HEAD', '--', 'pnpm-lock.yaml'], { cwd: root });
+  const patch = execFileSync('git', ['diff', '--no-ext-diff', '--no-textconv', '--no-color', 'HEAD', '--', 'bun.lock'], { cwd: root });
   const changed = execFileSync('git', ['apply', '--numstat', '-'], { cwd: root, input: patch, encoding: 'utf8' });
-  if (!/^\d+\s+\d+\s+pnpm-lock\.yaml\n$/.test(changed)) throw new Error('Report correction must change only the lockfile');
+  if (!/^\d+\s+\d+\s+bun\.lock\n$/.test(changed)) throw new Error('Report correction must change only the lockfile');
   await writeFile(path.join(directory, 'report-lock.patch'), patch);
   await writeFile(policyPath, JSON.stringify({ inputSha256, outputSha256: sha256(resolved), patchSha256: sha256(patch),
     basis: 'Generated with the trusted master lockfile refresh. Review this offline correction and its hashes with the dependency changes.' }, null, 2) + '\n');

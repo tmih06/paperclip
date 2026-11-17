@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
-import { isSupportedNodeVersion, MINIMUM_NODE_VERSION } from "@paperclipai/shared/node-version";
+import { detectBunVersion, isSupportedBunVersion, MINIMUM_BUN_VERSION } from "@paperclipai/shared/bun-version";
 import {
   addManagedPathBlock,
   assertManagedShimWritable,
@@ -84,9 +84,10 @@ export function resolveGitInstallWorkspacePackages(checkoutPath: string): Releas
   return ordered;
 }
 
-export function assertSupportedNodeVersion(): void {
-  if (!isSupportedNodeVersion(process.versions.node)) {
-    throw new Error(`Installing or updating Paperclip requires Node.js ${MINIMUM_NODE_VERSION} or newer (found ${process.version} at ${process.execPath}). Put a supported Node bin directory first on PATH and run 'npx paperclipai@latest install --yes' to re-pin an existing managed install.`);
+export function assertSupportedBunVersion(): void {
+  const version = detectBunVersion();
+  if (!version || !isSupportedBunVersion(version)) {
+    throw new Error(`Installing or updating Paperclip requires Bun ${MINIMUM_BUN_VERSION} or newer (found ${version ?? "no Bun runtime"} at ${process.execPath}). Install or upgrade Bun and run 'bun x --bun paperclipai@latest install --yes' to re-pin an existing managed install.`);
   }
 }
 
@@ -107,23 +108,22 @@ export function resolveNpmInstallRequest(options: InstallOptions): {
 
 function parseResolvedVersion(stdout: string): string {
   const trimmed = stdout.trim();
-  if (!trimmed) throw new Error("npm returned an empty version response.");
+  if (!trimmed) throw new Error("Bun returned an empty version response.");
   try {
     const parsed = JSON.parse(trimmed) as unknown;
     if (typeof parsed === "string") return parsed;
-    // npm 12 wraps single-value `npm view --json` output in an array.
     if (Array.isArray(parsed) && parsed.length === 1 && typeof parsed[0] === "string") return parsed[0];
   } catch {
     if (EXACT_VERSION_PATTERN.test(trimmed)) return trimmed;
   }
-  throw new Error(`npm returned an unexpected version response: ${trimmed}`);
+  throw new Error(`Bun returned an unexpected version response: ${trimmed}`);
 }
 
 export async function resolvePublishedVersion(spec: string, runCommand: CommandRunner): Promise<string> {
   const result = await runCommand(
-    "npm",
-    ["view", `paperclipai@${spec}`, "version", "--json", `--registry=${PUBLIC_NPM_REGISTRY}`],
-    { maxBuffer: 1024 * 1024 },
+    "bun",
+    ["pm", "view", `paperclipai@${spec}`, "version", `--registry=${PUBLIC_NPM_REGISTRY}`],
+    { maxBuffer: 1024 * 1024, env: bunInstallEnv() },
   );
   return parseResolvedVersion(result.stdout);
 }
@@ -171,6 +171,14 @@ function payloadEntrypoint(payloadPath: string): string {
   return path.join(payloadPath, "node_modules", "paperclipai", "dist", "index.js");
 }
 
+// Bun reads ~/.npmrc and ~/.bunfig.toml in addition to environment variables, so
+// a stale or hostile registry override in the home directory would otherwise
+// redirect a managed install. Point Bun at a throwaway config root and force the
+// public registry through both registry variables and the explicit CLI flag.
+function bunInstallEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, BUN_CONFIG_REGISTRY: PUBLIC_NPM_REGISTRY, NPM_CONFIG_REGISTRY: PUBLIC_NPM_REGISTRY };
+}
+
 export async function smokePayload(payloadPath: string, expectedVersion: string, runCommand: CommandRunner): Promise<void> {
   const entrypoint = payloadEntrypoint(payloadPath);
   if (!fs.existsSync(entrypoint)) throw new Error(`Installed package is missing its CLI entrypoint: ${entrypoint}`);
@@ -201,47 +209,90 @@ export async function installNpmPayload(
   fs.chmodSync(paths.installsRoot, 0o700);
   fs.chmodSync(sourceRoot, 0o700);
   const stagingPath = path.join(sourceRoot, `.${version}.tmp-${process.pid}-${Date.now()}`);
-  const npmUserConfigPath = path.join(sourceRoot, `.npmrc-${process.pid}-${Date.now()}`);
   fs.rmSync(stagingPath, { recursive: true, force: true });
   try {
-    fs.writeFileSync(
-      npmUserConfigPath,
-      `registry=${PUBLIC_NPM_REGISTRY}\n@paperclipai:registry=${PUBLIC_NPM_REGISTRY}\n`,
-      { mode: 0o600 },
-    );
+    // Bun installs the published payload directly; no Node.js or npm is needed.
+    // `--trust` is required because the published graph carries lifecycle
+    // scripts (embedded-postgres hydrates native symlinks and the server stages
+    // its Copilot assets). npm ran them automatically, so this preserves that
+    // behavior instead of silently shipping a broken payload.
     await runCommand(
-      "npm",
+      "bun",
       [
-        "install",
-        "--prefix",
+        "add",
+        "--cwd",
         stagingPath,
-        `paperclipai@${version}`,
+        "--trust",
         `--registry=${PUBLIC_NPM_REGISTRY}`,
-        `--@paperclipai:registry=${PUBLIC_NPM_REGISTRY}`,
-        "--no-audit",
-        "--no-fund",
+        `paperclipai@${version}`,
       ],
-      {
-        cwd: sourceRoot,
-        env: { ...process.env, npm_config_userconfig: npmUserConfigPath },
-        maxBuffer: 16 * 1024 * 1024,
-      },
+      { cwd: sourceRoot, env: bunInstallEnv(), maxBuffer: 16 * 1024 * 1024 },
     );
     await smokePayload(stagingPath, version, runCommand);
     fs.renameSync(stagingPath, payloadPath);
     return { payloadPath, reused: false };
   } finally {
     fs.rmSync(stagingPath, { recursive: true, force: true });
-    fs.rmSync(npmUserConfigPath, { force: true });
   }
 }
 
 function gitBuildEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   const env = { ...process.env, ...extra };
   // Source builds need devDependencies (esbuild, typescript); ambient NODE_ENV=production
-  // makes pnpm/npm omit them, so the checkout build must not inherit it.
+  // makes package managers omit them, so the checkout build must not inherit it.
   delete env.NODE_ENV;
   return env;
+}
+
+// Workspace packages carry `workspace:*` specifiers and `publishConfig`
+// entrypoint overrides. `bun pm pack` resolves neither, so materialize the
+// publish manifest into a throwaway copy of the package before packing. The
+// checkout is never mutated, and the tarball that lands in the payload matches
+// what the registry publishes.
+export function materializePublishManifestForPack(packageDir: string, destinationDir: string): string {
+  const manifest = JSON.parse(fs.readFileSync(path.join(packageDir, "package.json"), "utf8")) as Record<string, unknown> & {
+    version?: string;
+    publishConfig?: Record<string, unknown>;
+    dependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
+  };
+  const publishManifest: Record<string, unknown> = { ...manifest };
+  for (const key of ["main", "types", "exports", "bin"]) {
+    if (manifest.publishConfig?.[key] !== undefined) publishManifest[key] = manifest.publishConfig[key];
+  }
+  for (const section of ["dependencies", "optionalDependencies", "peerDependencies"] as const) {
+    const declared = publishManifest[section];
+    if (!declared || typeof declared !== "object") continue;
+    publishManifest[section] = Object.fromEntries(
+      Object.entries(declared as Record<string, string>).map(([name, specifier]) => {
+        if (typeof specifier !== "string" || !specifier.startsWith("workspace:")) return [name, specifier];
+        const range = specifier.slice("workspace:".length);
+        const prefix = range === "^" || range === "~" ? range : "";
+        return [name, `${prefix}${manifest.version ?? ""}`];
+      }),
+    );
+  }
+  delete publishManifest.publishConfig;
+
+  const stagedDir = path.join(destinationDir, `.pack-${path.basename(packageDir)}-${process.pid}-${Date.now()}`);
+  fs.cpSync(packageDir, stagedDir, { recursive: true, dereference: false });
+  fs.writeFileSync(path.join(stagedDir, "package.json"), `${JSON.stringify(publishManifest, null, 2)}\n`);
+  return stagedDir;
+}
+
+async function packWorkspacePackage(
+  packageDir: string,
+  destinationDir: string,
+  runCommand: CommandRunner,
+  env: NodeJS.ProcessEnv,
+): Promise<void> {
+  const stagedDir = materializePublishManifestForPack(packageDir, destinationDir);
+  try {
+    await runCommand("bun", ["pm", "pack", "--destination", destinationDir], { cwd: stagedDir, env, maxBuffer: 32 * 1024 * 1024 });
+  } finally {
+    fs.rmSync(stagedDir, { recursive: true, force: true });
+  }
 }
 
 export async function installGitPayload(repo: string, sha: string, runCommand: CommandRunner, paths = resolveInstallStorePaths()): Promise<{ payloadPath: string; reused: boolean; version: string }> {
@@ -267,19 +318,13 @@ export async function installGitPayload(repo: string, sha: string, runCommand: C
   const stagedPayload = path.join(stagingRoot, "payload");
   fs.rmSync(stagingRoot, { recursive: true, force: true });
   fs.mkdirSync(checkoutPath, { recursive: true, mode: 0o700 });
-  // Workspace build scripts invoke bare `pnpm`; on a machine where pnpm exists only
-  // through corepack, nothing puts it on PATH, so provision a shim into the staging dir.
-  const pnpmShimDir = path.join(stagingRoot, "pnpm-bin");
-  fs.mkdirSync(pnpmShimDir, { recursive: true, mode: 0o700 });
-  const buildEnv = (extra: NodeJS.ProcessEnv = {}) =>
-    gitBuildEnv({ PATH: [pnpmShimDir, process.env.PATH].filter(Boolean).join(path.delimiter), ...extra });
+  const buildEnv = (extra: NodeJS.ProcessEnv = {}) => gitBuildEnv({ ...extra });
   try {
     await runGitHubCurl(["--fail", "--silent", "--show-error", "--location", "--output", archivePath, `https://codeload.github.com/${repo}/tar.gz/${sha}`], runCommand, { maxBuffer: 4 * 1024 * 1024 });
     await runCommand("tar", ["-xzf", archivePath, "--strip-components=1", "-C", checkoutPath], { maxBuffer: 4 * 1024 * 1024 });
-    await runCommand("corepack", ["enable", "pnpm", "--install-directory", pnpmShimDir], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 4 * 1024 * 1024 });
-    await runCommand("corepack", ["pnpm", "install", "--frozen-lockfile"], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
+    await runCommand("bun", ["install", "--frozen-lockfile"], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
     await runCommand("bash", ["scripts/build-npm.sh", "--skip-checks", "--skip-typecheck"], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
-    await runCommand("corepack", ["pnpm", "-r", "--filter", "@paperclipai/server...", "--if-present", "run", "build"], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
+    await runCommand("bun", ["run", "--filter", "@paperclipai/server", "build"], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
     const metadata = JSON.parse(fs.readFileSync(path.join(checkoutPath, "cli", "package.json"), "utf8")) as { version: string };
     const workspacePackages = resolveGitInstallWorkspacePackages(checkoutPath);
     for (const [index, workspacePackage] of workspacePackages.entries()) {
@@ -289,19 +334,23 @@ export async function installGitPayload(repo: string, sha: string, runCommand: C
       if (bundledDependencies.length > 0) {
         const stagedPackage = path.join(stagingRoot, `workspace-package-${index}`);
         await runCommand(process.execPath, [path.join(checkoutPath, "scripts", "prepare-bundled-package.mjs"), packageDir, stagedPackage], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 32 * 1024 * 1024 });
-        await runCommand("npm", ["pack", stagedPackage, "--pack-destination", stagingRoot], { cwd: checkoutPath, env: buildEnv(), maxBuffer: 16 * 1024 * 1024 });
+        await packWorkspacePackage(stagedPackage, stagingRoot, runCommand, buildEnv());
       } else {
-        await runCommand("corepack", ["pnpm", "--dir", workspacePackage.dir, "pack", "--pack-destination", stagingRoot], { cwd: checkoutPath, env: buildEnv({ PAPERCLIP_RELEASE_REUSE_UI_DIST: "1" }), maxBuffer: 32 * 1024 * 1024 });
+        await packWorkspacePackage(packageDir, stagingRoot, runCommand, buildEnv({ PAPERCLIP_RELEASE_REUSE_UI_DIST: "1" }));
       }
     }
-    await runCommand("npm", ["pack", "--pack-destination", stagingRoot], { cwd: path.join(checkoutPath, "cli"), env: buildEnv(), maxBuffer: 16 * 1024 * 1024 });
+    await packWorkspacePackage(path.join(checkoutPath, "cli"), stagingRoot, runCommand, buildEnv());
     const tarballs = fs.readdirSync(stagingRoot).filter((entry) => entry.endsWith(".tgz"));
     const cliTarball = tarballs.find((entry) => entry === `paperclipai-${metadata.version}.tgz`);
     const workspaceTarballs = tarballs.filter((entry) => entry !== cliTarball);
     if (!cliTarball || workspaceTarballs.length !== workspacePackages.length) {
       throw new Error(`Git install packaging produced ${workspaceTarballs.length} workspace tarballs; expected ${workspacePackages.length}.`);
     }
-    await runCommand("npm", ["install", "--prefix", stagedPayload, path.join(stagingRoot, cliTarball), ...workspaceTarballs.map((entry) => path.join(stagingRoot, entry)), "--no-audit", "--no-fund"], { cwd: stagingRoot, maxBuffer: 32 * 1024 * 1024 });
+    await runCommand(
+      "bun",
+      ["add", "--cwd", stagedPayload, "--trust", `--registry=${PUBLIC_NPM_REGISTRY}`, path.join(stagingRoot, cliTarball), ...workspaceTarballs.map((entry) => path.join(stagingRoot, entry))],
+      { cwd: stagingRoot, env: buildEnv(bunInstallEnv()), maxBuffer: 32 * 1024 * 1024 },
+    );
     await smokePayload(stagedPayload, metadata.version, runCommand);
     fs.renameSync(stagedPayload, payloadPath);
     return { payloadPath, reused: false, version: metadata.version };
@@ -361,7 +410,7 @@ export async function installCommand(
   options: InstallOptions,
   dependencies: { runCommand?: CommandRunner; now?: () => Date } = {},
 ): Promise<void> {
-  assertSupportedNodeVersion();
+  assertSupportedBunVersion();
   const runCommand = dependencies.runCommand ?? runCommandWithDiagnostics;
   const gitRequest = resolveGitInstallRequest(options);
   if (gitRequest) {

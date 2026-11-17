@@ -98,7 +98,7 @@ export async function readVerifiedRemoteWorkspaceFile(input: {
   const sha256 = typeof input.sha256 === "string" ? input.sha256.trim().toLowerCase() : "";
   if (!/^[a-f0-9]{64}$/u.test(sha256)) throw new Error(`${PREFIX}invalid_sha256`);
   const result = await input.runner.execute({
-    command: "node",
+    command: "bun",
     args: ["--input-type=commonjs", "-e", READ_REMOTE_FILE, JSON.stringify({ workspaceRoot, contentRef: relative, byteSize, sha256 })],
     cwd: workspaceRoot,
     env: { NODE_OPTIONS: "", NODE_PATH: "" },

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --import tsx
+#!/usr/bin/env bun
 import { listLocalServiceRegistryRecords, removeLocalServiceRegistryRecord, terminateLocalService } from "../server/src/services/local-service-supervisor.ts";
 import { applyDevRunnerOptions } from "./dev-runner-options.ts";
 import { repoRoot } from "./dev-service-profile.ts";

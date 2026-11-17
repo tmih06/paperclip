@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.6
 ARG HERMES_VERSION=0.17.0
 FROM node:24-bookworm-slim
+COPY --from=oven/bun:1.4.4-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e /usr/local/bin/bun /usr/local/bin/bun
 
 ARG HERMES_VERSION
 

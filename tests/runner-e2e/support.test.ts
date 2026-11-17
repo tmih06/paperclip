@@ -1018,12 +1018,7 @@ describe("runner E2E server isolation", () => {
 
   it("uses absolute repository paths for the Playwright web server", () => {
     const command = runnerE2EWebServerCommand("/workspace/paperclip");
-    expect(command).toContain(
-      "'/workspace/paperclip/cli/node_modules/tsx/dist/cli.mjs'",
-    );
-    expect(command).toContain(
-      "'/workspace/paperclip/tests/runner-e2e/server.ts'",
-    );
+    expect(command).toBe("bun '/workspace/paperclip/tests/runner-e2e/server.ts'");
   });
 
   it("accepts only embedded state paths beneath the temporary root", async () => {

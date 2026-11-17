@@ -1265,14 +1265,15 @@ jobs:
       - name: Qualify local provider Node interpreter
         if: matrix.environmentId == 'local' && (startsWith(matrix.profileId, 'runner-opencode') || startsWith(matrix.profileId, 'runner-acpx-') || matrix.suiteId == 'openrouter-model-breadth')
         run: |
-          node <<'NODE'
+          PROVIDER_NODE="$(command -v node)" bun - <<'BUN'
           const fs = require("node:fs");
-          const mode = fs.statSync(process.execPath).mode & 0o777;
-          fs.chmodSync(process.execPath, mode & ~0o022);
-          if ((fs.statSync(process.execPath).mode & 0o022) !== 0) {
+          const executable = fs.realpathSync(process.env.PROVIDER_NODE);
+          const mode = fs.statSync(executable).mode & 0o777;
+          fs.chmodSync(executable, mode & ~0o022);
+          if ((fs.statSync(executable).mode & 0o022) !== 0) {
             throw new Error("provider Node interpreter remains group- or world-writable");
           }
-          NODE
+          BUN
 
       - name: Install pinned Claude CLI for setup verification
         if: matrix.profileId == 'legacy-claude' || matrix.profileId == 'runner-acpx-claude'

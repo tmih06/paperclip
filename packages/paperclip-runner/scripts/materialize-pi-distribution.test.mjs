@@ -112,7 +112,15 @@ test("materialization refuses relative, root and existing outputs before install
   const { root } = await fixture(t);
   await assert.rejects(materializePiDistribution({ outputRoot: "relative" }), /must be absolute/);
   await assert.rejects(materializePiDistribution({ outputRoot: "/" }), /unsafe/);
-  await assert.rejects(materializePiDistribution({ outputRoot: root }), /already exists/);
+  // The target gate precedes the existing-output gate, so an unsupported host
+  // cannot prove the latter. Assert each guard's real contract on its own host
+  // rather than skipping the check where Pi has no pinned release.
+  if (PI_SUPPORTED_TARGETS.includes(`${process.platform}-${process.arch}`)) {
+    await assert.rejects(materializePiDistribution({ outputRoot: root }), /already exists/);
+  } else {
+    await assert.rejects(materializePiDistribution({ outputRoot: root }), /target is unsupported/);
+    assert.equal(PI_SUPPORTED_TARGETS.includes(`${process.platform}-${process.arch}`), false);
+  }
 });
 
 test("Node dependency inspection rejects Homebrew and non-system Linux libraries", () => {
@@ -177,7 +185,13 @@ test("Node archive download deadline aborts stalled headers and stalled bodies",
   });
   assert.deepEqual(bytes, archive);
   assert.equal(warnings.length, 2);
-  for (const warning of warnings) assert.match(warning, /The operation was aborted due to timeout; retrying/);
+  // Both attempts failed on the supplied deadline and were retried. The abort
+  // message is the runtime's own wording (Node: "aborted due to timeout", Bun:
+  // "timed out"), so assert the retry and its timeout reason, not its phrasing.
+  for (const [index, warning] of warnings.entries()) {
+    assert.match(warning, new RegExp(`attempt ${index + 1}/3 failed: .+; retrying`));
+    assert.match(warning, /timed out|timeout/i);
+  }
 });
 
 test("Node archive download releases a rejected response before the next attempt", async () => {

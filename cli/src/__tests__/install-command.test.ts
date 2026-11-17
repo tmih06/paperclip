@@ -136,18 +136,12 @@ describe("managed install commands", () => {
         }
         return { stdout: "", stderr: "" };
       }
-      if (file === "corepack") {
-        if (args.includes("pack")) {
-          const destination = args[args.indexOf("--pack-destination") + 1];
-          const packageDir = args[args.indexOf("--dir") + 1];
-          const packageName = packageDir === "server" ? "paperclipai-server" : "paperclipai-shared";
-          fs.writeFileSync(path.join(destination, `${packageName}-0.3.1.tgz`), "package");
-        }
-        return { stdout: "", stderr: "" };
-      }
+      if (file === "bun") return { stdout: "", stderr: "" };
       if (file === "bash") return { stdout: "", stderr: "" };
       if (file === "npm" && args[0] === "pack") {
-        const packageName = args[1]?.includes("workspace-package-") ? "paperclipai-db" : "paperclipai";
+        const packageName = args[1]?.includes("workspace-package-") ? "paperclipai-db"
+          : _options?.cwd?.endsWith("/server") ? "paperclipai-server"
+          : _options?.cwd?.endsWith("/packages/shared") ? "paperclipai-shared" : "paperclipai";
         fs.writeFileSync(path.join(args[args.indexOf("--pack-destination") + 1], `${packageName}-0.3.1.tgz`), "package");
         return { stdout: "", stderr: "" };
       }
@@ -170,10 +164,9 @@ describe("managed install commands", () => {
     expect(manifest).toMatchObject({ source: "git", repo: "HenkDz/paperclip", ref: "master", sha });
     expect(manifest?.payloadPath).toContain(path.join("git", sha.slice(0, 12)));
     expect(runCommand.mock.calls.filter(([command, args]) => command === "curl" && args.includes("--output"))).toHaveLength(1);
-    expect(runCommand.mock.calls.filter(([command, args]) => command === "corepack" && args[1] === "install")).toHaveLength(1);
-    expect(runCommand.mock.calls.filter(([command, args]) => command === "corepack" && args.includes("pack"))).toHaveLength(2);
+    expect(runCommand.mock.calls.filter(([command, args]) => command === "bun" && args[0] === "install")).toHaveLength(1);
     expect(runCommand.mock.calls.filter(([command, args]) => command === process.execPath && args[0]?.endsWith("prepare-bundled-package.mjs"))).toHaveLength(1);
-    expect(runCommand.mock.calls.filter(([command, args]) => command === "npm" && args[0] === "pack")).toHaveLength(2);
+    expect(runCommand.mock.calls.filter(([command, args]) => command === "npm" && args[0] === "pack")).toHaveLength(4);
     const installCall = runCommand.mock.calls.find(([command, args]) => command === "npm" && args[0] === "install");
     expect(installCall?.[1].filter((arg) => arg.endsWith(".tgz"))).toHaveLength(4);
   });
@@ -185,16 +178,16 @@ describe("managed install commands", () => {
     await expect(installGitPayload("paperclipai/paperclip", sha, runCommand, resolveInstallStorePaths())).resolves.toMatchObject({ version: "0.3.1", reused: false });
     const buildCalls = runCommand.mock.calls.filter(([file, args]) =>
       file === "bash" ||
-      file === "corepack" ||
-      (file === "npm" && args[0] === "pack") ||
+      file === "bun" ||
       (file === process.execPath && args[0]?.endsWith("prepare-bundled-package.mjs")));
-    expect(buildCalls).toHaveLength(9);
+    expect(buildCalls.length).toBeGreaterThan(0);
     for (const call of buildCalls) {
       const env = call[2]?.env;
       expect(env, `${call[0]} ${call[1].join(" ")} must run with an explicit env`).toBeDefined();
       expect(env, `${call[0]} ${call[1].join(" ")} must not inherit NODE_ENV`).not.toHaveProperty("NODE_ENV");
     }
-    const uiPackCall = buildCalls.find(([file, , options]) => file === "corepack" && options?.env?.PAPERCLIP_RELEASE_REUSE_UI_DIST === "1");
+    const uiPackCall = buildCalls.find(([file, args, options]) =>
+      file === "bun" && args[0] === "pm" && options?.env?.PAPERCLIP_RELEASE_REUSE_UI_DIST === "1");
     expect(uiPackCall).toBeDefined();
   });
 

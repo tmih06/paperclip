@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   CRASH_POINTS,
@@ -95,22 +94,22 @@ describe("crashPoint in a test process", () => {
   });
 });
 
-// Each case starts a child Node process with the tsx loader; allow for a busy host.
+// Each case starts a child Bun process, which runs the TypeScript entry
+// directly; allow for a busy host.
 describe("crashPoint armed by the environment", { timeout: 60_000 }, () => {
   const script = (name: string) => [
     `const { crashPoint } = await import(${JSON.stringify(path.join(import.meta.dirname, "crash-points.ts"))});`,
     `crashPoint(${JSON.stringify(name)}); process.stdout.write("one\\n");`,
     `crashPoint(${JSON.stringify(name)}); process.stdout.write("two\\n");`,
   ].join("\n");
-  // The loader, not the tsx CLI: the CLI runs the script in a child process, so
-  // the SIGKILL would land on a grandchild.
-  const tsxLoader = pathToFileURL(path.resolve(import.meta.dirname, "../../../cli/node_modules/tsx/dist/loader.mjs")).href;
+  // Bun runs the script in the process this file spawns, so the SIGKILL lands
+  // on the child the receipt records, not a grandchild.
   const runChild = (env: Record<string, string>, source = script(first)) => {
     const dir = mkdtempSync(path.join(os.tmpdir(), "crash-point-script-"));
     try {
       const file = path.join(dir, "child.mts");
       writeFileSync(file, source);
-      return spawnSync(process.execPath, ["--import", tsxLoader, file], {
+      return spawnSync(process.execPath, [file], {
         env: { ...process.env, NODE_ENV: "test", ...env }, encoding: "utf8", timeout: 60_000,
       });
     } finally {

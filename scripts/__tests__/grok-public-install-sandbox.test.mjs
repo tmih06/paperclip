@@ -591,7 +591,7 @@ test('Mac startup wiring normalizes only validated manifest digests and uses ser
     assert.throws(() => macInstalledStartupProbeSource('/owned/consumer', '/owned/consumer/server', digest, '/source/helper.ts'), /verified SHA-256/);
   }
   const verifier = readFileSync(new URL('../verify-grok-npm-install.mjs', import.meta.url), 'utf8');
-  assert.match(verifier, /\['--import', 'tsx', startupFile\], join\(repo, 'server'\)/);
+  assert.match(verifier, /\[startupFile\], join\(repo, 'server'\)/);
   const closedEnvironment = verifier.match(/const env = \{ PATH: `\$\{tools\}[\s\S]*?\};/)[0];
   assert.doesNotMatch(closedEnvironment, /NODE_PATH|NODE_OPTIONS|\.\.\.process.env/);
 });

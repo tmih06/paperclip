@@ -33,8 +33,8 @@
     "scripts/install-copilot-assets.mjs"
   ],
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "dev:watch": "cross-env PAPERCLIP_MIGRATION_PROMPT=never PAPERCLIP_MIGRATION_AUTO_APPLY=true tsx ./scripts/dev-watch.ts",
+    "dev": "bun src/index.ts",
+    "dev:watch": "PAPERCLIP_MIGRATION_PROMPT=never PAPERCLIP_MIGRATION_AUTO_APPLY=true bun ./scripts/dev-watch.ts",
     "prepare:ui-dist": "bash ../scripts/prepare-server-ui-dist.sh",
     "build": "pnpm run prepare:runner-vendor && node scripts/verify-runner-vendor-dependencies.mjs && node ../scripts/run-tsc.mjs && mkdir -p dist/onboarding-assets dist/built-ins dist/services/scripts dist/vendor/paperclip-runner && cp -R src/onboarding-assets/. dist/onboarding-assets/ && cp -R src/built-ins/. dist/built-ins/ && cp -R src/services/scripts/. dist/services/scripts/ && cp -Rf ../packages/paperclip-runner/dist/. dist/vendor/paperclip-runner/ && cp ../packages/paperclip-runner/scripts/install-copilot-assets.mjs ../packages/paperclip-runner/scripts/materialize-copilot-binary.mjs ../packages/paperclip-runner/scripts/copilot-inner-distribution.mjs dist/ && node dist/install-copilot-assets.mjs && node scripts/write-build-stamp.mjs",
     "prepack": "pnpm run prepare:ui-dist && pnpm run build",
@@ -78,6 +78,7 @@
     "@paperclipai/adapter-openclaw-gateway": "workspace:*",
     "@paperclipai/adapter-opencode-local": "workspace:*",
     "@paperclipai/adapter-pi-local": "workspace:*",
+    "@paperclipai/adapter-ompig-slim": "workspace:*",
     "@paperclipai/adapter-utils": "workspace:*",
     "@paperclipai/db": "workspace:*",
     "@paperclipai/hermes-paperclip-adapter": "workspace:*",
@@ -146,9 +147,7 @@
     "@types/supertest": "^7.2.1",
     "@types/tar-stream": "^3.1.5",
     "@types/ws": "^8.18.2",
-    "cross-env": "^10.1.0",
     "supertest": "^7.0.0",
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^5.0.3",
@@ -191,7 +190,8 @@
     }
   },
   "engines": {
-    "node": ">=24.11.0"
+    "node": ">=24.11.0",
+    "bun": ">=1.4.4"
   },
   "optionalDependencies": {
     "@github/copilot-darwin-arm64": "1.0.88",

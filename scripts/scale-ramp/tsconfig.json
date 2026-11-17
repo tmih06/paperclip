@@ -7,7 +7,7 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "types": ["node"],
-    "typeRoots": ["../../cli/node_modules/@types"]
+    "typeRoots": ["../../node_modules/@types"]
   },
   "include": ["./**/*.ts", "../scale-agents-ramp.ts"]
 }

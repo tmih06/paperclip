@@ -749,9 +749,8 @@ describe("actual generated observer state machine", () => {
     await new Promise<void>(resolve => setImmediate(resolve));
     return { output, process, forwarded, spawn, connections };
   }
-  it("executes readiness and installation after the actual pinned tsx production transform", async () => {
+  it("executes readiness and installation after the actual Bun production transform", async () => {
     const modulePath = fileURLToPath(new URL("./remote-native-fixtures.ts", import.meta.url));
-    const loaderPath = fileURLToPath(new URL("../../cli/node_modules/tsx/dist/loader.mjs", import.meta.url));
     const script = `
       import { bindRemoteNativeFixture } from ${JSON.stringify(modulePath)};
       const binding = ${JSON.stringify(binding)}, ready = ${JSON.stringify(readiness())};
@@ -772,8 +771,8 @@ describe("actual generated observer state machine", () => {
       if(!programs) throw Error('No captured generated programs');
       process.stdout.write(JSON.stringify(programs));
     `;
-    const transformed = JSON.parse(execFileSync(process.execPath, ["--import", loaderPath, "--input-type=module", "-e", script], {
-      env: { PATH: "/usr/bin:/bin", HOME: process.env.HOME, TMPDIR: process.env.TMPDIR, TSX_DISABLE_CACHE: "1" }, timeout: 10_000, maxBuffer: 256 * 1024, encoding: "utf8",
+    const transformed = JSON.parse(execFileSync(process.execPath, ["--input-type=module", "-e", script], {
+      env: { PATH: "/usr/bin:/bin", HOME: process.env.HOME, TMPDIR: process.env.TMPDIR }, timeout: 10_000, maxBuffer: 256 * 1024, encoding: "utf8",
     }));
     expect(transformed.command).not.toContain("__name("); expect(transformed.observer).not.toContain("__name(");
     const o = await observerHarness(true, transformed);

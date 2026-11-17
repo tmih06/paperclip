@@ -1,0 +1,21 @@
+# Add after docker-compose.yml and docker-compose.kubernetes.yml.
+# Uses the published runtime image with the local checkout; no image build.
+services:
+  server:
+    working_dir: /workspace/paperclip
+    command: ["bun", "run", "dev", "--bind", "lan"]
+    ports: !override
+      - "0.0.0.0:3100:3100"
+      # Vite uses the API port + 10000 for its hot-reload WebSocket.
+      - "127.0.0.1:13100:13100"
+    environment:
+      NODE_ENV: development
+      PAPERCLIP_UI_DEV_MIDDLEWARE: "true"
+      # Reuse the published native runner instead of requiring a Rust toolchain.
+      PAPERCLIP_RUNNER_BINARY: /app/packages/paperclip-runner/dist/bin/paperclip-runnerd
+      # Match the checkout owner so Vite and the watcher can write their caches.
+      USER_UID: "${PAPERCLIP_DEV_UID:-1001}"
+      USER_GID: "${PAPERCLIP_DEV_GID:-1001}"
+    volumes:
+      - ../:/workspace/paperclip
+      - ./kubernetes-local/bun:/usr/local/bin/bun:ro

@@ -69,9 +69,16 @@ Greptile setup.
 ## 4. Dev Setup
 
 ```sh
-node scripts/agent-preflight.mjs   # prepare a new or updated worktree
-pnpm dev                           # API and UI at http://localhost:3100
+bun scripts/agent-preflight.mjs   # prepare a new or updated worktree
+bun run dev                         # API and UI at http://localhost:3100
 ```
+
+Bun is the package manager, script runner, and default JavaScript runtime.
+Use `bun install --frozen-lockfile` for dependency installation and
+`bun run <script>` for workspace scripts. First-party code must not launch Node,
+pnpm, Corepack, or tsx. External provider distributions and registry tools can
+retain their required runtimes. Run `bun run check:bun-migration` after changing
+runtime commands.
 
 Leave `DATABASE_URL` unset to use the embedded database. See "Agent worktree
 preflight", "Start Dev", "Quick Health Checks", and "Database in Dev" in
@@ -102,14 +109,14 @@ preflight", "Start Dev", "Quick Health Checks", and "Database in Dev" in
 ## 6. Database Changes
 
 Follow "Schema change workflow" in `doc/DATABASE.md`: edit the schema, run
-`pnpm db:generate`, then typecheck.
+`bun run db:generate`, then typecheck.
 
 ## 7. Verification Before Hand-off
 
 Run the smallest check that proves the change. The default local and agent path is:
 
 ```sh
-pnpm verify
+bun run verify
 ```
 
 This selects affected Vitest files with the same conservative dependency policy
@@ -122,15 +129,15 @@ local verification" in `doc/DEVELOPING.md` for how reuse and invalidation work.
 Follow these rules:
 
 - **Exit 2 means the change needs broader verification.** Run focused checks and
-  let required CI supply that coverage, or explicitly use `pnpm verify --full`
+  let required CI supply that coverage, or explicitly use `bun run verify --full`
   for the full local Vitest suite. Do not automatically follow exit 2 with a full
   local run.
 - **Do not default to repo-wide checks.** Do not run repo-wide typecheck, build,
   or test on every heartbeat when a narrower check is enough to prove the change.
   Use the broad checks below only when they resolve an actual remaining gap, such
   as a local platform fault or explicit full-suite qualification.
-- **Browser suites stay opt-in.** Run `pnpm test:e2e` and
-  `pnpm test:release-smoke` only when your change touches them or when you are
+- **Browser suites stay opt-in.** Run `bun run test:e2e` and
+  `bun run test:release-smoke` only when your change touches them or when you are
   explicitly verifying CI/release flows.
 - **CI covers the final revision.** For a PR-ready handoff, run the relevant local
   checks and require the applicable CI typecheck, build, and test checks to pass
@@ -151,13 +158,13 @@ Follow these rules:
 Broad local checks:
 
 ```sh
-pnpm -r typecheck
-pnpm test:run
-pnpm build
+bun run typecheck
+bun run test:run
+bun run build
 ```
 
-`pnpm test` and `pnpm test:run` run the full suite. If memory is limited, use
-`node scripts/typecheck-low-memory.mjs` instead of `pnpm -r typecheck`. See
+`bun run test` and `bun run test:run` run the full suite. If memory is limited, use
+`bun scripts/typecheck-low-memory.mjs` instead of `bun run typecheck`. See
 "Typecheck memory" in `doc/test-infrastructure.md`.
 
 ### Maps and Storybook
@@ -199,11 +206,25 @@ When you are asked to fix a bug, attempt to use test-driven development and prov
 4. Run the test and confirm that it passes.
 5. Verify that the fix worked: repeat the reproduction from step 1 and confirm that the error is gone.
 
-## 11. Pull Requests
+## 11. Commit Messages
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) for every
+commit:
+
+```text
+<type>(<optional scope>): <imperative summary>
+```
+
+Use a lowercase type such as `feat`, `fix`, `build`, `chore`, `docs`, `refactor`,
+`test`, or `ci`. Keep the subject concise and imperative. Add a body when the
+reason or migration impact is not clear from the subject. Do not use ad hoc
+commit-message formats.
+
+## 12. Pull Requests
 
 Fill in every section of [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md), however you create the pull request. Do not write an ad-hoc body. See "PR Requirements" in `CONTRIBUTING.md` for the details and thinking-path examples.
 
-## 12. Definition of Done
+## 13. Definition of Done
 
 A change is done when all are true:
 

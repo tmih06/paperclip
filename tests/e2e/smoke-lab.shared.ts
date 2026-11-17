@@ -74,7 +74,7 @@ async function createScout(request: APIRequestContext, companyId: string): Promi
         title: "Smoke Lab scout",
         capabilities: "Runs deterministic Smoke Lab fixture calls.",
         adapterType: "process",
-        adapterConfig: { command: "node", args: ["-e", "setTimeout(() => {}, 1000)"] },
+        adapterConfig: { command: "bun", args: ["-e", "setTimeout(() => {}, 1000)"] },
       },
     }),
   );

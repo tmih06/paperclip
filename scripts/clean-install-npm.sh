@@ -17,9 +17,9 @@ export npm_config_userconfig="$PC_HOME/.npmrc"
 export PATH="$PC_HOME/.local/bin:$PATH"
 
 if [ "$PC_INSTALL_DRIVER" = "published" ]; then
-  (cd "$PC_TEST_ROOT" && npx --yes --registry https://registry.npmjs.org paperclipai install)
+  (cd "$PC_TEST_ROOT" && bun x --bun --registry https://registry.npmjs.org paperclipai install)
 else
-  (cd "$REPO_ROOT" && pnpm paperclipai install --yes)
+  (cd "$REPO_ROOT" && bun run paperclipai install --yes)
 fi
 
 test -x "$PC_HOME/.local/bin/paperclipai"
@@ -29,7 +29,7 @@ paperclipai --version
 
 mkdir -p "$PAPERCLIP_HOME/instances/default"
 touch "$PAPERCLIP_HOME/instances/default/user-data-marker"
-(cd "$REPO_ROOT" && pnpm paperclipai uninstall)
+(cd "$REPO_ROOT" && bun run paperclipai uninstall)
 
 test ! -e "$PAPERCLIP_HOME/cli"
 test ! -e "$PC_HOME/.local/bin/paperclipai"

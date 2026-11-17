@@ -129,12 +129,12 @@ require_aws() {
 
 json_field() {
   local key="$1"
-  node -e 'const fs=require("fs");const o=JSON.parse(fs.readFileSync(0,"utf8"));let v=o;for(const k of process.argv[1].split("."))v=v?.[k];if(v!==undefined&&v!==null)process.stdout.write(String(v));' "$key"
+  bun -e 'const fs=require("fs");const o=JSON.parse(fs.readFileSync(0,"utf8"));let v=o;for(const k of process.argv[1].split("."))v=v?.[k];if(v!==undefined&&v!==null)process.stdout.write(String(v));' "$key"
 }
 
 stack_tag_value() {
   local key="$1"
-  node -e 'const fs=require("fs");const o=JSON.parse(fs.readFileSync(0,"utf8"));const tag=o.Stacks?.[0]?.Tags?.find((candidate)=>candidate.Key===process.argv[1]);if(tag?.Value)process.stdout.write(tag.Value);' "$key"
+  bun -e 'const fs=require("fs");const o=JSON.parse(fs.readFileSync(0,"utf8"));const tag=o.Stacks?.[0]?.Tags?.find((candidate)=>candidate.Key===process.argv[1]);if(tag?.Value)process.stdout.write(tag.Value);' "$key"
 }
 
 stack_output() {
@@ -264,7 +264,7 @@ probe() {
   harness_json="$(aws --region "$AWS_REGION_NAME" --no-cli-pager bedrock-agentcore-control get-harness \
     --harness-id "$PAPERCLIP_AWS_AGENTCORE_HARNESS_ID" \
     --harness-version "$PAPERCLIP_AWS_AGENTCORE_HARNESS_VERSION" --output json)"
-  printf '%s' "$harness_json" | node -e '
+  printf '%s' "$harness_json" | bun -e '
     const fs = require("fs");
     const h = JSON.parse(fs.readFileSync(0, "utf8")).harness;
     const expectedModel = process.env.PAPERCLIP_AWS_AGENTCORE_MODEL;
@@ -408,7 +408,7 @@ provision() {
   wait_for_endpoint_status "$harness_id" "$ENDPOINT_NAME"
   local endpoint_json endpoint_arn
   endpoint_json="$(aws_cli bedrock-agentcore-control get-harness-endpoint --harness-id "$harness_id" --endpoint-name "$ENDPOINT_NAME" --output json)"
-  endpoint_arn="$(printf '%s' "$endpoint_json" | node -e 'const fs=require("fs");const o=JSON.parse(fs.readFileSync(0,"utf8"));process.stdout.write(o.endpoint?.arn||o.harnessEndpointArn||o.endpointArn||o.arn||"")')"
+  endpoint_arn="$(printf '%s' "$endpoint_json" | bun -e 'const fs=require("fs");const o=JSON.parse(fs.readFileSync(0,"utf8"));process.stdout.write(o.endpoint?.arn||o.harnessEndpointArn||o.endpointArn||o.arn||"")')"
   [[ -n "$endpoint_arn" ]] || endpoint_arn="$harness_arn/endpoint/$ENDPOINT_NAME"
   mkdir -p "$LOCAL_DIR"
   umask 077
@@ -455,7 +455,7 @@ lab() {
   chmod 600 "$ACTIVE_FILE"
   trap 'rm -f "$ACTIVE_FILE"' EXIT INT TERM
   cd "$PACKAGE_DIR"
-  pnpm console:issue-thread
+  bun run console:issue-thread
 }
 
 destroy() {

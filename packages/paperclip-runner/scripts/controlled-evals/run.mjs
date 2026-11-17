@@ -117,10 +117,30 @@ export async function runControlledEval({ manifestPath, requestPath, outputPath,
   await writeFile(stagedCli, verified.runnerCli, { flag: 'wx', mode: 0o400 });
   await writeFile(stagedRunnerd, verified.runnerd, { flag: 'wx', mode: 0o500 });
   const stagedUrl = JSON.stringify(pathToFileURL(await realpath(stagedCli)).href), originalUrl = JSON.stringify(originalCliUrl);
-  await writeFile(loader, `import { registerHooks } from 'node:module';
-registerHooks({ resolve(specifier, context, nextResolve) {
-  return nextResolve(specifier, context.parentURL === ${stagedUrl} ? { ...context, parentURL: ${originalUrl} } : context);
-} });\n`, { flag: 'wx', mode: 0o400 });
+  // The staged CLI resolves its own relative imports from the original install,
+  // so a sibling next to the evidence directory can never shadow them.
+  // Bun has no `module.registerHooks`, so it rewrites the staged entry's
+  // relative specifiers with a resolver plugin; Node keeps the loader-hook path.
+  await writeFile(loader, `import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const stagedUrl = ${stagedUrl}, originalUrl = ${originalUrl}, stagedPath = fileURLToPath(stagedUrl);
+if (typeof Bun?.plugin === 'function') {
+  Bun.plugin({ name: 'paperclip-staged-controller', setup(build) {
+    build.onResolve({ filter: /^(?:\\.{0,2}\\/|file:)/ }, args => {
+      // Bun reports the entry as importer bun:main; only the staged entry's
+      // own relative specifiers are rewritten.
+      let importer;
+      try { importer = realpathSync(args.importer); } catch { return undefined; }
+      if (importer === stagedPath) return { path: fileURLToPath(new URL(args.path, originalUrl)) };
+      return undefined;
+    });
+  } });
+} else {
+  const { registerHooks } = await import('node:module');
+  registerHooks({ resolve(specifier, context, nextResolve) {
+    return nextResolve(specifier, context.parentURL === stagedUrl ? { ...context, parentURL: originalUrl } : context);
+  } });
+}\n`, { flag: 'wx', mode: 0o400 });
   const retainedRequestPath = join(root, 'request.json');
   const childRequest = structuredClone(request); childRequest.runnerd.path = stagedRunnerd;
   await writeFile(retainedRequestPath, JSON.stringify(childRequest) + '\n', { flag: 'wx', mode: 0o600 });

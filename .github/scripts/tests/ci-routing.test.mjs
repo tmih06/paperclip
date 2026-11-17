@@ -370,7 +370,7 @@ test("catalog placement retains downstream jobs and actual dispatch guard", () =
   assert.match(catalogAuthorize, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(catalogAuthorize, /persist-credentials: false/);
   assert.match(catalogAuthorize, /TESTOPS_ALLOWED_ACTOR_IDS: \$\{\{ vars\.RUNNER_E2E_ALLOWED_ACTOR_IDS \}\}/);
-  assert.match(catalogAuthorize, /run: node tests\/runner-e2e\/chat-completion-testops-cli\.mjs guard/);
+  assert.match(catalogAuthorize, /run: bun tests\/runner-e2e\/chat-completion-testops-cli\.mjs guard/);
   assert.doesNotMatch(catalogAuthorize, /secrets\.|environment:/);
 });
 

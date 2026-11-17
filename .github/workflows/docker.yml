@@ -281,7 +281,7 @@ jobs:
         if: needs.runner_image.outputs.mode != 'published'
         run: |
           set -euo pipefail
-          pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
+          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
 
           changed="$(git status --porcelain)"
           if [ -z "$changed" ]; then

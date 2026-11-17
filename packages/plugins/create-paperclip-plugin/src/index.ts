@@ -103,8 +103,8 @@ function packLocalPackage(packagePath: string, outputDir: string): string {
   const sdkBundleDir = path.join(outputDir, ".paperclip-sdk");
 
   fs.mkdirSync(sdkBundleDir, { recursive: true });
-  execFileSync("pnpm", ["build"], { cwd: packagePath, stdio: "pipe" });
-  execFileSync("pnpm", ["pack", "--pack-destination", sdkBundleDir], { cwd: packagePath, stdio: "pipe" });
+  execFileSync("bun", ["run", "build"], { cwd: packagePath, stdio: "pipe" });
+  execFileSync("bun", ["pm", "pack", "--destination", sdkBundleDir], { cwd: packagePath, stdio: "pipe" });
 
   const tarballPath = path.join(sdkBundleDir, tarballFileName);
   if (!fs.existsSync(tarballPath)) {

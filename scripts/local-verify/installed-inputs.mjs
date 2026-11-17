@@ -35,7 +35,7 @@ export function installedInputs(root, directories, append) {
     } else if (stat.isDirectory()) {
       if (workspaces.has(absolute)) { visit(path.join(absolute, "node_modules")); return; }
       const names = readdirSync(absolute).sort().filter(name => path.basename(absolute) !== "node_modules"
-        || ![".vite", ".vite-temp", ".cache"].includes(name));
+        || ![".vite", ".vite-temp", ".vitest-cache", ".cache"].includes(name));
       append(["installed-directory", absolute, String(stat.mode), names]);
       for (const name of names) visit(path.join(absolute, name));
     } else if (stat.isFile()) {

@@ -27,7 +27,7 @@ test('allows a pull request that does not change lock content', () => {
 test('blocks a contributor lockfile change', () => {
   const result = classifyPullRequest({ ...base, changedPaths: ['pnpm-lock.yaml'] });
   assert.equal(result.allowed, false);
-  assert.match(result.reason, /pnpm-lock\.yaml/);
+  assert.match(result.reason, /bun\.lock/);
 });
 
 test('blocks a contributor change to the reporting-lock proof', () => {
@@ -274,7 +274,7 @@ test('workflows run the trust policy from trusted code and pass the verified has
   assert.doesNotMatch(pr, /github\.head_ref != 'chore\/refresh-lockfile'/);
 
   const refresh = readFileSync('.github/workflows/refresh-lockfile.yml', 'utf8');
-  assert.match(refresh, /node \.github\/scripts\/lockfile-trust\.mjs merged/);
+  assert.match(refresh, /bun \.github\/scripts\/lockfile-trust\.mjs merged/);
   assert.match(refresh, /--refresh --trusted-lock-sha256 "\$TRUSTED_LOCK_SHA256"/);
   assert.ok(refresh.indexOf('lockfile-trust.mjs merged') < refresh.indexOf('--trusted-lock-sha256'));
 });

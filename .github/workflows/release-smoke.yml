@@ -369,7 +369,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]] || exit 1
-          [[ "$(node -p 'process.platform + "-" + process.arch')" == "$TARGET" ]] || exit 1
+          [[ "$(bun -p 'process.platform + "-" + process.arch')" == "$TARGET" ]] || exit 1
           mode=--mac-consumer
           if [[ "$TARGET" == linux-arm64 ]]; then mode=--linux-arm64-consumer; fi
           node scripts/verify-grok-npm-install.mjs "$mode" \

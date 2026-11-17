@@ -126,9 +126,9 @@ function ensureDaytonaPlugin(timeline: Timeline) {
   const state = pluginBuildState(root, extraInputs);
   timeline.add("daytona_plugin_build_state", { reason: state.reason, inputHash: state.inputHash });
   if (!state.needsBuild) return;
-  run("pnpm", ["install", "--ignore-workspace", "--frozen-lockfile", "--ignore-scripts"], root, "Daytona plugin install");
+  run("bun", ["install", "--frozen-lockfile", "--ignore-scripts"], root, "Daytona plugin install");
   run(process.execPath, [path.join(repositoryRoot, "scripts/link-plugin-dev-sdk.mjs")], repositoryRoot, "Plugin SDK link");
-  run("pnpm", ["--dir", root, "build"], repositoryRoot, "Daytona plugin build");
+  run("bun", ["run", "--cwd", root, "build"], repositoryRoot, "Daytona plugin build");
   writeFileSync(path.join(root, PLUGIN_BUILD_STAMP), `${state.inputHash}\n`);
   timeline.add("daytona_plugin_built", { inputHash: state.inputHash });
 }

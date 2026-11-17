@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -53,12 +52,11 @@ describe("worker phase timing", () => {
 
   it("recovers only completed segments after a real worker process is killed", async () => {
     const { file, result } = await fixture();
-    const loader = createRequire(new URL("../../cli/package.json", import.meta.url)).resolve("tsx");
     const module = pathToFileURL(path.join(import.meta.dirname, "worker-timing.ts")).href;
     const program = `import { createWorkerTiming } from ${JSON.stringify(module)};
       const recorder = await createWorkerTiming(${JSON.stringify(file)}, { executionId: "timing-case", attempt: 1 }, 1000);
       await recorder.enter("execution", 1200); process.stdout.write("checkpoint-ready"); setInterval(() => {}, 1000);`;
-    const child = spawn(process.execPath, ["--import", loader, "--input-type=module", "-e", program], { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, ["--input-type=module", "-e", program], { stdio: ["ignore", "pipe", "pipe"] });
     const closed = once(child, "close");
     try {
       await new Promise<void>((resolve, reject) => {

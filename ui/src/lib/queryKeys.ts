@@ -1,4 +1,5 @@
 export const queryKeys = {
+  network: (companyId: string) => ["network", companyId] as const,
   linkPreview: (companyId: string, userId: string | null, url: string) =>
     ["link-preview", companyId, userId, url] as const,
   workspacePreferences: {

@@ -170,7 +170,7 @@ done < <(printf '%s\n' "$PUBLIC_PACKAGE_INFO" | cut -f2)
 # package (see scripts/release-registry-versions.mjs).
 RELEASE_PACKAGE_VERSIONS_FILE="$(mktemp)"
 export RELEASE_PACKAGE_VERSIONS_FILE
-node "$REPO_ROOT/scripts/release-registry-versions.mjs" fetch "${PUBLIC_PACKAGE_NAMES[@]}" > "$RELEASE_PACKAGE_VERSIONS_FILE"
+bun "$REPO_ROOT/scripts/release-registry-versions.mjs" fetch "${PUBLIC_PACKAGE_NAMES[@]}" > "$RELEASE_PACKAGE_VERSIONS_FILE"
 
 TARGET_STABLE_VERSION="$(next_stable_version "$RELEASE_DATE" "${PUBLIC_PACKAGE_NAMES[@]}")"
 TARGET_PUBLISH_VERSION="$TARGET_STABLE_VERSION"
@@ -241,7 +241,7 @@ fi
 
 # Fresh (non-cached) existence check, batched in parallel. Prints the
 # offending package@version pairs itself before failing.
-node "$REPO_ROOT/scripts/release-registry-versions.mjs" assert-absent "$TARGET_PUBLISH_VERSION" "${PUBLIC_PACKAGE_NAMES[@]}" \
+bun "$REPO_ROOT/scripts/release-registry-versions.mjs" assert-absent "$TARGET_PUBLISH_VERSION" "${PUBLIC_PACKAGE_NAMES[@]}" \
   || release_fail "npm version ${TARGET_PUBLISH_VERSION} already exists for one or more packages."
 
 release_info ""
@@ -276,9 +276,9 @@ if [ "$skip_verify" = false ]; then
   release_info ""
   release_info "==> Step 1/7: Verification gate..."
   cd "$REPO_ROOT"
-  pnpm -r typecheck
-  pnpm test:run
-  pnpm build
+  bun run --workspaces --if-present typecheck
+  bun run test:run
+  bun run build
 else
   release_info ""
   release_info "==> Step 1/7: Verification gate skipped (--skip-verify)"
@@ -287,13 +287,13 @@ fi
 release_info ""
 release_info "==> Step 2/7: Building workspace artifacts..."
 cd "$REPO_ROOT"
-pnpm build
+bun run build
 if [ -n "${PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR:-}" ]; then
   pack_args=()
   if [ -n "${PAPERCLIP_RELEASE_PROVIDER_PACK_ARTIFACTS_DIR:-}" ]; then
     pack_args=("$PAPERCLIP_RELEASE_PROVIDER_PACK_ARTIFACTS_DIR")
   fi
-  node "$REPO_ROOT/packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs" \
+  bun "$REPO_ROOT/packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs" \
     assemble-daemons "$PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR" "$(git rev-parse HEAD)" "${pack_args[@]}"
   cp -R "$REPO_ROOT/packages/paperclip-runner/dist/bin/." "$REPO_ROOT/server/dist/vendor/paperclip-runner/bin/"
   if [ -d "$REPO_ROOT/packages/paperclip-runner/dist/remote-provider-packs" ]; then
@@ -302,7 +302,7 @@ if [ -n "${PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR:-}" ]; then
 elif [ "$dry_run" = false ]; then
   release_fail "Public releases require the four hosted runner daemon artifacts; use the supported Release workflow."
 fi
-node "$REPO_ROOT/scripts/build-standalone-public-packages.mjs"
+bun "$REPO_ROOT/scripts/build-standalone-public-packages.mjs"
 bash "$REPO_ROOT/scripts/prepare-server-ui-dist.sh"
 for pkg_dir in server packages/adapters/claude-local packages/adapters/codex-local; do
   rm -rf "$REPO_ROOT/$pkg_dir/skills"
@@ -321,7 +321,7 @@ release_info "==> Step 4/7: Building publishable CLI bundle..."
 release_info "  ✓ CLI bundle ready"
 
 VERSIONED_PACKAGE_INFO="$(list_public_package_info)"
-VERSION_IN_CLI_PACKAGE="$(node -e "console.log(require('$CLI_DIR/package.json').version)")"
+VERSION_IN_CLI_PACKAGE="$(bun -e 'console.log(require(process.argv[1]).version)' "$CLI_DIR/package.json")"
 if [ "$VERSION_IN_CLI_PACKAGE" != "$TARGET_PUBLISH_VERSION" ]; then
   release_fail "versioning drift detected. Expected $TARGET_PUBLISH_VERSION but found $VERSION_IN_CLI_PACKAGE."
 fi
@@ -364,17 +364,16 @@ if [ "$dry_run" = true ]; then
     preview_logs+=("$preview_log")
     (
       set -euo pipefail
-      cd "$REPO_ROOT/$pkg_dir"
-      publish_tool="$(package_publish_tool)"
-      if [ "$publish_tool" = "npm" ]; then
-        publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-package.XXXXXX")"
-        node "$REPO_ROOT/scripts/prepare-bundled-package.mjs" "$REPO_ROOT/$pkg_dir" "$publish_dir"
-        cd "$publish_dir"
-        run_bundled_npm_pack pack --pack-destination "$publish_dir" 2>&1 | tail -3
-        rm -rf "$publish_dir"
-      else
-        pnpm publish --dry-run --no-git-checks --tag "$DIST_TAG" 2>&1 | tail -3
-      fi
+      publish_tool="$(cd "$REPO_ROOT/$pkg_dir" && package_publish_tool)"
+      publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-package.XXXXXX")"
+      trap 'rm -rf "$publish_dir"' EXIT
+      stage_publish_package "$REPO_ROOT/$pkg_dir" "$publish_dir" "$publish_tool"
+      cd "$publish_dir"
+      # Preview the packed payload without contacting the registry: a
+      # `publish --dry-run` resolves the version against the live registry and
+      # fails for the already-published release version, which is exactly the
+      # version a dry run previews.
+      bun pm pack --dry-run --ignore-scripts 2>&1 | tail -12
     ) > "$preview_log" 2>&1 &
     preview_pids+=($!)
     if [ "$(( ${#preview_pids[@]} % preview_batch_size ))" -eq 0 ]; then
@@ -399,26 +398,20 @@ else
   while IFS=$'\t' read -r pkg_dir pkg_name pkg_version; do
     [ -z "$pkg_dir" ] && continue
     release_info "  Publishing $pkg_name@$pkg_version"
-    cd "$REPO_ROOT/$pkg_dir"
-    publish_tool="$(package_publish_tool)"
-    if [ "$publish_tool" = "npm" ]; then
-      publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-package.XXXXXX")"
-      node "$REPO_ROOT/scripts/prepare-bundled-package.mjs" "$REPO_ROOT/$pkg_dir" "$publish_dir"
-      cd "$publish_dir"
+    publish_tool="$(cd "$REPO_ROOT/$pkg_dir" && package_publish_tool)"
+    publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-package.XXXXXX")"
+    if ! stage_publish_package "$REPO_ROOT/$pkg_dir" "$publish_dir" "$publish_tool"; then
+      rm -rf "$publish_dir"
+      release_fail "stopping release: could not stage the publish payload for ${pkg_name}@${pkg_version}"
     fi
-    if ! publish_package_to_npm \
+    if ! (cd "$publish_dir" && publish_package_to_npm \
       "$DIST_TAG" \
       "$pkg_name" \
-      "$pkg_version" \
-      "$publish_tool"; then
-      if [ "$publish_tool" = "npm" ]; then
-        rm -rf "$publish_dir"
-      fi
+      "$pkg_version"); then
+      rm -rf "$publish_dir"
       release_fail "stopping release: npm did not accept the publish of ${pkg_name}@${pkg_version}"
     fi
-    if [ "$publish_tool" = "npm" ]; then
-      rm -rf "$publish_dir"
-    fi
+    rm -rf "$publish_dir"
     release_info "    ✓ npm accepted the publish"
   done <<< "$VERSIONED_PACKAGE_INFO"
   release_info "  ✓ npm accepted every package publish under dist-tag $DIST_TAG"

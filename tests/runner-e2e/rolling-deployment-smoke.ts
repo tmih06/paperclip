@@ -1,7 +1,7 @@
 import { makeDirectoryTreeRemovable } from "./directory-cleanup.js";
 /** Credential-free full-server overlap characterization. No model or Runner
  * continuity is claimed. Requires an explicitly selected disposable S3 service.
- * node --import ./cli/node_modules/tsx/dist/loader.mjs tests/runner-e2e/rolling-deployment-smoke.ts */
+ * bun tests/runner-e2e/rolling-deployment-smoke.ts */
 import assert from "node:assert/strict";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";

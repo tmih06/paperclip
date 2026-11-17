@@ -1,4 +1,5 @@
 FROM node:24-trixie-slim
+COPY --from=oven/bun:1.4.4-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e /usr/local/bin/bun /usr/local/bin/bun
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -17,8 +18,7 @@ RUN apt-get update \
 
 RUN ln -sf /usr/bin/fdfind /usr/local/bin/fd
 
-RUN corepack enable \
-  && npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest
+RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest
 
 RUN useradd --create-home --shell /bin/bash reviewer
 
@@ -26,8 +26,7 @@ ENV HOME=/home/reviewer \
   CODEX_HOME=/home/reviewer/.codex \
   CLAUDE_HOME=/home/reviewer/.claude \
   PAPERCLIP_HOME=/home/reviewer/.paperclip-review \
-  PNPM_HOME=/home/reviewer/.local/share/pnpm \
-  PATH=/home/reviewer/.local/share/pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 WORKDIR /work
 

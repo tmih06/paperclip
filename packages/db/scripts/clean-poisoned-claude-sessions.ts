@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 /**
  * One-shot cleaner for `agent_task_sessions` rows whose persisted `claude_local`
  * session is poisoned by a non-`msg_*` `previous_message_id`.

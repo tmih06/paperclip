@@ -6,7 +6,6 @@ import {
   chmodSync,
   copyFileSync,
   existsSync,
-  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -23,6 +22,8 @@ import { parseProviderPackArguments, materializeCandidateProviderPack, providerP
 import { smokeKimiProviderPack } from "./kimi-provider-pack-smoke.mjs";
 import { buildNodeStartupTimeout } from "./build-node-startup-timeout.mjs";
 import { writePortableExecutableShim, writePortableCopilotShims } from "./provider-pack-executable-shims.mjs";
+import { stageProviderPack, writeInstalledCommandShims, pinnedBunVersion } from "./provider-pack-portable-closure.mjs";
+import { MINIMUM_NODE_VERSION, resolvePinnedNode, resolvePinnedBun, stagePackInterpreter } from "./provider-pack-interpreters.mjs";
 import { providerPackLibc, removeControllerArtifactsFromProviderPack, removeForeignLibcPackagesFromProviderPack, sha256Tree } from "./provider-pack-runtime-tree.mjs";
 import { packContractDigest } from "./contracts/contract-fingerprints.mjs";
 
@@ -77,20 +78,15 @@ function writePortableNodeShim(name, entrypoint) {
 }
 
 try {
-  const deployed = spawnSync(
-    "pnpm",
-    [
-      "--filter",
-      "@paperclipai/paperclip-runner",
-      "deploy",
-      "--prod",
-      temporaryRoot,
-    ],
-    { cwd: workspaceRoot, encoding: "utf8", stdio: "inherit" },
-  );
-  if (deployed.status !== 0) {
-    throw new Error(`pnpm deploy failed with exit code ${deployed.status}`);
-  }
+  // Stage the workspace's own installed production closure. This replaces
+  // `pnpm deploy --prod`, which Bun has no equivalent for: a fresh install here
+  // would re-resolve the registry and drop the reviewed lockfile's patches,
+  // while the pack must carry the exact bytes the build qualified.
+  stageProviderPack({
+    packageRoot,
+    workspaceRoot,
+    destinationRoot: temporaryRoot,
+  });
   removeControllerArtifactsFromProviderPack(temporaryRoot);
   const foreignLibcPackages = removeForeignLibcPackagesFromProviderPack(temporaryRoot, providerPackLibc());
   if (foreignLibcPackages.length) {
@@ -98,7 +94,7 @@ try {
   }
 
   // Fail the image build if a bridge silently brings back an older/private
-  // provider CLI. A direct dependency alone does not deduplicate pnpm's graph.
+  // provider CLI. A direct dependency alone does not deduplicate the graph.
   const packRequire = createRequire(join(temporaryRoot, "package.json"));
   const codexAcpRequire = createRequire(packRequire.resolve("@agentclientprotocol/codex-acp/package.json"));
   if (realpathSync(codexAcpRequire.resolve("@openai/codex/package.json")) !==
@@ -110,41 +106,30 @@ try {
   // package-manager lifecycle hook or a second binary supply chain. The pack
   // manifest binds the copied bytes, platform, architecture, and minimum
   // version before any provider is launched.
-  const minimumNodeVersion = [24, 11, 0];
-  const actualNodeVersion = process.versions.node.split(".").map(Number);
-  if (
-    actualNodeVersion[0] < minimumNodeVersion[0] ||
-    (actualNodeVersion[0] === minimumNodeVersion[0] &&
-      (actualNodeVersion[1] < minimumNodeVersion[1] ||
-        (actualNodeVersion[1] === minimumNodeVersion[1] &&
-          actualNodeVersion[2] < minimumNodeVersion[2])))
-  ) {
-    throw new Error("Provider pack build Node is older than 24.11.0");
-  }
+  const pinnedNode = resolvePinnedNode({ packageRoot });
+  const pinnedBun = resolvePinnedBun({ pinnedVersion: pinnedBunVersion(workspaceRoot) });
   const stableNodeRoot = join(temporaryRoot, "node_modules", "node");
-  if (existsSync(stableNodeRoot)) {
-    throw new Error(
-      "Provider pack deployment unexpectedly claimed the stable Node path",
-    );
+  const stableBunRoot = join(temporaryRoot, "node_modules", "bun");
+  for (const claimed of [stableNodeRoot, stableBunRoot]) {
+    if (existsSync(claimed)) {
+      throw new Error(
+        `Provider pack deployment unexpectedly claimed the stable interpreter path ${claimed}`,
+      );
+    }
   }
-  const stableNodeCommand = join(stableNodeRoot, "bin", "node");
-  mkdirSync(dirname(stableNodeCommand), { recursive: true, mode: 0o755 });
-  copyFileSync(process.execPath, stableNodeCommand);
-  chmodSync(stableNodeCommand, 0o755);
-  // A freshly copied x64 Mach-O can stall when launched directly from a
-  // translated Node process. Select Rosetta explicitly for this build probe;
-  // native Intel and every other platform still execute the copied bytes directly.
-  const translated = process.platform === "darwin" && process.arch === "x64"
-    && spawnSync("/usr/sbin/sysctl", ["-n", "sysctl.proc_translated"], {
-      encoding: "utf8", timeout: 1_000,
-    }).stdout?.trim() === "1";
-  const relocatedNode = spawnSync(translated ? "/usr/bin/arch" : stableNodeCommand,
-    translated ? ["-x86_64", stableNodeCommand, "--version"] : ["--version"], {
-    cwd: temporaryRoot, env: { PATH: "/usr/bin:/bin" }, encoding: "utf8", timeout: buildNodeStartupTimeout(),
+  const stableNodeCommand = stagePackInterpreter({
+    source: pinnedNode.command,
+    destination: join(stableNodeRoot, "bin", "node"),
+    expectedVersion: pinnedNode.version,
   });
-  if (relocatedNode.status !== 0 || relocatedNode.stdout.trim() !== `v${process.versions.node}`) {
-    throw new Error("Provider pack Node is not portable after relocation; build with a standalone Node distribution");
-  }
+  // Bun runs the controller's sandbox commands, so the pack carries the pinned
+  // toolchain in its own directory. It is never an alias for Node: external
+  // provider SDKs keep the pack's Node, and each runtime has a distinct path.
+  const stableBunCommand = stagePackInterpreter({
+    source: pinnedBun.command,
+    destination: join(stableBunRoot, "bin", "bun"),
+    expectedVersion: pinnedBun.version,
+  });
 
   const candidateProviders = {};
   for (const provider of providerPackProviders(process.platform, process.arch, candidates)) {
@@ -158,14 +143,14 @@ try {
       sha256: sha256Tree(join(temporaryRoot, assetPath)) };
   }
 
-  // pnpm's generated .bin shims embed the temporary deployment directory in
-  // NODE_PATH. That makes an otherwise identical provider pack hash differ on
-  // every build and leaks a nonexistent host path after relocation. Replace
-  // every provider-facing shim with a pack-relative launcher that always uses
-  // the pinned Node executable owned by this pack.
+  // Every launcher this pack exposes is written here, pack-relative, so an
+  // identical provider pack hashes the same on every build and still resolves
+  // after relocation. `writeInstalledCommandShims` already linked the install's
+  // own command surface; the rest are the providers and bridges the image needs.
   // The image exposes these same installations to every adapter. Never add a
   // separate global/runner-only CLI version; refresh these packages and their
   // qualification digests together to the latest stable releases.
+  writeInstalledCommandShims(temporaryRoot, { packageRoot });
   writePortableNodeShim("codex", "@openai/codex/bin/codex.js");
   const claudeAcpRequire = createRequire(
     packRequire.resolve("@agentclientprotocol/claude-agent-acp/package.json"),
@@ -182,6 +167,7 @@ try {
     relative(realpathSync(join(temporaryRoot, "node_modules")), realpathSync(claudeExecutable)),
   );
   writePortableExecutableShim(temporaryRoot, "node", "node/bin/node");
+  writePortableExecutableShim(temporaryRoot, "bun", "bun/bin/bun");
   writePortableExecutableShim(temporaryRoot, "opencode", "opencode-ai/bin/opencode.exe");
   writePortableCopilotShims(temporaryRoot);
   writePortableNodeShim("acpx", "acpx/dist/cli.js");
@@ -193,21 +179,6 @@ try {
   writePortableNodeShim(
     "codex-acp",
     "@agentclientprotocol/codex-acp/dist/index.js",
-  );
-
-  // pnpm deploy may retain a workspace self-link under its virtual store. It
-  // points outside the immutable pack and is not needed by the deployed
-  // package, so it must not be staged or captured.
-  rmSync(
-    join(
-      temporaryRoot,
-      "node_modules",
-      ".pnpm",
-      "node_modules",
-      "@paperclipai",
-      "paperclip-runner",
-    ),
-    { recursive: true, force: true },
   );
 
   for (const shimName of readdirSync(
@@ -223,10 +194,10 @@ try {
   }
 
   // Exercise a clean import from the deployed dependency graph. This catches
-  // malformed patch hunks that can look correct in an existing pnpm store but
-  // land inside the wrong function when applied to a fresh acpx tarball.
+  // malformed patch hunks that can look correct in an existing install store
+  // but land inside the wrong function when applied to a fresh acpx tarball.
   const acpxImport = spawnSync(
-    join(temporaryRoot, "node_modules", "node", "bin", "node"),
+    stableNodeCommand,
     ["--input-type=module", "-e", 'await import("acpx/runtime")'],
     {
       cwd: temporaryRoot,
@@ -242,18 +213,45 @@ try {
     );
   }
 
+  // The pack also serves the controller's Bun sandbox commands, so prove the
+  // shim and the staged bytes agree before the manifest binds them. Both
+  // interpreters keep their own path; Bun is never an alias for Node.
+  const bunShimVersion = spawnSync(stableBunCommand, ["--version"], {
+    cwd: temporaryRoot, encoding: "utf8", timeout: buildNodeStartupTimeout(),
+    env: { PATH: join(temporaryRoot, "node_modules", ".bin") },
+  });
+  if (bunShimVersion.status !== 0 || bunShimVersion.stdout.trim() !== pinnedBun.version) {
+    throw new Error(`Provider pack Bun does not run as bun ${pinnedBun.version}: ${String(bunShimVersion.stderr ?? "").trim().slice(-2_000)}`);
+  }
+  const bunOnPath = spawnSync(join(temporaryRoot, "node_modules", ".bin", "bun"), ["--version"], {
+    cwd: temporaryRoot, encoding: "utf8", timeout: buildNodeStartupTimeout(), env: { PATH: "/usr/bin:/bin" },
+  });
+  if (bunOnPath.status !== 0 || bunOnPath.stdout.trim() !== pinnedBun.version) {
+    throw new Error(`Provider pack bun command is not portable: ${String(bunOnPath.stderr ?? "").trim().slice(-2_000)}`);
+  }
+  const nodeShimVersion = spawnSync(join(temporaryRoot, "node_modules", ".bin", "node"), ["--version"], {
+    cwd: temporaryRoot, encoding: "utf8", timeout: buildNodeStartupTimeout(), env: { PATH: "/usr/bin:/bin" },
+  });
+  if (nodeShimVersion.status !== 0 || nodeShimVersion.stdout.trim() !== `v${pinnedNode.version}`) {
+    throw new Error(`Provider pack node command is not portable: ${String(nodeShimVersion.stderr ?? "").trim().slice(-2_000)}`);
+  }
+
   const opencodeProxyPath = "dist/cli/opencode-app-server-proxy.cjs";
   const acpxSidecarPath = "dist/cli/acpx-runtime-sidecar.cjs";
   const opencodeCommand = "node_modules/.bin/opencode";
   const opencodeExecutable = "node_modules/opencode-ai/bin/opencode.exe";
   const nodeCommand = "node_modules/node/bin/node";
-  const productionLock = "pnpm-lock.yaml";
+  const bunCommand = "node_modules/bun/bin/bun";
+  const bunExecutable = "node_modules/.bin/bun";
+  const productionLock = "bun.lock";
   copyFileSync(
-    join(workspaceRoot, "pnpm-lock.yaml"),
+    join(workspaceRoot, "bun.lock"),
     join(temporaryRoot, productionLock),
   );
   for (const relativePath of [
     nodeCommand,
+    bunCommand,
+    bunExecutable,
     productionLock,
     opencodeProxyPath,
     acpxSidecarPath,
@@ -300,7 +298,7 @@ try {
     // by a controller whose bundled pack records the same value.
     contractDigest: packContractDigest(workspaceRoot),
     pins: {
-      nodeMinimum: minimumNodeVersion.join("."),
+      nodeMinimum: MINIMUM_NODE_VERSION.join("."),
       codex: profiles.profiles.codex.agentRuntimeVersion,
       opencode: "1.18.34",
       acpx: profiles.acpxVersion,
@@ -327,6 +325,11 @@ try {
         profiles.profiles.codex.commandDigest,
     },
     ...providerPackManifestFields(candidateProviders, candidates),
+    // The versions of the two interpreters the pack carries, so a controller can
+    // state what it is about to run without reading the binaries. `pins` stays
+    // the provider contract the server compares byte for byte; this is pack
+    // content, like `providers`.
+    runtimeVersions: { node: pinnedNode.version, bun: pinnedBun.version },
     artifacts: {
       grokLauncher: {
         path: "dist/providers/grok/launcher.cjs",
@@ -335,6 +338,16 @@ try {
       nodeCommand: {
         path: nodeCommand,
         sha256: sha256File(join(temporaryRoot, nodeCommand)),
+      },
+      // The sandbox's Bun, bound by the same artifact contract as Node: a fixed
+      // pack path plus the digest of the exact bytes staged there.
+      bunCommand: {
+        path: bunCommand,
+        sha256: sha256File(join(temporaryRoot, bunCommand)),
+      },
+      bunExecutable: {
+        path: bunExecutable,
+        sha256: sha256File(join(temporaryRoot, bunExecutable)),
       },
       productionLock: {
         path: productionLock,

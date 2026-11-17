@@ -65,9 +65,8 @@ describe("staging-mix options", () => {
   });
 
   it("loads from any entry module without an import cycle", () => {
-    const tsx = new URL("../../cli/node_modules/tsx/dist/cli.mjs", import.meta.url).pathname;
     for (const entry of ["./staging-mix-run.ts", "./staging-mix.ts", "./observer.ts", "./scheduler.ts"]) {
-      const out = execFileSync(process.execPath, [tsx, "-e", `import(${JSON.stringify(new URL(entry, import.meta.url).pathname)}).then(() => console.log("ok"))`],
+      const out = execFileSync(process.execPath, ["--eval", `import(${JSON.stringify(new URL(entry, import.meta.url).pathname)}).then(() => console.log("ok"))`],
         { encoding: "utf8", timeout: 60_000 });
       expect(out.trim()).toBe("ok");
     }

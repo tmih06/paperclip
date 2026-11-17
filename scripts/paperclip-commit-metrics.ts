@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env bun
 
 import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";

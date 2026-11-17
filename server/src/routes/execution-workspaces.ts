@@ -466,11 +466,10 @@ export function executionWorkspaceRoutes(db: Db, opts: { pluginWorkerManager?: P
         if (!baseWorkspaceCwd) {
           throw new Error("Workspace repair source is not bound to a registered base project workspace.");
         }
-        const cliRunner = path.join(baseWorkspaceCwd, "cli", "node_modules", "tsx", "dist", "cli.mjs");
         const cliEntry = path.join(baseWorkspaceCwd, "cli", "src", "index.ts");
         const cliDist = path.join(baseWorkspaceCwd, "cli", "dist", "index.js");
-        repairCliArgs = isReadableFile(cliRunner) && isReadableFile(cliEntry)
-          ? [cliRunner, cliEntry]
+        repairCliArgs = isReadableFile(cliEntry)
+          ? [cliEntry]
           : isReadableFile(cliDist)
             ? [cliDist]
             : null;

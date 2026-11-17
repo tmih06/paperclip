@@ -177,7 +177,7 @@ export function buildPluginInstallRequest(
 export function renderLocalPluginInstallHint(packagePath: string): string {
   return [
     pc.dim("Local plugin installs run trusted local code from your machine."),
-    pc.dim(`Keep ${pc.cyan("pnpm dev")} running in ${packagePath}; Paperclip watches rebuilt dist output and reloads the plugin worker.`),
+    pc.dim(`Keep ${pc.cyan("bun run dev")} running in ${packagePath}; Paperclip watches rebuilt dist output and reloads the plugin worker.`),
   ].join("\n");
 }
 
@@ -291,7 +291,7 @@ export function buildPluginInitNextCommands(outputDir: string): string[] {
   return [
     `cd ${quotedOutputDir}`,
     "pnpm install",
-    "pnpm dev",
+    "bun run dev",
     `paperclipai plugin install ${quotedOutputDir}`,
   ];
 }

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Trusted release tooling. Packaging runs without publish credentials; publishing
 // accepts only the two fixed package artifacts and never executes their scripts.
 import { execFileSync } from "node:child_process";
@@ -141,7 +141,7 @@ export function packPreview(source, output, sha, { exec = execFileSync } = {}) {
   if (exec("git", ["rev-parse", "HEAD"], { cwd: source, encoding: "utf8" }).trim() !== sha) throw new Error("Source checkout differs from the requested commit.");
   mkdirSync(output, { recursive: true });
   for (const short of ["shared", "db"]) {
-    exec("pnpm", ["--filter", `@paperclipai/${short}`, "build"], { cwd: source, stdio: "inherit" });
+    exec("bun", ["run", "--filter", `@paperclipai/${short}`, "build"], { cwd: source, stdio: "inherit" });
     const packageDir = path.join(source, "packages", short);
     const originalText = readFileSync(path.join(packageDir, "package.json"), "utf8");
     const original = JSON.parse(originalText);
@@ -149,7 +149,7 @@ export function packPreview(source, output, sha, { exec = execFileSync } = {}) {
     const staging = path.join(output, `package-${short}`);
     if ((pkg.bundleDependencies ?? []).length) {
       // The established helper materializes patched embedded-postgres instead
-      // of publishing pnpm's dependency symlinks.
+      // of publishing the workspace's dependency links.
       writeFileSync(path.join(packageDir, "package.json"), JSON.stringify(pkg));
       try { prepareBundledPackage(packageDir, staging, { sourceRoot: source }); }
       finally { writeFileSync(path.join(packageDir, "package.json"), originalText); }
@@ -158,7 +158,7 @@ export function packPreview(source, output, sha, { exec = execFileSync } = {}) {
       cpSync(path.join(packageDir, "dist"), path.join(staging, "dist"), { recursive: true });
       writeFileSync(path.join(staging, "package.json"), JSON.stringify(pkg));
     }
-    const packed = JSON.parse(exec("npx", ["--yes", "npm@10.9.7", "pack", "--ignore-scripts", "--json", "--pack-destination", output], { cwd: staging, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }));
+    const packed = JSON.parse(exec("bun", ["x", "--yes", "npm@10.9.7", "pack", "--ignore-scripts", "--json", "--pack-destination", output], { cwd: staging, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }));
     renameSync(path.join(output, path.basename(packed[0].filename)), path.join(output, `${short}.tgz`));
     assertMetadata(tarManifest(readFileSync(path.join(output, `${short}.tgz`))), `@paperclipai/${short}`, sha);
   }

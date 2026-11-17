@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Runs the calling package's tsc, honoring the repository's low-memory mode.
 //
 // TypeScript 7 is a native binary, so Node heap flags do not limit it. Each
@@ -15,6 +15,7 @@
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 export const LOW_MEMORY_VARIABLE = "PAPERCLIP_TYPECHECK_LOW_MEMORY";
@@ -31,7 +32,7 @@ export function emitOnlyTscArgs(env = process.env) {
 }
 
 export function runTsc(args, { cwd = process.cwd(), env = process.env } = {}) {
-  const tsc = path.join(cwd, "node_modules", "typescript", "bin", "tsc");
+  const tsc = path.join(path.dirname(createRequire(path.join(cwd, "package.json")).resolve("typescript/package.json")), "bin", "tsc");
   // tsc only accepts -b as its first argument, so the caller's arguments go first.
   const result = spawnSync(process.execPath, [tsc, ...args, ...lowMemoryTscArgs(env), ...emitOnlyTscArgs(env)], {
     cwd,

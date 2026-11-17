@@ -144,7 +144,7 @@ export async function stageProviderPackLayers(input: {
   }));
   if (capability.exitCode !== 0 || capability.timedOut) return false;
   const reused = await measure("provider_pack.archive.reuse", () => runner.execute({
-    command: "node", args: ["-e", reuseScript, spec], bypassSession: true, timeoutMs: 60_000,
+    command: "bun", args: ["-e", reuseScript, spec], bypassSession: true, timeoutMs: 60_000,
   }));
   if (reused.exitCode !== 0 || reused.timedOut) throw Error("runner_remote_provider_archive_reuse_failed");
   let missing: number[];

@@ -10,15 +10,15 @@ subsystem behaves belong in that subsystem's doc; see
 ## Prerequisites
 
 - Node.js 24.11+
-- pnpm 9+
+- Bun 1.4.4 for dependency installation and workspace scripts
 
 ## Start Dev
 
 From repo root:
 
 ```sh
-pnpm install
-pnpm dev
+bun install --frozen-lockfile
+bun run dev
 ```
 
 This starts:
@@ -26,7 +26,12 @@ This starts:
 - API server: `http://localhost:3100`
 - UI: served by the API server in dev middleware mode (same origin as API)
 
-`pnpm dev` runs the server in watch mode and restarts on changes from workspace packages (including adapter packages). Use `pnpm dev:once` to run without file watching.
+`bun run dev` runs the server in watch mode and restarts on changes from workspace packages (including adapter packages). Use `bun run dev:once` to run without file watching. The application still runs on Node.js 24. Vite+ provides the frontend server, Vitest, Oxlint, and Oxfmt.
+
+Use `bun run lint` for Oxlint, `bun run format:check` to check formatting, and
+`bun run format` to apply Oxfmt. Use `bun run verify` for affected tests.
+Dependency patches and overrides live in the root `package.json`; `bun.lock`
+is the Bun install lockfile.
 
 `pnpm dev:once` auto-applies pending local migrations by default before starting the dev server.
 

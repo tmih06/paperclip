@@ -667,10 +667,6 @@ describe("runChildProcess", () => {
     const serverUtilsUrl = pathToFileURL(
       path.join(import.meta.dirname, "server-utils.ts"),
     ).href;
-    const tsxCli = path.resolve(
-      import.meta.dirname,
-      "../../../cli/node_modules/tsx/dist/cli.mjs",
-    );
 
     try {
       await fs.writeFile(
@@ -726,7 +722,7 @@ describe("runChildProcess", () => {
         "utf8",
       );
 
-      const completed = await execFile(process.execPath, [tsxCli, harnessPath], {
+      const completed = await execFile(process.execPath, [harnessPath], {
         cwd: process.cwd(),
         timeout: 10_000,
       });

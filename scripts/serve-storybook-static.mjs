@@ -56,9 +56,9 @@ const MIME = {
   ".mp4": "video/mp4",
 };
 
+// Bun loads the server TypeScript sources directly. Express is still resolved
+// through the server package, which owns that dependency.
 const serverRequire = createRequire(new URL("../server/package.json", import.meta.url));
-const { register } = await import(serverRequire.resolve("tsx/esm/api"));
-register();
 const express = serverRequire("express");
 const { agentAvatarRoutes } = await import("../server/src/routes/agent-avatars.ts");
 const { createAgentAvatarService } = await import("../server/src/services/agent-avatars.ts");

@@ -2,7 +2,7 @@ import { registerRuntimeCommands } from "./commands/runtime.js";
 import { registerEmailCommands } from "./commands/client/email.js";
 import { registerMcpCommands } from "./commands/mcp.js";
 import { Command } from "commander";
-import { warnIfUnsupportedNodeVersion } from "@paperclipai/shared/node-version";
+import { warnIfUnsupportedBunVersion } from "@paperclipai/shared/bun-version";
 import { onboard } from "./commands/onboard.js";
 import { doctor } from "./commands/doctor.js";
 import { envCommand } from "./commands/env.js";
@@ -281,7 +281,7 @@ registerClientAuthCommands(auth);
 registerMcpCommands(program);
 
 async function main(): Promise<void> {
-  warnIfUnsupportedNodeVersion(process.versions.node, (message) => console.warn(message));
+  warnIfUnsupportedBunVersion((message) => console.warn(message));
 
   let failed = false;
   try {

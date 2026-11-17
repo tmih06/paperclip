@@ -92,7 +92,7 @@ async function main() {
   const scout = await api("POST", `/api/companies/${companyId}/agents`, {
     name: `Smoke Scout ${Date.now()}`, role: "qa", title: "Smoke Lab scout",
     capabilities: "Runs deterministic Smoke Lab fixture calls.",
-    adapterType: "process", adapterConfig: { command: "node", args: ["-e", "setTimeout(()=>{},1000)"] },
+    adapterType: "process", adapterConfig: { command: "bun", args: ["-e", "setTimeout(()=>{},1000)"] },
   });
   console.log(`company=${companyId} prefix=${prefix} scout=${scout.id}`);
 

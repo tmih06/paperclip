@@ -73,7 +73,7 @@ function collectedEntries(repoRoot) {
   const directory = mkdtempSync(path.join(os.tmpdir(), "chat-durations-"));
   try {
     const output = path.join(directory, "list.json");
-    const result = spawnSync("pnpm", ["exec", "vitest", "list", "--exclude", "**/dist/**", "--project", "@paperclipai/server",
+    const result = spawnSync("bun", ["x", "--bun", "--no-install", "vitest", "list", "--exclude", "**/dist/**", "--project", "@paperclipai/server",
       chatSuite, "--allowOnly=false", "--includeTaskLocation", `--json=${output}`], { cwd: repoRoot, stdio: "inherit" });
     assert.equal(result.status, 0, "vitest list failed");
     return [...new Set(JSON.parse(readFileSync(output, "utf8")).map((test) => test.name))];

@@ -147,11 +147,11 @@ test("background checks run at a lower CPU priority than the critical path", { s
 test("the PR typecheck job runs the lane after the Runner release crate restore", () => {
   const workflow = readFileSync(new URL("../../.github/workflows/pr-trusted.yml", import.meta.url), "utf8");
   const job = workflow.split("\n  typecheck_release_registry:\n")[1].split("\n  general_tests:\n")[0];
-  const lane = job.indexOf("run: node scripts/ci-typecheck-lane.mjs");
+  const lane = job.indexOf("run: bun scripts/ci-typecheck-lane.mjs");
   assert.ok(lane > job.indexOf("- name: Mark the restored Runner release crate current"));
   const missingScript = "if: ${{ hashFiles('scripts/ci-typecheck-lane.mjs') == '' }}";
   const [beforeFallback, fallback] = job.split(missingScript);
-  assert.ok(beforeFallback.includes("if: ${{ hashFiles('scripts/ci-typecheck-lane.mjs') != '' }}\n        run: node scripts/ci-typecheck-lane.mjs"));
+  assert.ok(beforeFallback.includes("if: ${{ hashFiles('scripts/ci-typecheck-lane.mjs') != '' }}\n        run: bun scripts/ci-typecheck-lane.mjs"));
   for (const command of ["typecheck:build-gaps", "typecheck-test-programs.mjs", "typecheck-test-projects.mjs", "test:release-registry"]) {
     assert.ok(!beforeFallback.includes(command), command);
     assert.ok(fallback.includes(command), command);

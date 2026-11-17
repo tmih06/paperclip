@@ -92,29 +92,25 @@ describe("env-lab cleanup command hint", () => {
     return tokens;
   }
 
-  // Return the two path arguments from the `node` command.
+  // Return the entry path from the Bun command.
   function extractPaths(command: string): string[] {
     const tokens = tokenizePosix(command);
-    return tokens.slice(1, 3);
+    return tokens.slice(1, 2);
   }
 
-  it("resolves both CLI paths to absolute paths", () => {
+  it("resolves the CLI entry to an absolute path", () => {
     const command = buildEnvLabCleanupCommand();
     const paths = extractPaths(command);
 
-    expect(paths).toHaveLength(2);
+    expect(paths).toHaveLength(1);
     for (const resolved of paths) {
       expect(path.isAbsolute(resolved)).toBe(true);
     }
     expect(command.endsWith("env-lab down")).toBe(true);
   });
 
-  it("points at the checked-out tsx runner and cli source entry", () => {
-    const [tsxBin, entry] = extractPaths(buildEnvLabCleanupCommand());
-
-    expect(tsxBin).toContain(
-      path.join("cli", "node_modules", "tsx", "dist", "cli.mjs"),
-    );
+  it("points at the cli source entry without a transpiler", () => {
+    const [entry] = extractPaths(buildEnvLabCleanupCommand());
     expect(entry).toContain(path.join("cli", "src", "index.ts"));
   });
 
@@ -156,16 +152,14 @@ describe("env-lab cleanup command hint", () => {
     it(`keeps a checkout path with ${label} inert in the cleanup hint`, () => {
       const command = buildEnvLabCleanupCommand({ invocation: sourceInvocation(root) });
       const tokens = tokenizePosix(command);
-      const tsxBin = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
       const entry = path.join(root, "src", "index.ts");
 
       // The shell reads the exact paths as single argument tokens. It does not
       // split the paths or run the embedded construct.
-      expect(tokens).toEqual(["node", tsxBin, entry, "env-lab", "down"]);
+      expect(tokens).toEqual(["bun", entry, "env-lab", "down"]);
 
       // The old double-quoted form left `$(...)`, a backtick pair, and `$NAME`
       // live. Do not restore it.
-      expect(command).not.toContain(`"${tsxBin}"`);
       expect(command).not.toContain(`"${entry}"`);
     });
   }
@@ -210,9 +204,8 @@ describe("env-lab cleanup command hint", () => {
     });
     const tokens = tokenizePosix(command);
 
-    // The published package ships one `dist/index.js` file and no tsx runner, so
-    // node runs that file directly.
-    expect(tokens).toEqual(["node", path.join("/opt/pkg", "dist", "index.js"), "env-lab", "down"]);
+    // Bun runs the published dist entry directly.
+    expect(tokens).toEqual(["bun", path.join("/opt/pkg", "dist", "index.js"), "env-lab", "down"]);
     expect(command).not.toContain("tsx");
     expect(command).not.toContain(path.join("src", "index.ts"));
   });
@@ -225,7 +218,7 @@ describe("env-lab cleanup command hint", () => {
 
     // The shell reads the exact bundled path as one token and runs no embedded
     // command.
-    expect(tokens).toEqual(["node", entry, "env-lab", "down"]);
+    expect(tokens).toEqual(["bun", entry, "env-lab", "down"]);
     expect(command).not.toContain(`"${entry}"`);
   });
 });

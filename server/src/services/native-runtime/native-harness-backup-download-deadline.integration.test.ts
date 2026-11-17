@@ -79,7 +79,7 @@ describeEmbeddedPostgres("durable native backup download deadlines", () => {
     await writeFile(join(root, "manifest.json"), manifest, { mode: 0o600 });
     const sourceRoot = join(home, "qualified-provider-pack");
     await mkdir(sourceRoot);
-    const original = { nodeCommand: "qualified Node executable", opencodeExecutable: "qualified OpenCode executable",
+    const original = { bunCommand: "qualified Bun executable", opencodeExecutable: "qualified OpenCode executable",
       opencodeProxy: `qualified proxy bytes ${randomUUID()}` };
     const artifacts = Object.fromEntries(await Promise.all(Object.entries(original).map(async ([name, bytes]) => {
       await writeFile(join(sourceRoot, name), bytes, { mode: 0o500 });

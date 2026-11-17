@@ -149,7 +149,7 @@ jobs:
       - name: Build and pack exact-source preview packages
         env:
           SOURCE_SHA: ${{ inputs.source_ref }}
-        run: node trusted/scripts/preview-artifacts.mjs pack source packages "$SOURCE_SHA"
+        run: bun trusted/scripts/preview-artifacts.mjs pack source packages "$SOURCE_SHA"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: preview-packages

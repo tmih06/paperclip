@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MIN_NODE_MAJOR=24
-MIN_NODE_MINOR=11
-MIN_NODE_PATCH=0
-MIN_NODE_VERSION="${MIN_NODE_MAJOR}.${MIN_NODE_MINOR}.${MIN_NODE_PATCH}"
-DEFAULT_NODE_MAJOR=24
+# Pinned Bun release used to bootstrap Paperclip. The install path is: use a Bun
+# already on the machine when it is at least this version, otherwise download the
+# pinned artifact from the public registry and verify it against the SHA-256 pins
+# in bun_artifact_sha256 before executing anything.
+BUN_VERSION="1.4.4"
 PAPERCLIP_PACKAGE="paperclipai"
 PUBLIC_NPM_REGISTRY="https://registry.npmjs.org"
-HOMEBREW_INSTALL_COMMIT="99e13e96cbbdc1ac1ac09c0a40b450bf219ef3aa"
-HOMEBREW_INSTALL_SHA256="99287f194a8b3c9e6b0203a11a5fa54518be57209343e6bb954dec4635796d9d"
-NODESOURCE_DISTRIBUTIONS_COMMIT="9b431d8ae0f10df272598585855c6eca6c0e1bd2"
-NODESOURCE_DEB_SHA256="6e3d580f5bd7ccf2aa1e8df8d35c60d78e873c3ff8beb282c9bebd914904ad72"
-NODESOURCE_RPM_SHA256="5550ad302050f887377a0451e720b800466573ebc83392fea80924393dba642b"
+BUN_ARTIFACT_REGISTRY="${PAPERCLIP_INSTALL_BUN_REGISTRY:-$PUBLIC_NPM_REGISTRY}"
 
 CANARY=0
 VERSION=""
@@ -31,7 +27,7 @@ if [ -z "${BASH_SOURCE[0]:-}" ] || [ ! -f "${BASH_SOURCE[0]}" ]; then
 fi
 
 usage() {
-  cat <<'EOF'
+  cat <<EOF
 Install Paperclip on macOS, Linux, or WSL2.
 
 Usage:
@@ -52,8 +48,13 @@ Options:
 Every option also has a PAPERCLIP_INSTALL_* environment equivalent, for example
 PAPERCLIP_INSTALL_VERSION=2026.722.0 and PAPERCLIP_INSTALL_NO_PROMPT=1.
 
+Paperclip runs on Bun ${BUN_VERSION} or newer. Pinned Bun ${BUN_VERSION} is installed into
+~/.bun/bin when no suitable Bun is available; the download is verified against a
+SHA-256 pin and needs no elevated privileges. Node.js is not required to install
+or run Paperclip, though external agent providers may need it.
+
 To install from a git branch, tag, or commit, use the Paperclip CLI directly:
-npx paperclipai install --ref <ref>
+bun x paperclipai install --ref <ref>
 EOF
 }
 
@@ -165,7 +166,7 @@ if [ "$CANARY" = "1" ] && [ -n "$VERSION" ]; then
 fi
 
 if [ -n "$REF" ] || [ -n "$REPO" ]; then
-  fail "git-ref installs are not supported by install.sh; run 'npx paperclipai install --ref <ref>' instead"
+  fail "git-ref installs are not supported by install.sh; run 'bun x paperclipai install --ref <ref>' instead"
 fi
 
 if { [ ! -t 0 ] || [ ! -t 1 ]; } && [ "$NO_PROMPT" != "1" ]; then
@@ -193,21 +194,108 @@ esac
 
 log "Detected $OS_NAME/$ARCH_NAME"
 
-has_supported_node() {
-  local version major minor patch
-  command -v node >/dev/null 2>&1 || return 1
-  version="$(node --version 2>/dev/null || true)"
-  version="${version#v}"
-  IFS=. read -r major minor patch <<< "$version"
-  patch="${patch%%-*}"
-  [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ && "$patch" =~ ^[0-9]+$ ]] || return 1
-  if [ "$major" -lt "$MIN_NODE_MAJOR" ] ||
-    { [ "$major" -eq "$MIN_NODE_MAJOR" ] && [ "$minor" -lt "$MIN_NODE_MINOR" ]; } ||
-    { [ "$major" -eq "$MIN_NODE_MAJOR" ] && [ "$minor" -eq "$MIN_NODE_MINOR" ] && [ "$patch" -lt "$MIN_NODE_PATCH" ]; }; then
-    return 1
+if [ -n "${HOME:-}" ]; then
+  BUN_DIR="${BUN_INSTALL:-$HOME/.bun}"
+else
+  BUN_DIR="${BUN_INSTALL:-}"
+fi
+
+bun_version() {
+  "$1" --version 2>/dev/null | head -n 1 | tr -d '[:space:]'
+}
+
+# Succeeds when version $1 is greater than or equal to version $2.
+version_at_least() {
+  local have major_a minor_a patch_a major_b minor_b patch_b
+  have="${1#v}"
+  have="${have%%-*}"
+  IFS=. read -r major_a minor_a patch_a <<<"$have"
+  IFS=. read -r major_b minor_b patch_b <<<"${2#v}"
+  [[ "$major_a" =~ ^[0-9]+$ && "$minor_a" =~ ^[0-9]+$ && "$patch_a" =~ ^[0-9]+$ ]] || return 1
+  if [ "$major_a" -ne "$major_b" ]; then
+    [ "$major_a" -gt "$major_b" ]
+    return
   fi
-  command -v npm >/dev/null 2>&1 || return 1
-  command -v npx >/dev/null 2>&1 || return 1
+  if [ "$minor_a" -ne "$minor_b" ]; then
+    [ "$minor_a" -gt "$minor_b" ]
+    return
+  fi
+  [ "$patch_a" -ge "$patch_b" ]
+}
+
+cpu_supports_avx2() {
+  case "$OS_NAME" in
+    macos) sysctl -a 2>/dev/null | grep machdep.cpu | grep -qi 'avx2' ;;
+    *) grep -qi 'avx2' /proc/cpuinfo 2>/dev/null ;;
+  esac
+}
+
+running_under_rosetta() {
+  [ "$OS_NAME" = "macos" ] || return 1
+  [ "$(sysctl -n sysctl.proc_translated 2>/dev/null || true)" = "1" ]
+}
+
+# Prints the @oven/bun-<platform> package suffix for this machine.
+detect_bun_platform() {
+  local platform
+  case "$OS_NAME-$ARCH_NAME" in
+    macos-x64) platform="darwin-x64" ;;
+    macos-arm64) platform="darwin-aarch64" ;;
+    linux-x64) platform="linux-x64" ;;
+    linux-arm64) platform="linux-aarch64" ;;
+    *) fail "unsupported platform: $OS_NAME/$ARCH_NAME" ;;
+  esac
+
+  if [ "$platform" = "darwin-x64" ] && running_under_rosetta; then
+    log "Rosetta 2 detected; installing the native arm64 Bun build"
+    platform="darwin-aarch64"
+  fi
+
+  if [ "$OS_NAME" = "linux" ] && [ -f /etc/alpine-release ]; then
+    platform="$platform-musl"
+  fi
+
+  # Bun publishes a -baseline build for x64 hosts without AVX2.
+  case "$platform" in
+    darwin-x64|linux-x64*)
+      cpu_supports_avx2 || platform="$platform-baseline"
+      ;;
+  esac
+
+  printf '%s' "$platform"
+}
+
+# SHA-256 pins reviewed from the @oven/bun-<platform>@${BUN_VERSION} artifacts on
+# the public registry. The installer refuses any artifact whose digest differs
+# from the pin shipped in this script, so a changed or substituted artifact stops
+# the install instead of running.
+bun_artifact_sha256() {
+  case "$1" in
+    darwin-aarch64) printf '%s' "be5f17d636d699b2eaa2c1a8ac802c87f0815ccb5fe26cbe63d2395354ae5d0d" ;;
+    darwin-x64) printf '%s' "b26de5639edc6f7fbe99c6dcf8016eaa75c5b86cccfe83db30aa04bbeade8f7e" ;;
+    darwin-x64-baseline) printf '%s' "1f4b4d1fa9e3b1dcb7890e4594703c7d5fac54c950964d89a2770760bc2cacbd" ;;
+    linux-x64) printf '%s' "93ca5a2abe45f3bcac6dd55baff8bb06c4ac824b70f89650b54e5c8b80dbef18" ;;
+    linux-x64-baseline) printf '%s' "2ce69fadd00b741513c52adb8aad3fbee93170d0abaa3b6d04df47ca8659bd40" ;;
+    linux-x64-musl) printf '%s' "284a0bfe9bd624d54c0f20e31521b26deb5c04a2c927dc2804fecd49339a948a" ;;
+    linux-x64-musl-baseline) printf '%s' "78e8b76d9ff6dde99aa7709993bac7d0c32590da6e04d053285bbf0cb5f05892" ;;
+    linux-aarch64) printf '%s' "ab95e7e692a53d25a1baa98ee395a17f5f264aedfb3cb15811432d54142f70eb" ;;
+    linux-aarch64-musl) printf '%s' "20b64dd9e5364e80fc965bed24a052bd21d3ffcd169af720988063c17d275edd" ;;
+    *) fail "no pinned Bun $BUN_VERSION artifact for platform $1" ;;
+  esac
+}
+
+bun_artifact_url() {
+  printf '%s/@oven/bun-%s/-/bun-%s-%s.tgz' "$BUN_ARTIFACT_REGISTRY" "$1" "$1" "$BUN_VERSION"
+}
+
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    fail "sha256sum or shasum is required to verify downloaded artifacts"
+  fi
 }
 
 print_command() {
@@ -216,148 +304,157 @@ print_command() {
   printf '\n'
 }
 
-confirm_command() {
-  print_command "$@"
-  if [ "$NO_PROMPT" = "1" ]; then
-    return 0
-  fi
-
-  local answer
-  printf '[paperclip] Run this command? [y/N] ' >/dev/tty
-  IFS= read -r answer </dev/tty || answer=""
-  case "$answer" in
-    y|Y|yes|YES|Yes) ;;
-    *) fail "installation cancelled" ;;
-  esac
-}
-
-run_command() {
-  confirm_command "$@"
-  "$@"
-}
-
-run_privileged() {
-  if [ "$(id -u)" -eq 0 ]; then
-    run_command "$@"
-    return
-  fi
-
-  command -v sudo >/dev/null 2>&1 || fail "sudo is required to install Node.js with the system package manager"
-  run_command sudo "$@"
-}
-
 ensure_temp_dir() {
   if [ -z "$TEMP_DIR" ]; then
     TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-install.XXXXXX")"
   fi
 }
 
-download_checked_script() {
+download_verified_artifact() {
   local url="$1"
   local destination="$2"
   local expected_sha256="$3"
   local actual_sha256
 
-  command -v curl >/dev/null 2>&1 || fail "curl is required to bootstrap Node.js"
-  curl --proto '=https' --tlsv1.2 -fsSL "$url" -o "$destination"
-  [ -s "$destination" ] || fail "downloaded script is empty: $url"
-  if command -v sha256sum >/dev/null 2>&1; then
-    actual_sha256="$(sha256sum "$destination" | awk '{print $1}')"
-  elif command -v shasum >/dev/null 2>&1; then
-    actual_sha256="$(shasum -a 256 "$destination" | awk '{print $1}')"
+  [ -n "$expected_sha256" ] || fail "no pinned checksum for downloaded artifact: $url"
+  command -v curl >/dev/null 2>&1 || fail "curl is required to bootstrap Bun"
+  curl --proto '=https' --tlsv1.2 -fsSL "$url" -o "$destination" || fail "failed to download $url"
+  [ -s "$destination" ] || fail "downloaded artifact is empty: $url"
+  actual_sha256="$(sha256_of "$destination")"
+  [ "$actual_sha256" = "$expected_sha256" ] ||
+    fail "checksum mismatch for downloaded artifact: $url (expected $expected_sha256, got $actual_sha256)"
+}
+
+install_bun() {
+  local platform="$1"
+  local archive="$TEMP_DIR/bun-$platform.tgz"
+  local extract_dir="$TEMP_DIR/bun-$platform"
+  local staged_binary="$BUN_DIR/bin/.bun.tmp.$$"
+  local installed_version
+
+  command -v tar >/dev/null 2>&1 || fail "tar is required to bootstrap Bun"
+  log "Installing Bun $BUN_VERSION for $platform"
+  download_verified_artifact "$(bun_artifact_url "$platform")" "$archive" "$(bun_artifact_sha256 "$platform")"
+
+  mkdir -p "$extract_dir"
+  tar -xzf "$archive" -C "$extract_dir" || fail "failed to extract the Bun $BUN_VERSION artifact"
+  [ -f "$extract_dir/package/bin/bun" ] || fail "the Bun $BUN_VERSION artifact did not contain package/bin/bun"
+
+  mkdir -p "$BUN_DIR/bin"
+  cp "$extract_dir/package/bin/bun" "$staged_binary"
+  chmod 0755 "$staged_binary"
+  # Atomic replace: a partially written download can never be left on PATH.
+  mv "$staged_binary" "$BUN_DIR/bin/bun"
+
+  installed_version="$(bun_version "$BUN_DIR/bin/bun")"
+  [ "$installed_version" = "$BUN_VERSION" ] ||
+    fail "installed Bun reported ${installed_version:-no version}; expected $BUN_VERSION"
+  log "Installed Bun $installed_version at $BUN_DIR/bin/bun"
+}
+
+# Prints the usable Bun (>= BUN_VERSION) to use, preferring the installer's own
+# ~/.bun/bin so repeated installs stay on the pinned runtime.
+find_usable_bun() {
+  local candidate version candidates
+  on_path="$(command -v bun 2>/dev/null || true)"
+  # An unset HOME leaves BUN_DIR empty, so never probe a bare "/bin/bun".
+  if [ -n "$BUN_DIR" ]; then
+    candidates=("$BUN_DIR/bin/bun")
   else
-    fail "sha256sum or shasum is required to verify downloaded scripts"
+    candidates=()
   fi
-  [ "$actual_sha256" = "$expected_sha256" ] || fail "checksum mismatch for downloaded script: $url"
-  [ "$(head -c 2 "$destination")" = '#!' ] || fail "downloaded file is not an executable script: $url"
-  bash -n "$destination" || fail "downloaded script failed syntax validation: $url"
-}
-
-check_version_manager() {
-  if [ -n "${NVM_DIR:-}" ] || [ -d "${HOME:-}/.nvm" ]; then
-    fail "nvm was detected. Run 'nvm install ${DEFAULT_NODE_MAJOR}' and retry this installer."
+  if [ -n "$on_path" ]; then
+    candidates+=("$on_path")
   fi
-  if command -v asdf >/dev/null 2>&1 || [ -d "${HOME:-}/.asdf" ]; then
-    fail "asdf was detected. Run 'asdf install nodejs ${DEFAULT_NODE_MAJOR}' and retry this installer."
-  fi
-}
-
-install_node_macos() {
-  if ! command -v brew >/dev/null 2>&1; then
-    ensure_temp_dir
-    local brew_installer="$TEMP_DIR/homebrew-install.sh"
-    log "Homebrew is required to install Node.js"
-    download_checked_script "https://raw.githubusercontent.com/Homebrew/install/$HOMEBREW_INSTALL_COMMIT/install.sh" "$brew_installer" "$HOMEBREW_INSTALL_SHA256"
-    if [ "$NO_PROMPT" = "1" ]; then
-      run_command env NONINTERACTIVE=1 /bin/bash "$brew_installer"
-    else
-      run_command /bin/bash "$brew_installer"
+  for candidate in ${candidates[@]+"${candidates[@]}"}; do
+    if [ ! -x "$candidate" ]; then
+      continue
     fi
-
-    if [ -x /opt/homebrew/bin/brew ]; then
-      eval "$(/opt/homebrew/bin/brew shellenv)"
-    elif [ -x /usr/local/bin/brew ]; then
-      eval "$(/usr/local/bin/brew shellenv)"
+    version="$(bun_version "$candidate")"
+    if version_at_least "$version" "$BUN_VERSION"; then
+      printf '%s' "$candidate"
+      return 0
     fi
+  done
+  return 1
+}
+
+PLATFORM="$(detect_bun_platform)"
+ORIGINAL_PATH="${PATH:-}"
+
+if BUN_BIN="$(find_usable_bun)"; then
+  log "Using Bun $(bun_version "$BUN_BIN") at $BUN_BIN"
+elif [ "$DRY_RUN" = "1" ]; then
+  if [ -z "$BUN_DIR" ]; then
+    fail "HOME is not set; cannot plan the Bun $BUN_VERSION installation directory"
   fi
-
-  command -v brew >/dev/null 2>&1 || fail "Homebrew installation completed but 'brew' is not available on PATH"
-  run_command brew install node
-}
-
-install_node_apt() {
-  ensure_temp_dir
-  local nodesource_installer="$TEMP_DIR/nodesource-setup.sh"
-  run_privileged env DEBIAN_FRONTEND=noninteractive apt-get update
-  run_privileged env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl
-  download_checked_script "https://raw.githubusercontent.com/nodesource/distributions/$NODESOURCE_DISTRIBUTIONS_COMMIT/scripts/deb/setup_${DEFAULT_NODE_MAJOR}.x" "$nodesource_installer" "$NODESOURCE_DEB_SHA256"
-  run_privileged env DEBIAN_FRONTEND=noninteractive bash "$nodesource_installer"
-  run_privileged env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
-}
-
-install_node_dnf() {
-  ensure_temp_dir
-  local nodesource_installer="$TEMP_DIR/nodesource-setup.sh"
-  run_privileged dnf install -y ca-certificates curl
-  download_checked_script "https://raw.githubusercontent.com/nodesource/distributions/$NODESOURCE_DISTRIBUTIONS_COMMIT/scripts/rpm/setup_${DEFAULT_NODE_MAJOR}.x" "$nodesource_installer" "$NODESOURCE_RPM_SHA256"
-  run_privileged bash "$nodesource_installer"
-  run_privileged dnf install -y nodejs
-}
-
-install_node_linux() {
-  if command -v apt-get >/dev/null 2>&1; then
-    install_node_apt
-  elif command -v dnf >/dev/null 2>&1; then
-    install_node_dnf
-  elif command -v pacman >/dev/null 2>&1; then
-    run_privileged pacman -Sy --noconfirm --needed nodejs npm
-  elif command -v apk >/dev/null 2>&1; then
-    run_privileged apk add --no-cache nodejs npm
+  if command -v bun >/dev/null 2>&1; then
+    log "Bun $(bun_version "$(command -v bun)") is older than $BUN_VERSION"
   else
-    fail "no supported Node.js package manager found. Supported: apt, dnf, pacman, apk."
+    log "Bun was not found"
   fi
-}
-
-if has_supported_node; then
-  log "Using Node.js $(node --version)"
+  log "Plan: install Bun $BUN_VERSION for $PLATFORM into $BUN_DIR/bin"
+  log "Plan: verify $(bun_artifact_url "$PLATFORM") against the pinned SHA-256"
 else
-  if command -v node >/dev/null 2>&1; then
-    log "Node.js $(node --version 2>/dev/null || printf unknown) is too old; Node.js >= $MIN_NODE_VERSION is required"
-  else
-    log "Node.js was not found"
-  fi
   if [ "$PIPED_INSTALL" = "1" ]; then
-    fail "Node.js bootstrap is disabled for piped installs; download install.sh, review it, and run 'bash install.sh --no-prompt'"
+    fail "Bun bootstrap is disabled for piped installs; download install.sh, review it, and run 'bash install.sh --no-prompt'"
   fi
-  check_version_manager
-  log "Installing Node.js $DEFAULT_NODE_MAJOR"
-  if [ "$OS_NAME" = "macos" ]; then
-    install_node_macos
+  if [ -z "$BUN_DIR" ]; then
+    fail "HOME is not set; cannot install Bun $BUN_VERSION into a per-user directory"
+  fi
+  if command -v bun >/dev/null 2>&1; then
+    log "Bun $(bun_version "$(command -v bun)") is older than $BUN_VERSION"
   else
-    install_node_linux
+    log "Bun was not found"
   fi
-  has_supported_node || fail "Node.js installation finished, but Node.js >= $MIN_NODE_VERSION with npm/npx is not available"
-  log "Installed Node.js $(node --version)"
+  ensure_temp_dir
+  install_bun "$PLATFORM"
+  BUN_BIN="$BUN_DIR/bin/bun"
+fi
+
+if [ -n "${BUN_BIN:-}" ]; then
+  # Put the selected Bun first so every nested Bun invocation resolves to it.
+  PATH="$(dirname "$BUN_BIN"):${PATH:-/usr/local/bin:/usr/bin:/bin}"
+  export PATH
+  hash -r
+  case ":$ORIGINAL_PATH:" in
+    *":$(dirname "$BUN_BIN"):"*) ;;
+    *) log "Add Bun to PATH for future shells: export PATH=\"$(dirname "$BUN_BIN"):\$PATH\"" ;;
+  esac
+fi
+
+# Already-published paperclipai releases still shell out to `npm` during install
+# (version resolution and payload installation). On a machine with no Node.js
+# there is no npm, so provide a bridge that runs the pinned npm on Bun instead of
+# requiring a Node.js install. The bridge is only created when npm is genuinely
+# missing: an existing npm is used untouched, and `bun x` keeps the public
+# registry pinned through --registry plus the isolated config below.
+NPM_BRIDGE_VERSION="11.18.0"
+npm_bridge_dir() {
+  printf '%s' "$(dirname "$BUN_BIN")/.paperclip-npm-bridge"
+}
+
+ensure_npm_available() {
+  if command -v npm >/dev/null 2>&1; then
+    return 0
+  fi
+  local bridge_dir
+  bridge_dir="$(npm_bridge_dir)"
+  mkdir -p "$bridge_dir"
+  cat >"$bridge_dir/npm" <<EOF
+#!/bin/sh
+# Paperclip installer bridge: run npm on Bun so no Node.js install is needed.
+exec $(printf '%q' "$BUN_BIN") x --bun --registry=$(printf '%q' "$PUBLIC_NPM_REGISTRY") npm@$NPM_BRIDGE_VERSION "\$@"
+EOF
+  chmod 0755 "$bridge_dir/npm"
+  PATH="$bridge_dir:$PATH"
+  export PATH
+  hash -r
+  log "npm is not installed; bridging npm $NPM_BRIDGE_VERSION through Bun for the released CLI"
+}
+
+if [ "$DRY_RUN" = "0" ] && [ -n "${BUN_BIN:-}" ]; then
+  ensure_npm_available
 fi
 
 PACKAGE_SPEC="$PAPERCLIP_PACKAGE@latest"
@@ -371,16 +468,35 @@ INSTALL_ARGS=(install)
 [ "$CANARY" = "1" ] && INSTALL_ARGS+=(--canary)
 [ -n "$VERSION" ] && INSTALL_ARGS+=(--version "$VERSION")
 [ "$NO_PROMPT" = "1" ] && INSTALL_ARGS+=(--yes)
+
 ensure_temp_dir
+# Bun reads its own user config (~/.bunfig.toml, ~/.npmrc) in addition to
+# environment variables, so the install runs with an empty XDG config directory
+# and a clean npmrc. Together with the explicit registry flags this keeps the
+# install on the public registry when the home directory carries a stale or
+# hostile registry override.
 NPM_USERCONFIG="$TEMP_DIR/npmrc"
 printf 'registry=%s\n@paperclipai:registry=%s\n' "$PUBLIC_NPM_REGISTRY" "$PUBLIC_NPM_REGISTRY" >"$NPM_USERCONFIG"
 chmod 600 "$NPM_USERCONFIG"
-NPM_ENV=(env "NPM_CONFIG_REGISTRY=$PUBLIC_NPM_REGISTRY" "npm_config_registry=$PUBLIC_NPM_REGISTRY" "NPM_CONFIG_USERCONFIG=$NPM_USERCONFIG" "npm_config_userconfig=$NPM_USERCONFIG")
-INSTALL_COMMAND=("${NPM_ENV[@]}" npx --yes "--registry=$PUBLIC_NPM_REGISTRY" "$PACKAGE_SPEC" "${INSTALL_ARGS[@]}")
+BUN_XDG_CONFIG="$TEMP_DIR/xdg-config"
+mkdir -p "$BUN_XDG_CONFIG"
+ISOLATED_ENV=(env
+  "BUN_CONFIG_REGISTRY=$PUBLIC_NPM_REGISTRY"
+  "NPM_CONFIG_REGISTRY=$PUBLIC_NPM_REGISTRY"
+  "npm_config_registry=$PUBLIC_NPM_REGISTRY"
+  "NPM_CONFIG_USERCONFIG=$NPM_USERCONFIG"
+  "npm_config_userconfig=$NPM_USERCONFIG"
+  "XDG_CONFIG_HOME=$BUN_XDG_CONFIG")
+# --bun runs the CLI on Bun regardless of the shebang in the published entrypoint.
+BUN_RUN=(bun x --bun "--registry=$PUBLIC_NPM_REGISTRY" "$PACKAGE_SPEC")
+INSTALL_COMMAND=("${ISOLATED_ENV[@]}" "${BUN_RUN[@]}" "${INSTALL_ARGS[@]}")
 
 log "Delegating to the Paperclip CLI"
 if [ "$DRY_RUN" = "1" ]; then
   print_command "${INSTALL_COMMAND[@]}"
+  if [ "$INSTALL_SERVICE" = "1" ]; then
+    print_command "${ISOLATED_ENV[@]}" "${BUN_RUN[@]}" service install
+  fi
   exit 0
 fi
 
@@ -389,8 +505,8 @@ print_command "${INSTALL_COMMAND[@]}"
 
 if [ "$INSTALL_SERVICE" = "1" ]; then
   log "Installing the Paperclip service"
-  print_command "${NPM_ENV[@]}" npx --yes "--registry=$PUBLIC_NPM_REGISTRY" "$PACKAGE_SPEC" service install
-  "${NPM_ENV[@]}" npx --yes "--registry=$PUBLIC_NPM_REGISTRY" "$PACKAGE_SPEC" service install
+  print_command "${ISOLATED_ENV[@]}" "${BUN_RUN[@]}" service install
+  "${ISOLATED_ENV[@]}" "${BUN_RUN[@]}" service install
 fi
 
 if [ "$NO_ONBOARD" = "0" ] && [ -t 0 ] && [ -t 1 ]; then

@@ -17,7 +17,7 @@ import { checks, project, task, type Entity } from "./internal-support.js";
 import { privilegedDefinition, privilegedObservation, settlePrivilegedChat, companionPhase } from "./privileged-support.js";
 import { replyOrCardText } from "./turn-response-card.js";
 const execute = promisify(execFile);
-interface OwnedDev { root: string; checkout: string; home: string; instance: string; env: NodeJS.ProcessEnv; loader: string; entry: string; log: string; child?: ChildProcess; closed?: Promise<void>; config?: string }
+interface OwnedDev { root: string; checkout: string; home: string; instance: string; env: NodeJS.ProcessEnv; entry: string; log: string; child?: ChildProcess; closed?: Promise<void>; config?: string }
 const owned = new WeakMap<ChatCatalogContext, OwnedDev>();
 const source = fileURLToPath(new URL("../../../", import.meta.url));
 const digest = (b: Buffer) => createHash("sha256").update(b).digest("hex");
@@ -47,7 +47,7 @@ async function ownedReason(o: OwnedDev) {
 }
 async function command(o: OwnedDev, args: string[]) {
   try {
-    const { stdout, stderr } = await execute(process.execPath, ["--import", o.loader, o.entry, ...args], { cwd: o.checkout, env: o.env, timeout: 240000, maxBuffer: 4_194_304 });
+    const { stdout, stderr } = await execute(process.execPath, [o.entry, ...args], { cwd: o.checkout, env: o.env, timeout: 240000, maxBuffer: 4_194_304 });
     await writeFile(o.log, `$ paperclipai ${args[0]}\n${stdout}${stderr}`, { flag: "a", mode: 0o600 }); return stdout;
   } catch (error) {
     const e = error as { stdout?: string; stderr?: string; code?: unknown; signal?: unknown };
@@ -124,7 +124,7 @@ const dev = privilegedDefinition("cli-operations.owned-dev-instance", "privilege
     // Child output stays private under the attempt root but outside the owned root that cleanup deletes.
     const logs = path.join(await realpath(temp), "operator-dev-diagnostics"); await mkdir(logs, { recursive: true, mode: 0o700 });
     const o: OwnedDev = { root, checkout, home, instance: `eval-${ctx.input.nonce.replace(/[^a-z0-9]/gi, "").slice(0, 32)}`,
-      loader: path.join(source, "cli/node_modules/tsx/dist/loader.mjs"), entry: path.join(checkout, "cli/src/index.ts"), log: path.join(logs, `${path.basename(root)}.log`),
+      entry: path.join(checkout, "cli/src/index.ts"), log: path.join(logs, `${path.basename(root)}.log`),
       env: { PATH: process.env.PATH, HOME: path.join(root, "operator-home"), PAPERCLIP_HOME: home, PAPERCLIP_TELEMETRY_DISABLED: "1", PAPERCLIP_NO_BROWSER: "1", NO_COLOR: "1" } };
     owned.set(ctx, o);
     // Copy actual selected candidate sources. Dependency links resolve only to
@@ -165,7 +165,7 @@ const dev = privilegedDefinition("cli-operations.owned-dev-instance", "privilege
     if (!actualData.startsWith(o.root + path.sep) || actual.database.embeddedPostgresPort !== dbPort || actual.server.port !== serverPort) throw new Error("Public worktree config escapes the exact owned target");
     // `run` has no --yes flag (it only onboards when the config is missing); the worktree config exists.
     const output = await open(o.log, "a", 0o600);
-    try { o.child = spawn(process.execPath, ["--import", o.loader, o.entry, "run", "--config", o.config], { cwd: o.checkout, env: o.env, stdio: ["ignore", output.fd, output.fd] }); }
+    try { o.child = spawn(process.execPath, [o.entry, "run", "--config", o.config], { cwd: o.checkout, env: o.env, stdio: ["ignore", output.fd, output.fd] }); }
     finally { await output.close(); }
     o.closed = new Promise<void>((resolve, reject) => { o.child!.once("error", reject); o.child!.once("close", () => resolve()); });
     state.targetUrl = `http://127.0.0.1:${serverPort}`;

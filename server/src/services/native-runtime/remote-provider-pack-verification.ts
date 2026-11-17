@@ -124,9 +124,9 @@ export async function verifyRemoteProviderPack<T extends ProviderPackIdentity>({
     canonicalProviderPackJson(manifest),
     "utf8",
   ).toString("base64");
-  const providerNodeCommand = posix.join(
+  const providerBunCommand = posix.join(
     packRoot,
-    manifest.payload.artifacts.nodeCommand.path,
+    manifest.payload.artifacts.bunCommand.path,
   );
   const verifyScript = [
     "const fs=require('node:fs')",
@@ -146,10 +146,13 @@ export async function verifyRemoteProviderPack<T extends ProviderPackIdentity>({
     "const hash=(p)=>{try{return 'sha256:'+crypto.createHash('sha256').update(fs.readFileSync(path.join(root,p))).digest('hex')}catch{return 'unreadable'}}",
     "const walk=(treeRoot)=>{const digest=crypto.createHash('sha256');const visit=(directory,prefix='')=>{for(const entry of fs.readdirSync(directory,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))){const relative=prefix?prefix+'/'+entry.name:entry.name;const absolute=path.join(directory,entry.name);if(entry.isDirectory()){digest.update('directory\\0'+relative+'\\n');visit(absolute,relative)}else if(entry.isFile()){digest.update('file\\0'+relative+'\\0'+'sha256:'+crypto.createHash('sha256').update(fs.readFileSync(absolute)).digest('hex')+'\\n')}else if(entry.isSymbolicLink()){digest.update('symlink\\0'+relative+'\\0'+fs.readlinkSync(absolute)+'\\n')}else throw new Error('unsupported dist entry '+relative)}};visit(treeRoot);return 'sha256:'+digest.digest('hex')}",
     "const tree=(treeRoot)=>{try{return walk(treeRoot)}catch{return 'unreadable'}}",
-    "for(const name of ['nodeCommand','productionLock','opencodeCommand','opencodeExecutable','opencodeProxy','acpxSidecar','grokLauncher']){const artifact=manifest.payload.artifacts[name];if(hash(artifact.path)!==artifact.sha256)fail('artifact_digest:'+name,name+' digest mismatch')}",
+    "for(const name of ['nodeCommand','bunCommand','bunExecutable','productionLock','opencodeCommand','opencodeExecutable','opencodeProxy','acpxSidecar','grokLauncher']){const artifact=manifest.payload.artifacts[name];if(hash(artifact.path)!==artifact.sha256)fail('artifact_digest:'+name,name+' digest mismatch')}",
     "if(tree(path.join(root,'dist'))!==manifest.payload.distDigest)fail('dist_digest','dist tree digest mismatch')",
     "for(const candidate of Object.values({...manifest.payload.providers,...manifest.payload.candidateProviders})){if(tree(path.join(root,candidate.path))!==candidate.sha256)fail('candidate_digest','candidate asset tree digest mismatch')}",
-    "const version=process.versions.node.split('.').map(Number)",
+    "if(!process.versions.bun||!Bun.semver.satisfies(Bun.version,'>=1.4.4'))fail('bun_version','Bun version incompatible')",
+    "const node=require('node:child_process').spawnSync(path.join(root,manifest.payload.artifacts.nodeCommand.path),['--version'],{encoding:'utf8'})",
+    "if(node.status!==0||!/^v[0-9]+\\.[0-9]+\\.[0-9]+/.test(node.stdout))fail('node_version','Provider Node executable unavailable')",
+    "const version=node.stdout.trim().slice(1).split('.').map(Number)",
     "const minimum=manifest.payload.pins.nodeMinimum.split('.').map(Number)",
     "if(version[0]<minimum[0]||(version[0]===minimum[0]&&(version[1]<minimum[1]||(version[1]===minimum[1]&&version[2]<minimum[2]))))fail('node_version','Node version incompatible')",
     "if(process.platform!==manifest.payload.target.platform||process.arch!==manifest.payload.target.architecture)fail('target','provider pack target mismatch')",
@@ -159,7 +162,7 @@ export async function verifyRemoteProviderPack<T extends ProviderPackIdentity>({
     "if(provenance)process.stdout.write('\\npaperclip-pack-manifest='+Buffer.from(canonical(manifest)).toString('base64')+'\\n')",
   ].join(";");
   const verified = await withProviderPackCheck("pack", () => runRemoteProviderVerification(() => runner.execute({
-    command: providerNodeCommand,
+    command: providerBunCommand,
     args: ["-e", verifyScript, packRoot, expected, ...(acceptProvenance ? ["provenance"] : [])],
     cwd: cwd,
     bypassSession: true,

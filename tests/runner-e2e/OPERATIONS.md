@@ -556,7 +556,7 @@ Collect retained GitHub usage after the workflow completes, including failed or
 cancelled workflows, without dispatching or retrying anything:
 
 ```sh
-node --import tsx tests/runner-e2e/operating-receipts.ts github RUN_ID /private/path/github-usage.json
+bun tests/runner-e2e/operating-receipts.ts github RUN_ID /private/path/github-usage.json
 ```
 
 The collector uses the existing `gh` authentication and only reads
@@ -578,7 +578,7 @@ Import a reviewed cost receipt and its exact source evidence into an existing
 campaign's declared overhead reservation:
 
 ```sh
-node --import tsx tests/runner-e2e/operating-receipts.ts import /private/path/ledger.jsonl /private/path/receipt.json /private/path/source-evidence.json
+bun tests/runner-e2e/operating-receipts.ts import /private/path/ledger.jsonl /private/path/receipt.json /private/path/source-evidence.json
 ```
 
 The receipt contains `version: 2`, `costBasis: "component_cumulative"`,

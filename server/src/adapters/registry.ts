@@ -135,6 +135,8 @@ import {
   listPiModels,
 } from "@paperclipai/adapter-pi-local/server";
 import { agentConfigurationDoc as piAgentConfigurationDoc } from "@paperclipai/adapter-pi-local";
+import { execute as ompigExecute, testEnvironment as ompigTestEnvironment, sessionCodec as ompigSessionCodec, getConfigSchema as getOmpigConfigSchema } from "@paperclipai/adapter-ompig-slim/server";
+import { agentConfigurationDoc as ompigAgentConfigurationDoc } from "@paperclipai/adapter-ompig-slim";
 import { BUILTIN_ADAPTER_TYPES } from "./builtin-adapter-types.js";
 import { buildExternalAdapters } from "./plugin-loader.js";
 import { isCloudManagedInstance } from "../services/cloud-instance.js";
@@ -1009,6 +1011,13 @@ const piLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: piAgentConfigurationDoc,
 };
 
+const ompigSlimAdapter: ServerAdapterModule = {
+  type: "ompig_slim", runtimeToolDelivery: "environment", execute: ompigExecute, testEnvironment: ompigTestEnvironment,
+  sessionCodec: ompigSessionCodec, supportsLocalAgentJwt: true, supportsInstructionsBundle: true,
+  getConfigSchema: getOmpigConfigSchema, agentConfigurationDoc: ompigAgentConfigurationDoc, models: [],
+  getRuntimeCommandSpec: config => ({ command: readConfiguredCommand(config, "ompig-slim"), detectCommand: readConfiguredCommand(config, "ompig-slim"), installCommand: null }),
+};
+
 const adaptersByType = new Map<string, ServerAdapterModule>();
 
 // For builtin types that are overridden by an external adapter, we keep the
@@ -1028,6 +1037,7 @@ function registerBuiltInAdapters() {
     paperclipRunnerAdapter,
     openCodeLocalAdapter,
     piLocalAdapter,
+    ompigSlimAdapter,
     cursorCloudAdapter,
     cursorLocalAdapter,
     geminiLocalAdapter,

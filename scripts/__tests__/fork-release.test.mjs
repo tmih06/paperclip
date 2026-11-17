@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFile } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { stripTypeScriptTypes } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -103,9 +102,11 @@ if (!["@paperclipai/paperclip-runner", "@paperclipai/server"].includes(owner.nam
     mkdirSync(dir, { recursive: true });
     const file = join(dir, 'installation-integrity.js');
     writeFileSync(file, '// owned verifier');
-    const authority = join(dir, 'authority.mjs');
+    const authority = join(dir, 'authority.ts');
+    // Bun loads the TypeScript source directly, so the test exercises the real
+    // published transformation instead of a separately stripped copy.
     const code = readFileSync(new URL('../../packages/paperclip-runner/src/drivers/acpx/installed-provider-authority.ts', import.meta.url), 'utf8');
-    writeFileSync(authority, forkOwnerChecks(stripTypeScriptTypes(code), 'tmih06'));
+    writeFileSync(authority, forkOwnerChecks(code, 'tmih06'));
     writeFileSync(join(root, 'package.json'), JSON.stringify({ name: '@tmih06/server', type: 'module' }));
     const { resolveInstalledProviderAuthority } = await import(pathToFileURL(authority).href);
     assert.deepEqual(resolveInstalledProviderAuthority(pathToFileURL(file).href), { root, manifest: join(root, 'package.json') });

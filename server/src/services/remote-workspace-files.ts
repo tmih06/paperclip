@@ -549,7 +549,7 @@ export function createRemoteWorkspaceFiles(db: Db, options: RemoteWorkspaceFileO
           } catch (error) { throw fileFailure(String((error as { stderr?: string }).stderr ?? "workspace_unavailable").trim()); }
         } else {
           const result = await options.environmentRuntime!.execute({
-            environment: environment!, lease: lease!, command: "node",
+            environment: environment!, lease: lease!, command: "bun",
             args: ["--input-type=commonjs", "-e", REMOTE_WORKSPACE_FILES_SCRIPT, payload],
             cwd: root, timeoutMs: READ_TIMEOUT_MS, bypassSession: true, env: { NODE_OPTIONS: "", NODE_PATH: "" },
           }).catch(() => { throw fileFailure("workspace_unavailable"); });

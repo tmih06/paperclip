@@ -12,6 +12,7 @@ import {
   Search,
   SquarePen,
   Network,
+  Server,
   Boxes,
   Repeat,
   Layers,
@@ -189,6 +190,7 @@ function ClassicSidebar({ children }: { children?: ReactNode }) {
               alert={inboxBadge.failedRuns > 0}
             />
           ) : null}
+          <SidebarNavItem to="/network" label="Servers" icon={Server} />
           {agentChatEnabled && !chatRail ? <SidebarNavItem to="/chats" label="Chat" icon={MessageCircle} badge={unreadChatCount} badgeLabel="unread chats" /> : null}
           {showDecisions ? (
             <SidebarNavItem

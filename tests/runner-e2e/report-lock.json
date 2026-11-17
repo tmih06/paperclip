@@ -1,6 +1,6 @@
 {
-  "inputSha256": "a56b6acc8743f6163d4af60b072d66c694c1061f4242f499c361d85fce318f3a",
-  "outputSha256": "a09e9ae44a5f4244431837b158607621b6fa276148bec3078aae2d2e5f2443f9",
-  "patchSha256": "325e0a90b5cb215a361ab3c3d59935161367b09b59f361080fa292a96566c95a",
-  "basis": "Generated with the trusted master lockfile refresh. Review this offline correction and its hashes with the dependency changes."
+  "inputSha256": "7aec4c970cbd4c08807d331325fc6cc63ab91d47da258c3184becde981045c17",
+  "outputSha256": "7aec4c970cbd4c08807d331325fc6cc63ab91d47da258c3184becde981045c17",
+  "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "basis": "Admitted by the trusted master lockfile refresh after a verified Dependabot lockfile merged. No correction is needed."
 }

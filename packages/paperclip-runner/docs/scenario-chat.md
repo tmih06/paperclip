@@ -96,10 +96,55 @@ session** returns to the seeded turn 0 and stays there.
 ## Commands
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner run demo:scenarios       # open the surface
-pnpm --filter @paperclipai/paperclip-runner run test:scenarios       # runtime + component tests
-pnpm --filter @paperclipai/paperclip-runner run test:browser:scenarios
+bun run --filter @paperclipai/paperclip-runner run demo:scenarios       # open the surface
+bun run --filter @paperclipai/paperclip-runner run test:scenarios       # runtime + component tests
+bun run --filter @paperclipai/paperclip-runner run test:browser:scenarios
 # Recorded evidence generation is deferred from this release.
 ```
+
+The deployed demo is started by `scripts/run-scenario-chat-demo.sh`. See
+[Deployed demo sandbox](#deployed-demo-sandbox) for what that script enforces.
+
+## Deployed demo sandbox
+
+`scripts/run-scenario-chat-demo.sh` starts the demo server and its loopback
+proxy as two Bun processes. Bun accepts Node's `--permission` and
+`--allow-fs-*` flags and silently ignores them, so confinement cannot come from
+runtime flags. It is applied by `scripts/lib/scenario-chat-sandbox.py`, a
+Python-stdlib launcher that installs kernel policy and then `exec`s Bun, so no
+JavaScript runs outside Bun.
+
+| Boundary | Mechanism |
+| --- | --- |
+| Server has no network | `unshare(CLONE_NEWUSER\|CLONE_NEWNET)`: only a down `lo` remains |
+| Proxy listens on one port | Landlock TCP rules grant `SCENARIO_CHAT_PROXY_PORT` and nothing else |
+| Filesystem allow-list | Landlock grants only the declared read/list/write paths |
+| No child processes | seccomp denies `execve`/`execveat`/`fork`/`vfork` and `clone` without `CLONE_THREAD` |
+| No escape or introspection | seccomp denies `ptrace`, `mount`, `unshare`, `setns`, `bpf`, module and I/O-uring calls |
+| Owner `nobody` | mandatory `uid_map`/`gid_map` to 65534 |
+| Bounded resources | `RLIMIT_AS`, `RLIMIT_NOFILE`, `RLIMIT_FSIZE`, `RLIMIT_CORE` |
+
+Worker threads stay available: `clone` with `CLONE_THREAD` is permitted, and
+the seccomp filter is installed before Bun starts so it covers the runtime's
+own threads.
+
+Every capability is mandatory. A missing or refused kernel feature exits 78;
+the script turns that into `{"event":"startup_failed","code":"sandbox_unavailable"}`
+and exits non-zero. In particular, a host that forbids the uid mapping - AppArmor's
+`kernel.apparmor_restrict_unprivileged_userns=1`, the Ubuntu default - is a hard
+failure. The launcher never falls back to an unmapped namespace, because a
+process there keeps the overflow uid and the `nobody` identity would be cosmetic.
+
+That restriction is a **host qualification gap**, not a supported mode: the
+mapped demo cannot be started on such a host. The focused tests in
+`scripts/scenario-chat-sandbox.test.mjs` prove each policy against the kernel
+independently of the mapping, so a refused mapping fails loudly rather than
+silently disabling coverage.
+
+`RLIMIT_AS` bounds virtual address space, not resident memory. Bun reserves a
+multi-gigabyte JIT region at rest, and a cap at or below ~1 GB makes that
+reservation fail, after which Bun silently disables the JIT and `bun:ffi`
+breaks. The default 2 GB clears the reservation reliably. It is a looser bound
+than a cgroup memory limit; an unprivileged process cannot create one here.
 
 Walkthrough: [Scenario chat scenario chat tutorial](tutorials/scenario-chat.md).

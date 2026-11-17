@@ -133,7 +133,7 @@ export async function stageRemoteLaunchAssets(input: LaunchAssetsInput): Promise
     const home = input.persistenceDirectories.find(directory => directory.name === "codex-home" && directory.location === "filesystem");
     if (!home?.targetPath || !input.isolatedCodexSkills) throw new Error("runner_remote_codex_credentials_path_invalid");
     const validated = await input.runner.execute({
-      command: "node",
+      command: "bun",
       args: ["-e", prepareRemoteCodexRecoveryHome, home.targetPath, input.isolatedCodexSkills.workspaceRoot,
         existsSync(resolve(input.root, "codex-home", "auth.json")) ? "keep-auth" : "remove-auth"],
       bypassSession: true,
@@ -175,7 +175,7 @@ export async function stageRemoteLaunchAssets(input: LaunchAssetsInput): Promise
       assertSelectedSkillsTree(sourcePath, input.runtimeContext?.source.skills.map(skill => skill.runtimeName) ?? []));
     await measure("stage.asset.codex_skills", async () => {
       const cleared = await input.runner.execute({
-        command: "node",
+        command: "bun",
         args: ["-e", clearRemoteCodexSkills, directory.targetPath!, input.isolatedCodexSkills!.workspaceRoot],
         bypassSession: true,
         timeoutMs: 10_000,

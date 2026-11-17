@@ -59,7 +59,7 @@ jobs:
       - name: Install the audited optional SDK outside the workspace
         shell: bash
         run: |
-          sentry_version=$(node -p 'require("./server/package.json").peerDependencies["@sentry/node"]')
+          sentry_version=$(bun -p 'require("./server/package.json").peerDependencies["@sentry/node"]')
           npm install --prefix "$RUNNER_TEMP/sentry-contract-sdk" --ignore-scripts --no-audit --no-fund --package-lock=false "@sentry/node@$sentry_version"
 
       - name: Verify run failure isolation with the real SDK

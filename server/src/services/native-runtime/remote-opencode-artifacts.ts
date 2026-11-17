@@ -3,7 +3,7 @@ import type { CommandManagedRuntimeRunner } from "@paperclipai/adapter-utils/com
 import type { NativeProviderArtifactReceipt } from "./native-provider-artifacts.js";
 import type { ProviderPackIdentity } from "./remote-provider-pack-verification.js";
 
-const names = ["nodeCommand", "opencodeProxy", "opencodeExecutable"] as const;
+const names = ["bunCommand", "opencodeProxy", "opencodeExecutable"] as const;
 export type OpenCodeLaunchArtifacts = {
   root: string;
   accountUid: number;

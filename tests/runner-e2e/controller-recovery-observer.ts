@@ -3,7 +3,7 @@
 import { readFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { createRequire } from "node:module";
-const { sql }: typeof import("../../packages/db/node_modules/drizzle-orm/index.js") =
+const { sql }: typeof import("drizzle-orm") =
   createRequire(new URL("../../packages/db/package.json", import.meta.url))("drizzle-orm");
 import { createDb, type Db } from "../../packages/db/src/index.js";
 import { paperclipConfigSchema } from "../../packages/shared/src/config-schema.js";

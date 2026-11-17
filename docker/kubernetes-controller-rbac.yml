@@ -5,6 +5,9 @@ metadata:
   name: paperclip-controller-local
 rules:
   - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, list]
+  - apiGroups: [""]
     resources: [namespaces, pods, pods/log, secrets, serviceaccounts, resourcequotas, limitranges]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [""]

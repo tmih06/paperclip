@@ -14,7 +14,7 @@
     },
     "rootDir": "../..",
     "types": ["node"],
-    "typeRoots": ["../../server/node_modules/@types"]
+    "typeRoots": ["../../node_modules/@types"]
   },
   "include": ["./**/*.ts", "./**/*.tsx", "../../ui/src/vite-env.d.ts", "../../server/src/types/express.d.ts"]
 }

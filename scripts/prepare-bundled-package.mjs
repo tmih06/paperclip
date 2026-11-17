@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -69,7 +69,7 @@ export function configureBundledProviderOverrides(installManifest, bundledDepend
       throw new Error(`Bundled ${agent} bridge must match its exact qualified profile`);
     }
     const selector = `${serverPackage}@${profile.agentServerVersion}>${runtimePackage}`;
-    if (rootPackage.pnpm?.overrides?.[selector] !== profile.agentRuntimeVersion) {
+    if (rootPackage.overrides?.[selector] !== profile.agentRuntimeVersion) {
       throw new Error(`Bundled ${agent} runtime override must match its qualified profile`);
     }
     const npmSelector = `${serverPackage}@${profile.agentServerVersion}`;
@@ -356,7 +356,7 @@ export function selectBundledDependencyPatches(
 
 export function applyBundledDependencyPatches(destinationDir, bundledDependencies, sourceRoot = repoRoot) {
   const rootPackage = JSON.parse(readFileSync(resolve(sourceRoot, "package.json"), "utf8"));
-  const patchedDependencies = rootPackage.pnpm?.patchedDependencies ?? {};
+  const patchedDependencies = rootPackage.patchedDependencies ?? {};
 
   for (const { packageName, patchPath } of selectBundledDependencyPatches(
     destinationDir,

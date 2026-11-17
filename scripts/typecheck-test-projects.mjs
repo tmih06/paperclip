@@ -1,5 +1,5 @@
-#!/usr/bin/env node
-// Typechecks the test projects outside `pnpm -r`.
+#!/usr/bin/env bun
+// Typechecks the test projects outside `bun run --workspaces`.
 //
 // Each project imports server source through relative paths, so its tsconfig.json
 // is one program over most of the server. Its tsconfig.layers.json reads that
@@ -11,13 +11,14 @@
 // --reuse-declarations skips the build. Use it only straight after a server
 // typecheck on the same commit, because stale declarations pass silently.
 //
-// Usage: node scripts/typecheck-test-projects.mjs [--low-memory] [--reuse-declarations] [project ...]
+// Usage: bun scripts/typecheck-test-projects.mjs [--low-memory] [--reuse-declarations] [project ...]
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveTscPath } from "./lib/tsc-path.mjs";
 import { LOW_MEMORY_VARIABLE, runTsc } from "./run-tsc.mjs";
-import { runPnpm } from "./typecheck-low-memory.mjs";
+import { runBun } from "./typecheck-low-memory.mjs";
 import { isTestFile, typecheckLayers } from "../server/scripts/typecheck-layers.mjs";
 
 export const PROJECTS = [
@@ -31,8 +32,8 @@ export const PROJECTS = [
 
 // The same steps as the server's typecheck script.
 export const PREPARE_STEPS = [
-  ["--filter", "@paperclipai/paperclip-runner", "run", "build:typescript"],
-  ["--filter", "@paperclipai/plugin-sdk", "ensure-build-deps"],
+  ["run", "--filter", "@paperclipai/paperclip-runner", "build:typescript"],
+  ["run", "--filter", "@paperclipai/plugin-sdk", "ensure-build-deps"],
 ];
 
 /**
@@ -50,8 +51,7 @@ export function findServerSource(files, serverRoot) {
 }
 
 function listProgramFiles(config, { cwd, env }) {
-  const tsc = path.join(cwd, "node_modules", "typescript", "bin", "tsc");
-  const result = spawnSync(process.execPath, [tsc, "-p", config, "--listFilesOnly"], {
+  const result = spawnSync(process.execPath, [resolveTscPath(cwd), "-p", config, "--listFilesOnly"], {
     cwd,
     env,
     encoding: "utf8",
@@ -66,7 +66,7 @@ export function typecheckTestProjects({
   projects = PROJECTS,
   reuseDeclarations = false,
   env = process.env,
-  pnpm = runPnpm,
+  bun = runBun,
   run = runTsc,
   listFiles = listProgramFiles,
   log = console.log,
@@ -75,7 +75,7 @@ export function typecheckTestProjects({
   const serverRoot = path.join(root, "server");
   if (!reuseDeclarations) {
     for (const args of PREPARE_STEPS) {
-      const status = pnpm(args, { cwd: root, env });
+      const status = bun(args, { cwd: root, env });
       if (status !== 0) return status;
     }
 

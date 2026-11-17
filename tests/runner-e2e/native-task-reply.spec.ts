@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { readBoundTaskFinalReply } from "./native-task-reply.js";
 
 const markdown = "I **couldn't retrieve** the pages. See [Connection outcome](/QA/issues/QA-123#document-outcome).";
@@ -9,10 +8,9 @@ const run = { id: "final-run", companyId: "company", agentId: "agent", status: "
   resultJson: { presentationDecision: { commentId: "selected" } } };
 const comment = { id: "selected", authorAgentId: "agent", createdByRunId: run.id, body: markdown };
 
-test("the QA tsx loader produces a self-contained browser callback", async ({ page }) => {
+test("the QA callback source is self-contained in the browser", async ({ page }) => {
   const moduleUrl = new URL("./native-task-reply.ts", import.meta.url).href;
-  const loader = fileURLToPath(new URL("../../cli/node_modules/tsx/dist/loader.mjs", import.meta.url));
-  const serialized = JSON.parse(execFileSync(process.execPath, ["--import", loader, "--input-type=module", "-e",
+  const serialized = JSON.parse(execFileSync(process.execPath, ["--input-type=module", "-e",
     `import { observeTaskReplyElements } from ${JSON.stringify(moduleUrl)}; console.log(JSON.stringify(observeTaskReplyElements.toString()));`], { encoding: "utf8" }));
   await page.setContent(`<div data-testid='reply'>${rendered}</div>`);
   const observations: any = await page.evaluate(`(${serialized})(Array.from(document.querySelectorAll('[data-testid="reply"]')))`);

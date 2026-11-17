@@ -45,10 +45,12 @@
     "release:bootstrap-package": "node scripts/bootstrap-npm-package.mjs",
     "check:tokens": "node scripts/check-forbidden-tokens.mjs",
     "check:token-gates": "node scripts/check-token-gates.mjs && node scripts/sync-agent-palette-tokens.mjs --check && node scripts/sync-cliplab-character.mjs --check",
-    "check:node-version": "node scripts/check-node-version-policy.mjs",
+    "check:node-version": "bun scripts/check-node-version-policy.mjs",
+    "check:bun-migration": "bun scripts/check-bun-migration.mjs",
     "check:no-git-push": "node scripts/check-no-git-push.mjs",
     "check:module-boundaries": "node scripts/check-module-boundaries.mjs",
     "test:check-no-git-push": "node --test scripts/check-no-git-push.test.mjs",
+    "test:install-sh": "./scripts/test-install-sh.sh",
     "test:install-sh-docker": "./scripts/test-install-sh-docker.sh",
     "test:hermes-gateway-smoke": "node --test scripts/smoke/hermes-gateway-smoke.test.mjs",
     "docs:dev": "cd docs && npx mintlify dev",
@@ -100,7 +102,6 @@
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "agentmail": "^0.5.31",
-    "cross-env": "^10.1.0",
     "esbuild": "^0.28.2",
     "oxc-parser": "0.127.0",
     "typescript": "^7.0.2",
@@ -109,7 +110,8 @@
     "turbo": "2.11.10"
   },
   "engines": {
-    "node": ">=24.11.0"
+    "node": ">=24.11.0",
+    "bun": ">=1.4.4"
   },
   "packageManager": "pnpm@9.15.4",
   "pnpm": {

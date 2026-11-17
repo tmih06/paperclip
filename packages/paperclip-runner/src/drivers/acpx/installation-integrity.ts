@@ -1584,8 +1584,12 @@ function commandLease(
           : DEPENDENCY_ANCESTOR_FD_START +
             dependencyAncestors.length +
             providerRuntimeExecutableCount;
-        const runtimeHandoff =
-          verifiedRuntimeExecutableHandoff(runtimeTargetFd);
+        // External provider snapshots require Node's synchronous resolve/load hooks.
+        // Use the locked distribution, never Bun's Node-version compatibility string.
+        const runtimeHandoff = verifiedRuntimeExecutableHandoff(
+          runtimeTargetFd, process.env, process.platform, process.pid,
+          process.versions.bun ? createRequire(import.meta.url).resolve("node/bin/node") : process.execPath,
+        );
         const environment = sanitizedNodeEnvironment(options.env);
         delete environment[ACPX_PRIVATE_SNAPSHOT_ENV];
         if (privateSnapshot) environment[ACPX_PRIVATE_SNAPSHOT_ENV] = JSON.stringify(privateSnapshot.handoff);

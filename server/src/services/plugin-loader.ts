@@ -1,4 +1,3 @@
-import { resolveBundledPluginRuntimeLoader } from "./bundled-plugin-runtime.js";
 import { finishServiceShutdown } from "../shutdown.js";
 /**
  * PluginLoader — discovery, installation, and runtime activation of plugins.
@@ -89,8 +88,6 @@ export const DEFAULT_LOCAL_PLUGIN_DIR = path.join(
   ".paperclip",
   "plugins",
 );
-
-const DEV_TSX_LOADER_PATH = path.resolve(__dirname, "../../../cli/node_modules/tsx/dist/loader.mjs");
 
 /**
  * Model-provider API keys that sandbox-provider plugins (e.g.
@@ -2446,6 +2443,8 @@ export function pluginLoader(
         databaseNamespace,
         hostHandlers,
         autoRestart: true,
+        // Bun runs both source and prebuilt workers without inherited watchers or loaders.
+        execArgv: [],
         env: buildPluginWorkerEnv({
           manifest,
           packageName: activePlugin.packageName,
@@ -2461,12 +2460,6 @@ export function pluginLoader(
         // never reaches an unconfigured company.
         proactiveCompanyScopes: configRows.map((row) => row.companyId),
       };
-
-      if (prebuiltOnly) {
-        workerOptions.execArgv = ["--import", resolveBundledPluginRuntimeLoader()];
-      } else if (activePlugin.packagePath && existsSync(DEV_TSX_LOADER_PATH)) {
-        workerOptions.execArgv = ["--import", DEV_TSX_LOADER_PATH];
-      }
 
       await workerManager.startWorker(pluginId, workerOptions);
       registered.worker = true;

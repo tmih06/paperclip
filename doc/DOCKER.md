@@ -232,6 +232,10 @@ Pass `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY` to enable local adapter runs.
 
 ### Full stack (with PostgreSQL)
 
+For this fork's published-image deployment with local Kubernetes task pods, see
+[`docker/KUBERNETES.md`](../docker/KUBERNETES.md). Its overlay disables local
+builds and keeps the database port private.
+
 Paperclip server + PostgreSQL 17. The database is health-checked before the server starts.
 
 ```sh

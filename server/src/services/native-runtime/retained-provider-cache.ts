@@ -186,7 +186,7 @@ export async function reclaimInactiveNativeProviderCache(input: {
   const execute = async (mode: "inventory" | "stage" | "reclaim",
     preparation?: { preparationOperationId: string; inventory: Inventory; staged?: Staged }) => {
     await input.assertOwned();
-    const response = await input.target.runner!.execute({ command: "node", args: ["-e", reclaimScript,
+    const response = await input.target.runner!.execute({ command: "bun", args: ["-e", reclaimScript,
       mode, input.target.remoteCwd, input.runId, expected, JSON.stringify(preparation ?? null)],
       cwd: input.target.remoteCwd, bypassSession: true, env: { NODE_OPTIONS: "", NODE_PATH: "" }, timeoutMs: 45_000 });
     await input.assertOwned();

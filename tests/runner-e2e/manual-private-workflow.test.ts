@@ -26,12 +26,12 @@ it("keeps archive authority in explicit protected jobs and the workflow-pinned t
  expect(jobs.test_manual_private.if).toContain("evidence_retention == 'private'");
  const steps=jobs.test_manual_private.steps;
  const checkout=steps.find((row:any)=>row.with?.path===".manual-private-trusted");expect(checkout.with.ref).toBe("${{ github.sha }}");
- const runtime=step("test_manual_private","Prepare workflow-pinned private transfer runtime before archive credentials");expect(runtime.run).toContain("--ignore-scripts --store-dir");
+ const runtime=step("test_manual_private","Prepare workflow-pinned private transfer runtime before archive credentials");expect(runtime.run).toContain("--ignore-scripts --cache-dir");
  expect(steps.indexOf(runtime)).toBeLessThan(steps.indexOf(step("test_manual_private","Obtain exact-key manual archive session")));
  const verified=steps.indexOf(step("test_manual_private","Verify restricted complete evidence storage before model or fixture secrets"));
  expect(verified).toBeLessThan(steps.findIndex((row:any)=>row.run==="pnpm install --frozen-lockfile --ignore-scripts"));
  for(const name of["Bind protected original run and compatible target evidence protocol","Verify restricted complete evidence storage before model or fixture secrets","Retain complete approved manual originals with no public fallback"]){
-  const row=step("test_manual_private",name);expect(row.workingDirectory??row["working-directory"]).toBe(".manual-private-trusted");expect(row.run).toContain('$GITHUB_WORKSPACE/.manual-private-trusted/cli/node_modules/tsx/dist/cli.mjs');expect(row.env.NODE_OPTIONS).toBe("");expect(row.env.NODE_PATH).toBe("");
+  const row=step("test_manual_private",name);expect(row.workingDirectory??row["working-directory"]).toBe(".manual-private-trusted");expect(row.run).toContain('bun "$GITHUB_WORKSPACE/.manual-private-trusted/tests/runner-e2e/manual-private-transfer.ts"');expect(row.env.NODE_OPTIONS).toBe("");expect(row.env.NODE_PATH).toBe("");
  }
  expect(step("test_manual_private","Run paid cell").env.AWS_ACCESS_KEY_ID).toBeUndefined();
  expect(step("test_manual_private","Run paid cell").if).toContain("manual_private_verified.outcome == 'success'");
@@ -39,7 +39,7 @@ it("keeps archive authority in explicit protected jobs and the workflow-pinned t
 it("the actual private paid shell withholds launcher diagnostics on abnormal exit",async()=>{
  const root=await mkdtemp(path.join(os.tmpdir(),"manual-shell-test-"));
  try{const shell=step("test","Run paid cell").run.replaceAll('${{ matrix.executionId }}',"test");
- const result=spawnSync("bash",["-c",`pnpm(){ printf '%s\\n' 'synthetic-private-diagnostic'; return 7; };\n${shell}`],{encoding:"utf8",env:{PATH:process.env.PATH,PRIVATE_EVIDENCE_ROOT:root,PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT:"bound"}});
+ const result=spawnSync("bash",["-c",`bun(){ printf '%s\\n' 'synthetic-private-diagnostic'; return 7; };\n${shell}`],{encoding:"utf8",env:{PATH:process.env.PATH,PRIVATE_EVIDENCE_ROOT:root,PAPERCLIP_RUNNER_E2E_PRIVATE_PREFLIGHT:"bound"}});
  expect(result.status).toBe(7);expect(result.stdout+result.stderr).not.toContain("synthetic-private-diagnostic");expect(await readFile(path.join(root,"launcher-output.log"),"utf8")).toContain("synthetic-private-diagnostic");
  }finally{await rm(root,{recursive:true,force:true});}
 });

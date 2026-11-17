@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
-const { eq }: typeof import("../../../packages/db/node_modules/drizzle-orm/index.js") =
+const { eq }: typeof import("drizzle-orm") =
   createRequire(new URL("../../../packages/db/package.json", import.meta.url))("drizzle-orm");
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createDb, agents, companies, issues, heartbeatRuns, issueThreadInteractions, toolInvocations,

@@ -10,7 +10,7 @@ import type { NativeExecutionContext } from "./native-execution-context.js";
 import { removeNativeHarnessBackup } from "./native-harness-backup-cleanup.js";
 import { NativeProviderArtifactTransferTimeoutError } from "./native-provider-artifacts.js";
 
-const names = ["nodeCommand", "opencodeProxy", "opencodeExecutable"] as const;
+const names = ["bunCommand", "opencodeProxy", "opencodeExecutable"] as const;
 export const NATIVE_PROVIDER_ARTIFACT_PUBLISH_ATTEMPTS = 3;
 const sharedCaptures = new Map<string, Promise<unknown>>();
 
@@ -57,7 +57,7 @@ const stageExportScript = [
   'mkdir -p -- "$parent"',
   '{ [ -d "$parent" ] && [ ! -L "$parent" ]; } || exit 41',
   'mkdir -- "$target"',
-  "for name in nodeCommand opencodeProxy opencodeExecutable; do",
+  "for name in bunCommand opencodeProxy opencodeExecutable; do",
   '  source=$1; shift',
   '  { [ -f "$source" ] && [ ! -L "$source" ]; } || exit 42',
   '  cp -P -- "$source" "$target/$name"',

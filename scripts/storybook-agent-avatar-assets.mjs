@@ -1,4 +1,3 @@
-import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 
 /** Render avatar presets with the API worker in dev and package them in builds. */
@@ -9,11 +8,9 @@ export function storybookAgentAvatarAssets() {
       let rendererPromise;
       const images = new Map();
       const renderer = () => rendererPromise ??= (async () => {
-        const serverRequire = createRequire(new URL("../server/package.json", import.meta.url));
-        const { tsImport } = await import(serverRequire.resolve("tsx/esm/api"));
-        const { createAgentAvatarPool } = await tsImport("../server/src/services/agent-avatar-pool.ts", import.meta.url);
+        const { createAgentAvatarPool } = await import("../server/src/services/agent-avatar-pool.ts");
         const { AGENT_PALETTE_IDS, AGENT_AVATAR_SIZES, CHARACTER_STATES, appearanceForPalette } =
-          await tsImport("../packages/shared/src/agent-appearance.ts", import.meta.url);
+          await import("../packages/shared/src/agent-appearance.ts");
         return { pool: createAgentAvatarPool(2), AGENT_PALETTE_IDS, AGENT_AVATAR_SIZES, CHARACTER_STATES, appearanceForPalette };
       })();
       server.middlewares.use((req, res, next) => {
@@ -50,12 +47,10 @@ export function storybookAgentAvatarAssets() {
       server.httpServer?.once("close", () => { void rendererPromise?.then(({ pool }) => pool.close()); });
     },
     async generateBundle() {
-      const serverRequire = createRequire(new URL("../server/package.json", import.meta.url));
-      const { tsImport } = await import(serverRequire.resolve("tsx/esm/api"));
-      const { createAgentAvatarPool } = await tsImport("../server/src/services/agent-avatar-pool.ts", import.meta.url);
+      const { createAgentAvatarPool } = await import("../server/src/services/agent-avatar-pool.ts");
       const { AGENT_PALETTE_IDS, AGENT_AVATAR_SIZES, CHARACTER_STATES, appearanceForPalette } =
-        await tsImport("../packages/shared/src/agent-appearance.ts", import.meta.url);
-      const { agentAvatarUrl } = await tsImport("../ui/storybook/fixtures/agent-avatar-url.ts", import.meta.url);
+        await import("../packages/shared/src/agent-appearance.ts");
+      const { agentAvatarUrl } = await import("../ui/storybook/fixtures/agent-avatar-url.ts");
       const requests = [false, true].flatMap(muted =>
         (muted ? [AGENT_PALETTE_IDS[0]] : AGENT_PALETTE_IDS).flatMap(palette =>
           CHARACTER_STATES.flatMap(pose => AGENT_AVATAR_SIZES.flatMap(size =>

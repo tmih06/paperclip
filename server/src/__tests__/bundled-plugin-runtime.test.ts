@@ -1,72 +1,59 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { build, transform } from "esbuild";
-import { bundleRuntime } from "../../scripts/bundle-runtime.mjs";
-import { resolveBundledPluginRuntimeLoader } from "../services/bundled-plugin-runtime.js";
+import type { PaperclipPluginManifestV1 } from "@paperclipai/shared";
+import { createPluginWorkerManager } from "../services/plugin-worker-manager.js";
 
 const roots: string[] = [];
-function fixture() {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "image-plugin-runtime-")));
-  roots.push(root);
-  fs.mkdirSync(path.join(root, "server", "dist-runtime"), { recursive: true });
-  fs.writeFileSync(path.join(root, "server", "package.json"), JSON.stringify({ name: "@paperclipai/server", type: "module" }));
-  const loader = path.join(root, "cli", "node_modules", "tsx", "dist", "loader.mjs");
-  fs.mkdirSync(path.dirname(loader), { recursive: true });
-  fs.writeFileSync(loader, "export {};\n");
-  return { root, loader };
-}
+const sdk = fileURLToPath(new URL("../../../packages/plugins/sdk/dist/index.js", import.meta.url));
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); });
 
-describe("current image plugin runtime loader", () => {
-  it.each(["src/services", "dist/services", "dist-runtime"])("resolves the owning release from server/%s", (location) => {
-    const { root, loader } = fixture();
-    const moduleDirectory = path.join(root, "server", location);
-    fs.mkdirSync(moduleDirectory, { recursive: true });
-    expect(resolveBundledPluginRuntimeLoader(moduleDirectory)).toBe(loader);
-  });
-
-  it("resolves a bundled entrypoint without preserved source module locations", async () => {
-    const { root, loader } = fixture();
-    const runtime = path.join(root, "server", "dist-runtime", "index.mjs");
-    await build({
-      stdin: { contents: `import { resolveBundledPluginRuntimeLoader } from ${JSON.stringify(fileURLToPath(new URL("../services/bundled-plugin-runtime.ts", import.meta.url)))}; process.stdout.write(resolveBundledPluginRuntimeLoader());`, resolveDir: process.cwd() },
-      outfile: runtime, bundle: true, platform: "node", format: "esm", target: "node24", logLevel: "silent",
-    });
-    expect(execFileSync(process.execPath, [runtime], { encoding: "utf8" })).toBe(loader);
-  });
-
-  it("uses the production bundler's preserved module location at the dist-runtime entrypoint", async () => {
-    const { root, loader } = fixture();
-    const service = path.join(root, "server", "dist", "services", "bundled-plugin-runtime.js");
-    fs.mkdirSync(path.dirname(service), { recursive: true });
-    const source = fs.readFileSync(new URL("../services/bundled-plugin-runtime.ts", import.meta.url), "utf8");
-    fs.writeFileSync(service, (await transform(source, { loader: "ts", format: "esm", target: "node24" })).code);
-    const entry = path.join(root, "server", "dist", "probe.js");
-    fs.writeFileSync(entry, 'import { resolveBundledPluginRuntimeLoader } from "./services/bundled-plugin-runtime.js"; process.stdout.write(resolveBundledPluginRuntimeLoader());');
-    const bundled = await bundleRuntime({ entry, outdir: path.join(root, "server", "dist-runtime"), maintenanceEntry: undefined, ephemeralMigrationEntry: undefined });
-    expect(execFileSync(process.execPath, [bundled.outfile], { encoding: "utf8" })).toBe(loader);
-  });
-
-  it("accepts the baked pnpm target inside the current image node_modules", () => {
-    const { root, loader } = fixture();
-    const physical = path.join(root, "node_modules", ".pnpm", "tsx@1", "node_modules", "tsx", "dist", "loader.mjs");
-    fs.mkdirSync(path.dirname(physical), { recursive: true });
-    fs.writeFileSync(physical, "export {};\n");
-    fs.rmSync(loader); fs.symlinkSync(path.relative(path.dirname(loader), physical), loader);
-    expect(resolveBundledPluginRuntimeLoader(path.join(root, "server", "dist-runtime"))).toBe(physical);
-  });
-
-  it("fails explicitly for missing or legacy-home loaders", () => {
-    const { root, loader } = fixture();
-    const moduleDirectory = path.join(root, "server", "dist-runtime");
-    fs.rmSync(loader);
-    expect(() => resolveBundledPluginRuntimeLoader(moduleDirectory)).toThrow("missing from the current image");
-    const outside = fixture().loader;
-    fs.symlinkSync(outside, loader);
-    expect(() => resolveBundledPluginRuntimeLoader(moduleDirectory)).toThrow("escapes the current image");
+describe("native Bun plugin workers", () => {
+  it.each(["development TypeScript", "prebuilt JavaScript"])("boots %s without loading host or image transpilers", async mode => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "image-plugin-runtime-")));
+    roots.push(root);
+    const marker = path.join(root, "injected-loader-executed");
+    const outside = path.join(root, "outside-loader.mjs");
+    fs.writeFileSync(outside, `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(marker)}, "bad");`);
+    const legacy = path.join(root, "cli/node_modules/tsx/dist/loader.mjs");
+    fs.mkdirSync(path.dirname(legacy), { recursive: true });
+    fs.symlinkSync(outside, legacy);
+    const entrypoint = path.join(root, mode === "development TypeScript" ? "src/worker.ts" : "server/dist-runtime/worker.mjs");
+    fs.mkdirSync(path.dirname(entrypoint), { recursive: true });
+    const annotation = mode === "development TypeScript" ? ": string" : "";
+    fs.writeFileSync(entrypoint, `
+      import { definePlugin, runWorker } from ${JSON.stringify(sdk)};
+      const runtime${annotation} = process.versions.bun ?? "not-bun";
+      const plugin = definePlugin({
+        async setup() {},
+        async onHealth() { return { status: "ok", message: runtime }; },
+      });
+      runWorker(plugin, import.meta.url);
+    `);
+    const manifest: PaperclipPluginManifestV1 = {
+      id: "paperclip.bun-runtime-fixture", apiVersion: 1, version: "0.1.0",
+      displayName: "Bun runtime fixture", description: "Native worker runtime regression",
+      author: "Paperclip", categories: ["ui"], capabilities: [], entrypoints: { worker: entrypoint },
+    };
+    const manager = createPluginWorkerManager();
+    const inherited = [...process.execArgv];
+    process.execArgv.push("--import", outside);
+    try {
+      const worker = await manager.startWorker(manifest.id, {
+        entrypointPath: entrypoint, manifest, config: {}, apiVersion: 1,
+        instanceInfo: { instanceId: "runtime-fixture", hostVersion: "0.0.0" },
+        hostHandlers: {}, execArgv: [], autoRestart: false,
+      });
+      expect(worker.status).toBe("running");
+      await expect(manager.call(manifest.id, "health", {})).resolves.toMatchObject({
+        status: "ok", message: process.versions.bun,
+      });
+      expect(fs.existsSync(marker)).toBe(false);
+    } finally {
+      process.execArgv.splice(0, process.execArgv.length, ...inherited);
+      await manager.stopAll();
+    }
   });
 });

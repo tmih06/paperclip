@@ -17,7 +17,7 @@ hash_prefix() {
 }
 
 generate_key() {
-  node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))'
+  bun -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))'
 }
 
 export HOME="${HOME:-/home/hermes}"

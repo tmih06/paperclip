@@ -8,7 +8,6 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, re
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { stripTypeScriptTypes } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packConcurrency, packStagedPackages, packTimings } from './pack-staged-packages.mjs';
@@ -150,7 +149,7 @@ async function verifyLinuxArmConsumer(packageDirectory, sourceRevision, receiptP
     assert.equal(daemon.target, 'linux-arm64');
     const codex = probe('codex-probe.mjs', installedCodexProbeSource(installed + '/index.js', '/consumer', undefined, { nativeCodex: true }));
     cpSync(join(repo, 'tests/runner-e2e/installed-cli.ts'), join(assets, 'installed-cli.ts'));
-    writeFileSync(join(assets, 'types.js'), stripTypeScriptTypes(readFileSync(join(repo, 'tests/runner-e2e/types.ts'), 'utf8')));
+    writeFileSync(join(assets, 'types.js'), new Bun.Transpiler({ loader: 'ts', target: 'node' }).transformSync(readFileSync(join(repo, 'tests/runner-e2e/types.ts'), 'utf8')));
     const home = join(root, 'host-home'), hostTmp = join(root, 'host-tmp');
     for (const directory of [home, hostTmp]) mkdirSync(directory, { mode: 0o700 });
     const hostEnv = { PATH: `${dirname(process.execPath)}:/usr/bin:/bin:/usr/sbin:/sbin`, HOME: home, TMPDIR: hostTmp, LC_ALL: 'C', TZ: 'UTC' };

@@ -21,7 +21,7 @@ RUN cargo build --locked --release -j 2 -p paperclip-runner-core --bin paperclip
     && rm -rf target /usr/local/cargo/registry /usr/local/cargo/git
 
 FROM node:24.21.0-bookworm@sha256:5a750d3be5e5c80275f8c9a5367c3aed99c2875656590c8d0701c7ee687f5f0a AS provider-pack-build
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+RUN npm install --global --no-fund --no-audit bun@1.4.4
 # Bound build-time memory on hosts that expose many CPUs but little RAM.
 # These settings belong only to this build stage, never the runtime image.
 ENV NODE_OPTIONS=--max-old-space-size=1024 \
@@ -61,11 +61,11 @@ RUN if ! printf '%s' "${PAPERCLIP_RUNNER_LOCK_SHA256}" | grep -Eqx '[0-9a-f]{64}
     && pnpm install --frozen-lockfile --filter '@paperclipai/paperclip-runner...' \
     && pnpm --filter @paperclipai/paperclip-runner build:typescript \
     && PAPERCLIP_RUNNER_SOURCE_REVISION="${PAPERCLIP_RUNNER_SOURCE_REVISION}" \
-      node packages/paperclip-runner/scripts/build-provider-pack.mjs /provider-pack \
+      bun packages/paperclip-runner/scripts/build-provider-pack.mjs /provider-pack \
         "--candidate-providers=${PAPERCLIP_RUNNER_CANDIDATE_PROVIDERS}" \
     && chmod -R a+rX /provider-pack \
     && du -sk /workspace /provider-pack \
-    && rm -rf /workspace /root/.local/share/pnpm/store
+    && rm -rf /workspace /root/.bun/install/cache
 
 # Fleet sandbox base image. Keep this section aligned with
 # paperclipai/paperclip-cloud/fleet-sandbox-image/Dockerfile. The only Paperclip

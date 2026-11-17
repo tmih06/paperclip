@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Fork-only publication. Source import bindings stay unchanged; npm aliases
 // resolve the published workspace graph from the fork's GitHub Packages scope.
 import assert from 'node:assert/strict';
@@ -97,7 +97,9 @@ async function stage(directory, owner, version, repository) {
       } else {
         // Preserve the owning package's prepack transformations (UI, plugins,
         // Hermes) instead of duplicating their publication contracts here.
-        run('pnpm', ['pack', '--pack-destination', packed], source);
+        // The pack runs on Bun, then the tarball is extracted so the source
+        // tree keeps its development manifest.
+        run('bun', ['pm', 'pack', '--pack-destination', packed], source);
         const files = readdirSync(packed).filter(file => file.endsWith('.tgz'));
         assert.equal(files.length, 1);
         run('tar', ['-xzf', join(packed, files[0]), '-C', packed]);
@@ -107,7 +109,7 @@ async function stage(directory, owner, version, repository) {
       const path = join(target, 'package.json');
       const manifest = forkManifest(json(path), names, owner, version, repository);
       writeJson(path, manifest);
-      const result = JSON.parse(run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', directory], target));
+      const result = JSON.parse(run('bun', ['x', '--yes', 'npm@10.9.7', 'pack', '--ignore-scripts', '--json', '--pack-destination', directory], target));
       assert.equal(result.length, 1);
       const file = result[0].filename, archive = join(directory, file);
       archives.push({ originalName: entry.name, name: manifest.name, version, file,
@@ -134,7 +136,7 @@ async function publish(directory) {
     assert.equal(digest(join(directory, entry.file), 'sha256'), entry.sha256);
     let existing;
     try {
-      existing = JSON.parse(execFileSync('npm', ['view', `${entry.name}@${entry.version}`, '--json', '--registry', registry], { encoding: 'utf8', stdio: 'pipe' }));
+      existing = JSON.parse(execFileSync('bun', ['pm', 'view', `${entry.name}@${entry.version}`, '--json', '--registry', registry], { encoding: 'utf8', stdio: 'pipe' }));
     } catch (error) {
       if (!/\bE404\b/.test(error.stderr?.toString() ?? '')) throw error;
     }
@@ -154,10 +156,10 @@ async function verify(directory) {
   try {
     for (const entry of manifest.archives) {
       const spec = `${entry.name}@${entry.version}`;
-      const metadata = JSON.parse(run('npm', ['view', spec, '--json', '--registry', registry]));
+      const metadata = JSON.parse(run('bun', ['pm', 'view', spec, '--json', '--registry', registry]));
       assertPublishedPackage(entry, metadata);
       assert.equal(metadata['dist-tags'].latest, manifest.version);
-      const result = JSON.parse(run('npm', ['pack', spec, '--ignore-scripts', '--json', '--pack-destination', work, '--registry', registry]));
+      const result = JSON.parse(run('bun', ['x', '--yes', 'npm@10.9.7', 'pack', spec, '--ignore-scripts', '--json', '--pack-destination', work, '--registry', registry]));
       assert.equal(digest(join(work, result[0].filename), 'sha256'), entry.sha256, `Registry bytes differ: ${spec}`);
       verified.push(spec);
     }
@@ -178,11 +180,14 @@ async function smoke(directory, packed = false) {
       registryArgs.push('--registry', packedRegistry.url, `--@${manifest.repository.split('/')[0]}:registry=${packedRegistry.url}`, '--replace-registry-host=never');
     }
     writeJson(join(work, 'package.json'), { private: true, type: 'module' });
-    const installed = await promisify(execFile)('npm', ['install', '--omit=dev', '--ignore-scripts', ...registryArgs, `${cli.name}@${manifest.version}`], { cwd: work, maxBuffer: 64 * 1024 * 1024 });
+    const installed = await promisify(execFile)('bun', ['install', '--omit=dev', '--ignore-scripts', ...registryArgs, `${cli.name}@${manifest.version}`], { cwd: work, maxBuffer: 64 * 1024 * 1024 });
     process.stdout.write(installed.stdout);
     process.stderr.write(installed.stderr);
-    run('npm', ['rebuild', '--dangerously-allow-all-scripts'], work);
-    const versionOutput = run('node', [join(work, 'node_modules', cli.name, 'dist/index.js'), '--version'], work).trim();
+    // npm's `rebuild --dangerously-allow-all-scripts` ran every blocked
+    // install script; Bun blocks untrusted scripts during install, so trust
+    // the installed tree afterwards to run them.
+    run('bun', ['pm', 'trust', '--all'], work);
+    const versionOutput = run('bun', [join(work, 'node_modules', cli.name, 'dist/index.js'), '--version'], work).trim();
     assert.equal(versionOutput, manifest.version);
     const server = join(work, 'node_modules/@paperclipai/server/dist/index.js');
     assert.ok(existsSync(server), 'CLI must install the fork server under its original import binding');

@@ -341,11 +341,11 @@ describe("Runner image stages", () => {
     const manifest = JSON.parse(readFileSync(path.join(repoRoot, "packages/paperclip-runner/package.json"), "utf8"));
     expect((manifest.scripts.build as string).split(" && ")).toEqual([
       "node scripts/record-build-inputs.mjs --begin",
-      "pnpm run check:protocol-manifest",
-      "pnpm run build:typescript",
-      "pnpm run check:capability-contract",
-      "pnpm run check:capability-inventory",
-      "pnpm run check:protocol-coverage",
+      "bun run check:protocol-manifest",
+      "bun run build:typescript",
+      "bun run check:capability-contract",
+      "bun run check:capability-inventory",
+      "bun run check:protocol-coverage",
       "node scripts/generate-semantic-contracts.mjs --check",
       "node scripts/check-runner-workflow-traceability.mjs",
       "node scripts/build-runner-binary.mjs",
@@ -354,7 +354,7 @@ describe("Runner image stages", () => {
       "node scripts/record-build-inputs.mjs --finish",
     ]);
     const build = runner.find((stage) => stage.name === "runner-artifacts-build")!.lines.join("\n");
-    for (const step of ["node scripts/record-build-inputs.mjs --begin;", "pnpm run build:typescript;", "pnpm run build:binary;",
+    for (const step of ["node scripts/record-build-inputs.mjs --begin;", "bun run build:typescript;", "bun run build:binary;",
       "node scripts/record-build-inputs.mjs --finish;", "pnpm install --frozen-lockfile --filter '@paperclipai/paperclip-runner...'"]) {
       expect(build).toContain(step);
     }
