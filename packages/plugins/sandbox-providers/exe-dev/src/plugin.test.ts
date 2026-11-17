@@ -400,7 +400,7 @@ describe("exe.dev sandbox provider plugin", () => {
     expect(firstSpawnArgs).toContain("IdentitiesOnly=yes");
   });
 
-  it("supplies a default Node-install setup script when none is provided", async () => {
+  it("supplies verified Bun and external Node setup when none is provided", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
         vm_name: "paperclip-env-run",
@@ -428,6 +428,14 @@ describe("exe.dev sandbox provider plugin", () => {
     expect(body).toContain("v[0]>24||(v[0]===24&&v[1]>=11)");
     expect(body).toContain("nodesource.com/setup_24.x");
     expect(body).toContain("sudo apt-get install -y nodejs");
+    expect(body).toContain("!process.versions.bun");
+    expect(body).toContain("bun-${platform}-1.4.4.tgz");
+    expect(body).toContain("sha256sum -c -");
+    expect(body).toContain("2ce69fadd00b741513c52adb8aad3fbee93170d0abaa3b6d04df47ca8659bd40");
+    expect(body).toContain("ab95e7e692a53d25a1baa98ee395a17f5f264aedfb3cb15811432d54142f70eb");
+    expect(body.indexOf("sha256sum -c -")).toBeLessThan(body.indexOf("tar -xzf"));
+    expect(body.indexOf("--version")).toBeLessThan(body.indexOf("sudo install -m 755"));
+    expect(body).toContain("/usr/local/bin/bun");
   });
 
   it("preserves an operator-supplied setup script and does not append the default", async () => {
@@ -456,6 +464,7 @@ describe("exe.dev sandbox provider plugin", () => {
     const body = String(fetchMock.mock.calls[0]?.[1]?.body ?? "");
     expect(body).toContain("--setup-script='echo custom'");
     expect(body).not.toContain("nodesource.com");
+    expect(body).not.toContain("registry.npmjs.org/@oven");
   });
 
   it("does not redact the built-in default setup script in API errors", async () => {

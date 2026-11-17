@@ -16,7 +16,7 @@ const ENSURE_NPM_PREAMBLE =
   "if ! command -v npm >/dev/null 2>&1 || " +
   "! command -v node >/dev/null 2>&1 || " +
   "! node -e 'const v=process.versions.node.split(\".\").map(Number);" +
-  "process.exit(v[0]>24||(v[0]===24&&v[1]>=11)?0:1)' >/dev/null 2>&1; then " +
+  "process.exit(!process.versions.bun&&(v[0]>24||(v[0]===24&&v[1]>=11))?0:1)' >/dev/null 2>&1; then " +
   'NODE_ARCH="$(uname -m)"; ' +
   'case "$NODE_ARCH" in ' +
   "x86_64) NODE_ARCH=x64 ;; " +

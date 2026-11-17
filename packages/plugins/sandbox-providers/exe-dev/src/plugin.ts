@@ -72,17 +72,27 @@ const EXE_DEV_SSH_EMAIL_PROMPT = "Please enter your email address:";
 const EXE_DEV_SSH_INVALID_KEY_FORMAT = /Load key [^\n]*invalid format/i;
 const UUID_SECRET_REF_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// exe.dev's `--setup-script` runs at VM init as the unprivileged `exedev` user, which
-// has passwordless sudo. The Paperclip sandbox callback bridge is a Node script, so
-// every Paperclip workload on this provider needs node on PATH before the bridge can
-// start. When the operator hasn't supplied their own setup script, install Node 24 via
-// nodesource so the VM comes up ready for Paperclip out of the box.
+// The callback bridge runs on Bun; external provider CLIs can still require Node.
+// exe.dev runs setup as exedev with passwordless sudo. Bun archive pins match the
+// reviewed registry artifacts in scripts/install.sh.
 const DEFAULT_SETUP_SCRIPT =
   "(command -v node >/dev/null 2>&1 && " +
   "node -e 'const v=process.versions.node.split(\".\").map(Number);" +
-  "process.exit(v[0]>24||(v[0]===24&&v[1]>=11)?0:1)' >/dev/null 2>&1) || " +
+  "process.exit(!process.versions.bun&&(v[0]>24||(v[0]===24&&v[1]>=11))?0:1)' >/dev/null 2>&1) || " +
   "(curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash - && " +
-  "sudo apt-get install -y nodejs)";
+  "sudo apt-get install -y nodejs) || exit 1; " +
+  "(set -eu; " +
+  'case "$(uname -m)" in ' +
+  "x86_64) platform=linux-x64-baseline; sha=2ce69fadd00b741513c52adb8aad3fbee93170d0abaa3b6d04df47ca8659bd40 ;; " +
+  "aarch64|arm64) platform=linux-aarch64; sha=ab95e7e692a53d25a1baa98ee395a17f5f264aedfb3cb15811432d54142f70eb ;; " +
+  "*) echo 'Unsupported Bun platform' >&2; exit 1 ;; esac; " +
+  'scratch=$(mktemp -d); trap \'rm -rf "$scratch"\' EXIT; ' +
+  'curl -fsSL "https://registry.npmjs.org/@oven/bun-${platform}/-/bun-${platform}-1.4.4.tgz" -o "$scratch/bun.tgz"; ' +
+  'printf "%s  %s\\n" "$sha" "$scratch/bun.tgz" | sha256sum -c -; ' +
+  'tar -xzf "$scratch/bun.tgz" -C "$scratch"; ' +
+  'chmod 755 "$scratch/package/bin/bun"; ' +
+  '[ "$("$scratch/package/bin/bun" --version)" = 1.4.4 ]; ' +
+  'sudo install -m 755 "$scratch/package/bin/bun" /usr/local/bin/bun)';
 
 class ExeDevApiError extends Error {
   readonly status: number;
