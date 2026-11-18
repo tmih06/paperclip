@@ -29,6 +29,12 @@ kind load docker-image paperclip-ompig-runtime:0.1.10 --name paperclip
 # Set runtimeImage to paperclip-ompig-runtime:0.1.10 for ompig_slim in docker/kubernetes-adapters.json.
 ```
 
+## Sandbox startup
+
+The adapter checks for both executables in one sandbox command after staging the workspace. The controller can reuse verified seed archives for identical workspace snapshots within the same instance, company, and workspace. The cache is bounded and is not a recovery checkpoint. Each pod still receives its own workspace.
+
+The adapter honors the instance duplex bridge opt-in only when the provider advertises support. Kubernetes currently uses the file bridge. A supported provider can fall back to the file bridge when duplex startup fails.
+
 ## Assignment and storage boundary
 
 Every run uses `durable run --state <workspace>/.paperclip-ompig/<company>/<agent>/<run>`.

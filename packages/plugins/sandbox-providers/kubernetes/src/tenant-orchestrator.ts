@@ -43,12 +43,19 @@ const LIMIT_RANGE_NAME = "paperclip-limits";
  */
 export async function ensureTenant(clients: KubeClients, input: EnsureTenantInput): Promise<void> {
   await ensureNamespace(clients, input);
-  await ensureServiceAccount(clients, input);
-  await ensureRole(clients, input);
-  await ensureRoleBinding(clients, input);
-  await ensureResourceQuota(clients, input);
-  await ensureLimitRange(clients, input);
-  await ensureNetworkPolicies(clients, input);
+  const results = await Promise.allSettled([
+    (async () => {
+      await ensureServiceAccount(clients, input);
+      await ensureRole(clients, input);
+      await ensureRoleBinding(clients, input);
+    })(),
+    ensureResourceQuota(clients, input),
+    ensureLimitRange(clients, input),
+    ensureNetworkPolicies(clients, input),
+  ]);
+  for (const result of results) {
+    if (result.status === "rejected") throw result.reason;
+  }
 }
 
 async function ensureNamespace(clients: KubeClients, input: EnsureTenantInput): Promise<void> {

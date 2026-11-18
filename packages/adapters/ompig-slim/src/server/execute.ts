@@ -6,16 +6,17 @@ import { cancellableSandboxStartup } from "@paperclipai/adapter-utils/acpx-engin
 import { createProviderStoppedBoundary } from "@paperclipai/adapter-utils/provider-stopped-boundary";
 import { withWorkspaceRestore } from "@paperclipai/adapter-utils/workspace-restore-result";
 import {
+  adapterExecutionTargetDuplexObservabilityRecorder, adapterExecutionTargetEnablesSandboxDuplexBridge,
   adapterExecutionTargetIsRemote, adapterExecutionTargetRemoteCwd, adapterExecutionTargetSessionIdentity,
   adapterExecutionTargetSessionMatches, adapterExecutionTargetUsesPaperclipBridge,
-  ensureAdapterExecutionTargetCommandResolvable, ensureAdapterExecutionTargetDirectory,
+  ensureAdapterExecutionTargetCommandsResolvable, ensureAdapterExecutionTargetDirectory,
   overrideAdapterExecutionTargetRemoteCwd, prepareAdapterExecutionTargetRuntime, readAdapterExecutionTarget,
   resolveAdapterExecutionTargetTimeoutSec, runAdapterExecutionTargetProcess, startAdapterExecutionTargetPaperclipBridge,
 } from "@paperclipai/adapter-utils/execution-target";
 import {
   asNumber, asString, buildInvocationEnvForLogs, buildPaperclipEnv, buildRuntimeToolsEnv,
   DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE, DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE,
-  hydrateFreshSessionHandoff, joinPromptSections, parseObject, renderTemplate, selectInitialCommunicationGuidance,
+  hydrateFreshSessionHandoff, joinPromptSections, parseObject, renderTemplate, resolvePaperclipInstanceRootForAdapter, selectInitialCommunicationGuidance,
   selectPaperclipPromptSections,
 } from "@paperclipai/adapter-utils/server-utils";
 import { DURABLE_PROCESS } from "./durable-process.js";
@@ -82,15 +83,21 @@ async function executeDurable(ctx: AdapterExecutionContext): Promise<AdapterExec
   try {
     ctx.signal?.throwIfAborted();
     await ensureAdapterExecutionTargetDirectory(runId, target, adapterExecutionTargetRemoteCwd(target, cwd), { cwd, env, createIfMissing: true });
+    const cacheCompanyDir = target?.kind === "remote" && target.transport === "sandbox"
+      ? path.join(resolvePaperclipInstanceRootForAdapter(), "ompig-workspace-seeds", hash(agent.companyId))
+      : null;
     prepared = await prepareAdapterExecutionTargetRuntime({
       runId, target, adapterKey: "ompig-slim", workspaceLocalDir: cwd,
       workspaceFileMode: "all", retainRuntime: true, timeoutSec,
+      ...(cacheCompanyDir ? {
+        workspaceSeedCacheCompanyDirectory: cacheCompanyDir,
+        workspaceSeedCacheDirectory: path.join(cacheCompanyDir, hash(path.resolve(cwd))),
+      } : {}),
       onProgress: line => onLog("stdout", line), onRuntimeProgress: ctx.onRuntimeProgress,
     });
     const executionCwd = prepared.workspaceRemoteDir ?? adapterExecutionTargetRemoteCwd(target, cwd);
     const executionTarget = overrideAdapterExecutionTargetRemoteCwd(prepared.target, executionCwd);
-    await ensureAdapterExecutionTargetCommandResolvable(command, executionTarget, executionCwd, env);
-    await ensureAdapterExecutionTargetCommandResolvable("node", executionTarget, executionCwd, env);
+    await ensureAdapterExecutionTargetCommandsResolvable([command, "node"], executionTarget, executionCwd, env);
     if (resumeSaved && (saved!.companyId !== agent.companyId || saved!.agentId !== agent.id
       || saved!.cwd !== executionCwd || saved!.model !== model || saved!.maxTurns !== maxTurns || saved!.taskKey !== taskKey
       || !adapterExecutionTargetSessionMatches(saved!.executionTarget, executionTarget))) {
@@ -117,7 +124,10 @@ async function executeDurable(ctx: AdapterExecutionContext): Promise<AdapterExec
     if (resumeSaved) await onLog("stderr", `[paperclip] Resuming immutable Durable assignment ${requestId}; this wake does not admit a replacement prompt.\n`);
     if (remote && adapterExecutionTargetUsesPaperclipBridge(executionTarget)) {
       bridge = await startAdapterExecutionTargetPaperclipBridge({ runId, target: executionTarget, runtimeRootDir: prepared.runtimeRootDir,
-        adapterKey: "ompig-slim", timeoutSec, hostApiToken: env.PAPERCLIP_API_KEY, onLog });
+        adapterKey: "ompig-slim", timeoutSec, hostApiToken: env.PAPERCLIP_API_KEY, onLog,
+        enableSandboxDuplexBridge: adapterExecutionTargetEnablesSandboxDuplexBridge(executionTarget),
+        duplexObservabilityRecorder: adapterExecutionTargetDuplexObservabilityRecorder(executionTarget),
+      });
       if (bridge) Object.assign(env, bridge.env);
     }
     await ctx.onMeta?.({ adapterType: "ompig_slim", command, cwd: executionCwd, commandArgs: ["durable", resumeSaved ? "resume" : "run", "--state", stateDir],

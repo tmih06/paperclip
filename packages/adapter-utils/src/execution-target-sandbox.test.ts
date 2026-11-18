@@ -29,6 +29,7 @@ import {
   adapterExecutionTargetToRemoteSpec,
   adapterExecutionTargetUsesPaperclipBridge,
   ensureAdapterExecutionTargetCommandResolvable,
+  ensureAdapterExecutionTargetCommandsResolvable,
   formatAdapterExecutionTimeoutErrorMessage,
   formatAdapterExecutionTimeoutStartLogLine,
   parseAdapterExecutionTarget,
@@ -2121,6 +2122,22 @@ describe("sandbox adapter execution targets", () => {
     ).toBe(
       "Adapter execution timeout: none (explicitly disabled via adapterConfig.timeoutSec; set it to a positive value to add one).",
     );
+  });
+
+  it("checks both required commands in one exec and names a missing command", async () => {
+    const execute = vi.fn(async ({ command, args }: { command: string; args?: string[] }) => {
+      const result = await execFileAsync(command, args ?? []).then(
+        output => ({ ...output, exitCode: 0 }),
+        error => ({ stdout: String(error.stdout ?? ""), stderr: String(error.stderr ?? ""), exitCode: Number(error.code) }),
+      );
+      return { ...result, signal: null, timedOut: false, pid: null, startedAt: new Date().toISOString() };
+    });
+    const target: AdapterSandboxExecutionTarget = { kind: "remote", transport: "sandbox", remoteCwd: "/workspace", runner: { execute } };
+    await ensureAdapterExecutionTargetCommandsResolvable(["sh", "printf"], target, "/workspace", {});
+    expect(execute).toHaveBeenCalledTimes(1);
+    await expect(ensureAdapterExecutionTargetCommandsResolvable(["sh", "paperclip-absent'fixture"], target, "/workspace", {}))
+      .rejects.toThrow('Command "paperclip-absent\'fixture" is not installed');
+    expect(execute).toHaveBeenCalledTimes(2);
   });
 
   it("uses the caller timeout override when installing a missing sandbox command", async () => {

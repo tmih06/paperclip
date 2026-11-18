@@ -1382,7 +1382,17 @@ export async function prepareSandboxManagedRuntime(input: {
   // All subsequent work uses that root, so retargeting the alias cannot select
   // another repository. Staging also verifies the captured directory identity.
   const workspaceRoot = syncWorkspace ? await runStepSpan("workspace.source_root", () => captureWorkspaceSourceRoot(input.workspaceLocalDir)) : null;
-  if (workspaceRoot) input = { ...input, workspaceLocalDir: workspaceRoot.sourceDir };
+  if (workspaceRoot) {
+    const cache = input.workspaceSeedCacheDirectory;
+    const relativeCache = cache && path.relative(workspaceRoot.sourceDir, cache);
+    const cacheInsideWorkspace = relativeCache !== undefined && relativeCache !== ".."
+      && !relativeCache.startsWith(`..${path.sep}`) && !path.isAbsolute(relativeCache);
+    input = {
+      ...input,
+      workspaceLocalDir: workspaceRoot.sourceDir,
+      ...(cacheInsideWorkspace ? { workspaceSeedCacheDirectory: undefined } : {}),
+    };
+  }
 
   // The git enumeration (`git status --ignored`, the HEAD diffs, `ls-files`).
   // It reads git's own bookkeeping to decide what to include/exclude, so it is
@@ -1760,15 +1770,18 @@ export async function prepareSandboxManagedRuntime(input: {
           });
 
           const publishSeed = async () => {
-            if (seedGeneration && !cachedSeed && input.workspaceDurableSeed) {
-              const seed = input.workspaceDurableSeed;
+            if (seedGeneration && !cachedSeed) {
+              const seed = input.workspaceDurableSeed ?? {
+                workspaceArchivePath: path.join(tempDir, "workspace.tar"),
+                gitArchivePath: gitSeedTarPath,
+              };
               const gitArchivePath = gitSnapshot || repositories.length
                 ? (sharedSeed ? gitSeedTarPath : seed.gitArchivePath) : null;
               await runStepSpan("workspace.seed_publish", () => publishWorkspaceSeedGeneration(input.workspaceSeedCacheDirectory!, seedGeneration,
                 { ...seed, gitArchivePath: gitSnapshot || repositories.length ? seed.gitArchivePath : null }, {
                   companyDirectory: input.workspaceSeedCacheCompanyDirectory,
                   scope: input.workspaceSeedCacheScope,
-                  ...(sharedSeed && gitArchivePath ? { cacheOnlyGitArchivePath: gitArchivePath } : {}),
+                  ...(sharedSeed && input.workspaceDurableSeed && gitArchivePath ? { cacheOnlyGitArchivePath: gitArchivePath } : {}),
                   runtimeSpan: runStepSpan,
                   verify: () => runStepSpan("seed.verify", async () => {
                     const verifiedRoot = path.join(tempDir, "verify-seed");

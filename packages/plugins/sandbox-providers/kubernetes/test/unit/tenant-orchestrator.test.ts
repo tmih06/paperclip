@@ -55,16 +55,30 @@ describe("ensureTenant", () => {
     const clients = makeMockClients();
     await ensureTenant(clients as never, baseInput);
     const order = clients.calls.map((c) => c.kind);
-    expect(order).toEqual([
-      "Namespace",
-      "ServiceAccount",
-      "Role",
-      "RoleBinding",
-      "ResourceQuota",
-      "LimitRange",
-      "NetworkPolicy",
-      "NetworkPolicy",
+    expect(order.toSorted()).toEqual([
+      "LimitRange", "Namespace", "NetworkPolicy", "NetworkPolicy", "ResourceQuota", "Role", "RoleBinding", "ServiceAccount",
     ]);
+    expect(order[0]).toBe("Namespace");
+    expect(order.indexOf("RoleBinding")).toBeGreaterThan(order.indexOf("Role"));
+    expect(order.indexOf("RoleBinding")).toBeGreaterThan(order.indexOf("ServiceAccount"));
+  });
+
+  it("checks network policy and quota independently of the service account", async () => {
+    const clients = makeMockClients();
+    const account = Promise.withResolvers<never>();
+    const policy = Promise.withResolvers<void>();
+    const quota = Promise.withResolvers<void>();
+    clients.core.readNamespacedServiceAccount.mockReturnValue(account.promise);
+    clients.networking.readNamespacedNetworkPolicy.mockImplementation(async () => { policy.resolve(); });
+    clients.core.readNamespacedResourceQuota.mockImplementation(async () => { quota.resolve(); });
+    const ready = ensureTenant(clients as never, baseInput);
+    try {
+      await Promise.race([Promise.all([policy.promise, quota.promise]), Bun.sleep(250).then(() => { throw new Error("independent checks did not start"); })]);
+      expect(clients.rbac.createNamespacedRoleBinding).not.toHaveBeenCalled();
+    } finally {
+      account.reject({ code: 404 });
+      await ready;
+    }
   });
 
   it("creates a CiliumNetworkPolicy instead of standard egress when egressMode=cilium", async () => {

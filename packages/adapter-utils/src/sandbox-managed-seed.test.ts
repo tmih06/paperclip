@@ -86,7 +86,7 @@ it.each([undefined, "all"] as const)("keeps nested Git metadata sanitized in col
       await expect(fs.stat(path.join(checkout, "absent.txt"))).rejects.toMatchObject({ code: "ENOENT" });
     }
   };
-  const cold = await prepare(); await assertSanitized();
+  const cold = await prepare({ workspaceDurableSeed: undefined }); await assertSanitized();
   expect([...cold.workspaceSyncSnapshot!.baseline.entries].some(([key]) => key.startsWith(`${relative}/.git/`))).toBe(false);
   expect(await fs.readdir(cache)).toHaveLength(1); expect(verifications).toBe(1);
   await cold.cleanupWorkspaceSnapshot();

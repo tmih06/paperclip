@@ -16,6 +16,7 @@ const files = Number(argument("files", "10000"));
 const samples = Number(argument("samples", "5"));
 const transferDelayMs = Number(argument("transfer-delay-ms", "0"));
 const baselineRef = argument("baseline-ref", "origin/master");
+const warmCache = process.argv.includes("--warm-cache");
 assert.ok(Number.isSafeInteger(files) && files > 0 && files <= 100000);
 assert.ok(Number.isSafeInteger(samples) && samples > 0 && samples <= 10);
 assert.ok(Number.isSafeInteger(transferDelayMs) && transferDelayMs >= 0 && transferDelayMs <= 10000);
@@ -54,7 +55,7 @@ try {
   await fs.writeFile(path.join(host, "untracked.txt"), "new bytes\n");
   await fs.writeFile(path.join(host, "ignored.txt"), "must stay private\n");
   const results = [];
-  for (let sample = 0; sample < samples; sample++) {
+  for (let sample = warmCache ? -1 : 0; sample < samples; sample++) {
     for (const mode of sample % 2 ? ["after", "before"] : ["before", "after"]) {
       const prepare = mode === "before" ? baseline : prepareSandboxManagedRuntime;
       const location = path.join(root, `${mode}-${sample}`); await fs.mkdir(location);
@@ -78,8 +79,10 @@ try {
       const runtime = await prepare({
         spec: { provider: "test", sandboxId: "test", remoteCwd: remote, timeoutMs: 30000, apiKey: null, transport: "sandbox" },
         adapterKey: "benchmark", workspaceLocalDir: host,
-        workspaceSeedCacheDirectory: path.join(location, "cache"),
-        workspaceDurableSeed: { workspaceArchivePath: path.join(location, "workspace.tar"), gitArchivePath: path.join(location, "git.tar") },
+        ...(warmCache ? (mode === "after" ? { workspaceSeedCacheDirectory: path.join(root, "warm-cache") } : {}) : {
+          workspaceSeedCacheDirectory: path.join(location, "cache"),
+          workspaceDurableSeed: { workspaceArchivePath: path.join(location, "workspace.tar"), gitArchivePath: path.join(location, "git.tar") },
+        }),
         runtimeSpan: async (name, work) => {
           const phaseStart = performance.now();
           try { return await work(); }
@@ -98,8 +101,13 @@ try {
       finally { await disposeDirectorySnapshot(actual); await runtime.cleanupWorkspaceSnapshot(); }
       assert.equal((await execute("git", ["-C", remote, "rev-parse", "HEAD"])).stdout, (await git("rev-parse", "HEAD")).stdout);
       await assert.rejects(fs.stat(path.join(remote, "ignored.txt")), { code: "ENOENT" });
-      assert.equal((await fs.readdir(path.join(location, "cache"))).length, 1);
-      results.push({ mode, sample, wallMs, bytes, phases });
+      if (!warmCache) assert.equal((await fs.readdir(path.join(location, "cache"))).length, 1);
+      if (warmCache && sample >= 0) {
+        assert.equal("workspace.seed_read_hash" in phases, mode === "after");
+        assert.equal("workspace.git_clone" in phases, mode === "before");
+        assert.equal("seed.verify" in phases, false);
+      }
+      if (sample >= 0) results.push({ mode, sample, wallMs, bytes, phases });
       await fs.rm(location, { recursive: true, force: true });
     }
   }
@@ -108,7 +116,7 @@ try {
     return [mode, { medianMs: timings[Math.floor(timings.length / 2)], minMs: timings[0], maxMs: timings.at(-1) }];
   }));
   console.log(JSON.stringify({ node: process.version, platform: process.platform, baselineRef: revision,
-    files, samples, transferDelayMs, transport: "local copy and shell extraction; optional controlled transfer delay", summary, results }, null, 2));
+    files, samples, transferDelayMs, warmCache, transport: "local copy and shell extraction; optional controlled transfer delay", summary, results }, null, 2));
 } finally {
   if (previousHome === undefined) delete process.env.PAPERCLIP_HOME;
   else process.env.PAPERCLIP_HOME = previousHome;

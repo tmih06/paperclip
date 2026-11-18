@@ -6,16 +6,16 @@ import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
 import { execute } from "./execute.js";
 
 const fixture = vi.hoisted(() => ({
-  process: vi.fn(), restore: vi.fn(), directory: vi.fn(), command: vi.fn(), prepare: vi.fn(),
+  process: vi.fn(), restore: vi.fn(), directory: vi.fn(), command: vi.fn(), prepare: vi.fn(), bridge: vi.fn(),
 }));
 vi.mock("@paperclipai/adapter-utils/execution-target", async importOriginal => {
   const actual = await importOriginal<typeof import("@paperclipai/adapter-utils/execution-target")>();
   return { ...actual,
     ensureAdapterExecutionTargetDirectory: fixture.directory,
-    ensureAdapterExecutionTargetCommandResolvable: fixture.command,
+    ensureAdapterExecutionTargetCommandsResolvable: fixture.command,
     prepareAdapterExecutionTargetRuntime: fixture.prepare,
     runAdapterExecutionTargetProcess: fixture.process,
-    adapterExecutionTargetUsesPaperclipBridge: () => false,
+    startAdapterExecutionTargetPaperclipBridge: fixture.bridge,
   };
 });
 
@@ -65,6 +65,27 @@ describe("ompig Durable execution", () => {
       expect(assignment().prompt).toContain("Follow the scoped task and verify the output.");
       expect(assignment().prompt).not.toContain(instructionsFilePath);
     } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  it.each([true, false])("passes the sandbox duplex opt-in (%s) to the bridge", async enabled => {
+    await execute(context({ executionTarget: {
+      kind: "remote", transport: "sandbox", providerKey: "daytona", remoteCwd: "/workspace/repo",
+      enableSandboxDuplexBridge: enabled,
+    } }));
+    expect(fixture.bridge).toHaveBeenCalledWith(expect.objectContaining({ enableSandboxDuplexBridge: enabled }));
+  });
+
+  it("uses separate seed cache directories for different companies and workspaces", async () => {
+    const executionTarget = { kind: "remote", transport: "sandbox", providerKey: "kubernetes", remoteCwd: "/workspace/repo" };
+    const first = context({ executionTarget });
+    await execute(first);
+    await execute(context({ executionTarget, config: { ...first.config, cwd: "/work/other" } }));
+    await execute(context({ executionTarget, agent: { ...first.agent, companyId: "company-b" } }));
+    const [original, otherWorkspace, otherCompany] = fixture.prepare.mock.calls.map(([input]) => input);
+    expect(otherWorkspace.workspaceSeedCacheCompanyDirectory).toBe(original.workspaceSeedCacheCompanyDirectory);
+    expect(otherWorkspace.workspaceSeedCacheDirectory).not.toBe(original.workspaceSeedCacheDirectory);
+    expect(otherCompany.workspaceSeedCacheCompanyDirectory).not.toBe(original.workspaceSeedCacheCompanyDirectory);
+    expect(original.workspaceDurableSeed).toBeUndefined();
   });
 
   it("resumes pending immutable work across a new Paperclip run without replacing its prompt", async () => {
