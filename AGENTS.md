@@ -2,14 +2,13 @@
 
 Guidance for human and AI contributors working in this repository.
 
-This codebase is yours: what it's for and how it's built are your call, and you'll keep building on it.
-The invariants and rules below record what has been decided so far. If you think one of them is wrong, say so and propose the change; do not work around it.
-
 ## 1. Purpose
 
-Paperclip is a control plane for AI-agent companies.
-The code and its tests are the source of truth for current behavior.
-The focused docs under `doc/` are background. They can be out of date, so do not treat them as requirements when they disagree with the code or with the task.
+This personal Paperclip fork is migrating first-party tooling to Bun and building a software factory. The target workflow claims a coding ticket, runs it in one isolated Kubernetes pod at a time, and works through implementation, verification, and actionable PR feedback until the PR is ready for human review or the work is blocked.
+
+Use [the project goal](doc/GOAL.md) and [product definition](doc/PRODUCT.md) for direction. Use code and tests for current behavior. Do not present the target workflow as shipped without end-to-end evidence.
+
+For factory changes, preserve atomic ticket ownership, task-scoped credentials, and the task's branch and PR across retries. Do not start a second executor for an active task. Verify readiness against the PR's current head. Do not merge or deploy unless separately authorized.
 
 ## 2. Read This First
 
@@ -176,10 +175,10 @@ recipes, and coverage gaps. They record coverage scope, not proof that a live
 journey passed. Routine fixes, polish, refactors, and test changes do not require
 map updates. When you do edit a map, follow
 [the feature-map scope rule](rules/feature-map-scope.mdc) and
-[the map contract](maps/README.md), then run `node scripts/check-maps.mjs`.
+[the map contract](maps/README.md), then run `bun scripts/check-maps.mjs`.
 
 After story or recipe changes, update the affected source annotations or recipe
-and run `node scripts/storybook-catalog.mjs`. Indexes are generated and ignored;
+and run `bun scripts/storybook-catalog.mjs`. Indexes are generated and ignored;
 never commit them. See the [Storybook feature catalog](maps/storybook-map/README.md)
 for the full workflow. Structural checks are not production acceptance.
 
