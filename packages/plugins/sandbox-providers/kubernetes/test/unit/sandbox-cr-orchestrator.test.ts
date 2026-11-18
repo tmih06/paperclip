@@ -243,6 +243,56 @@ describe("waitForSandboxReady", () => {
     expect(get).toHaveBeenCalledTimes(3);
   });
 
+  it("observes a cold Sandbox becoming Ready during the first second", async () => {
+    vi.useFakeTimers();
+    try {
+      const started = Date.now();
+      const get = vi.fn(async () => makeCr(Date.now() - started >= 650 ? "Ready" : "Pending"));
+      const clients = { custom: { getNamespacedCustomObject: get } };
+      const settled = vi.fn();
+      const wait = waitForSandboxReady(clients as never, "ns", "pc-abc", { timeoutMs: 5000 });
+      void wait.then(settled);
+
+      await vi.advanceTimersByTimeAsync(649);
+      expect(settled).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(351);
+      expect(settled).toHaveBeenCalledWith(expect.objectContaining({ phase: "Running" }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("bounds the extra API reads when a Sandbox stays Pending", async () => {
+    vi.useFakeTimers();
+    try {
+      const get = vi.fn().mockResolvedValue(makeCr("Pending"));
+      const clients = { custom: { getNamespacedCustomObject: get } };
+      const wait = waitForSandboxReady(clients as never, "ns", "pc-abc", { timeoutMs: 10_000 });
+      const timedOut = expect(wait).rejects.toBeInstanceOf(SandboxCrTimeoutError);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await timedOut;
+      expect(get.mock.calls.length).toBeLessThanOrEqual(8);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not sleep past a short readiness deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      const get = vi.fn().mockResolvedValue(makeCr("Pending"));
+      const clients = { custom: { getNamespacedCustomObject: get } };
+      const settled = vi.fn();
+      const wait = waitForSandboxReady(clients as never, "ns", "pc-abc", { timeoutMs: 100 });
+      void wait.catch(settled);
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(settled).toHaveBeenCalledWith(expect.any(SandboxCrTimeoutError));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("throws SandboxCrTimeoutError when deadline is exceeded", async () => {
     const get = vi.fn().mockResolvedValue(makeCr("Pending"));
     const clients = { custom: { getNamespacedCustomObject: get } };

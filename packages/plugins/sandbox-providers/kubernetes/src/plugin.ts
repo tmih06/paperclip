@@ -173,10 +173,7 @@ async function resolveSyncPodExec(
   // Ensure the Sandbox pod is Ready (wait only the first time for this lease),
   // then resolve the pod name — mirrors the onEnvironmentExecute resolution.
   if (!readySandboxesByLease.has(lease.providerLeaseId)) {
-    await sandboxCrOrchestrator.waitForCompletion(clients, namespace, lease.providerLeaseId, {
-      timeoutMs,
-      pollMs: 2000,
-    });
+    await sandboxCrOrchestrator.waitForCompletion(clients, namespace, lease.providerLeaseId, { timeoutMs });
     readySandboxesByLease.add(lease.providerLeaseId);
   }
 
@@ -723,7 +720,7 @@ const plugin = definePlugin({
             clients,
             namespace,
             lease.providerLeaseId,
-            { timeoutMs: effectiveTimeoutMs, pollMs: 2000 },
+            { timeoutMs: effectiveTimeoutMs },
           );
           readySandboxesByLease.add(lease.providerLeaseId);
         } catch (err) {
