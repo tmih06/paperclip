@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-pr-coauthors.mjs
  * Surfaces the `Co-Authored-By` trailers a squash merge needs to keep

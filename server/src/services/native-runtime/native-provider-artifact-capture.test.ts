@@ -57,7 +57,7 @@ it.each(["stop", "deadline"])(
     const manifest = {
       payload: {
         artifacts: Object.fromEntries(
-          ["nodeCommand", "opencodeProxy", "opencodeExecutable"].map((name) => [
+          ["bunCommand", "opencodeProxy", "opencodeExecutable"].map((name) => [
             name,
             { path: name },
           ]),
@@ -76,7 +76,7 @@ it.each(["stop", "deadline"])(
           root: "/owned/qualified",
           accountUid: 1000,
           paths: {
-            nodeCommand: "/qualified/node",
+            bunCommand: "/qualified/node",
             opencodeProxy: "/qualified/proxy",
             opencodeExecutable: "/qualified/opencode",
           },

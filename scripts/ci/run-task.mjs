@@ -40,14 +40,16 @@ for (const file of productInputs(files)) {
   }
 }
 const scope = {
-  node: process.version, pnpm: version("pnpm", ["--version"]),
+  node: process.version, bun: version("bun", ["--version"]),
   platform: process.platform, arch: process.arch, cwd: realpathSync(process.cwd()),
   libc: process.report.getReport().header.glibcVersionRuntime ?? null,
   rust: version("rustc", ["--version", "--verbose"]),
   unknownInputs: unknownInputs.digest("hex"),
 };
 const force = process.env.CI_FORCE_TASKS === "true" || uncacheable;
-const result = spawnSync("pnpm", ["exec", "turbo", "run", execution.target,
+// --no-install keeps a cached result from needing a registry round trip to
+// resolve turbo, which is already in the root node_modules.
+const result = spawnSync("bun", ["x", "--bun", "--no-install", "turbo", "run", execution.target,
   "--root-turbo-json", runtimeConfig, "--summarize", force ? "--cache=" : "--cache=local:rw", "--cache-dir=.turbo/cache",
   ...(process.env.CI_TASK_DRY_RUN === "true" ? ["--dry=json"] : []),
   "--", ...execution.args], {

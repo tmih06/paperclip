@@ -47,7 +47,7 @@
           "content": "Draw the board/CLI/API to server to database/storage path, plus distinct direct-adapter and Paperclip Runner/provider execution branches. Identify who owns business authorization and workflow state versus provider process/session execution. Show browser event delivery without implying the browser connects directly to runnerd. Add a compact responsibility-to-directory table covering shared contracts, adapters/utilities, Runner, plugins, skills/teams catalogs, CLI, UI, and tests. Explain server startup/composition and the incremental domain/application/adapter module pattern; do not imply all services have been migrated to it. Link protocol and runtime details to Run Agents."
         },
         {
-          "content": "Source anchors: `pnpm-workspace.yaml`, `server/src/index.ts`, `server/src/app.ts`, `server/src/modules/README.md`, `server/src/services/heartbeat.ts`, `server/src/services/native-runtime/runtime-mode.ts`, `packages/paperclip-runner/package.json`, `ui/src/App.tsx`, `cli/src/index.ts`. Boundary evidence: `scripts/check-module-boundaries.mjs`, `scripts/check-module-boundaries.test.mjs`, and `server/src/services/native-runtime/runtime-mode.test.ts`."
+          "content": "Source anchors: `package.json`, `bunfig.toml`, `server/src/index.ts`, `server/src/app.ts`, `server/src/modules/README.md`, `server/src/services/heartbeat.ts`, `server/src/services/native-runtime/runtime-mode.ts`, `packages/paperclip-runner/package.json`, `ui/src/App.tsx`, `cli/src/index.ts`. Boundary evidence: `scripts/check-module-boundaries.mjs`, `scripts/check-module-boundaries.test.mjs`, and `server/src/services/native-runtime/runtime-mode.test.ts`."
         }
       ]
     },

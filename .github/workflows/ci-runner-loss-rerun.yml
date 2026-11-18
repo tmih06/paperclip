@@ -51,4 +51,4 @@ jobs:
       - name: Re-run failed jobs if every failure was runner loss
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node .github/scripts/runner-loss-rerun.mjs
+        run: bun .github/scripts/runner-loss-rerun.mjs

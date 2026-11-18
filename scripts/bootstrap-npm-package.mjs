@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 // One-time npm bootstrap for a brand-new release package. Publishes a minimal
 // placeholder at version 0.0.0 — never the package's real build output — so:
@@ -47,7 +47,7 @@ function usage() {
   process.stderr.write(
     [
       "Usage:",
-      "  node scripts/bootstrap-npm-package.mjs <package-name> [--publish]",
+      "  bun scripts/bootstrap-npm-package.mjs <package-name> [--publish]",
       "",
       "Publishes an empty placeholder at version 0.0.0 that reserves <package-name> on npm",
       "so the release-bootstrap CI gate passes and trusted publishing can be configured.",
@@ -58,8 +58,8 @@ function usage() {
       "environment, so codes never appear on a command line.",
       "",
       "Examples:",
-      "  node scripts/bootstrap-npm-package.mjs @paperclipai/new-package",
-      "  node scripts/bootstrap-npm-package.mjs @paperclipai/new-package --publish",
+      "  bun scripts/bootstrap-npm-package.mjs @paperclipai/new-package",
+      "  bun scripts/bootstrap-npm-package.mjs @paperclipai/new-package --publish",
       "",
     ].join("\n"),
   );
@@ -359,7 +359,7 @@ async function stageAndPublish(packageName, { publish }) {
         [
           "",
           "Dry run complete. To publish the placeholder from an authenticated maintainer machine, run:",
-          `node scripts/bootstrap-npm-package.mjs ${packageName} --publish`,
+          `bun scripts/bootstrap-npm-package.mjs ${packageName} --publish`,
           "",
         ].join("\n"),
       );

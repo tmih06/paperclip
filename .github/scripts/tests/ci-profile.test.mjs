@@ -404,9 +404,9 @@ function assertNoPrWorkflowCredentials(source) {
 }
 
 test("PR credential guard permits filenames but rejects secret expressions", () => {
-  assertNoPrWorkflowCredentials("run: node --test scripts/docker-compose-secrets.test.mjs");
-  assertNoPrWorkflowCredentials("if: ${{ always() }}\nrun: node --test scripts/docker-compose-secrets.test.mjs");
-  assertNoPrWorkflowCredentials("if: ${{ startsWith(github.ref, 'ref') }}\nrun: 'node --test scripts/docker-compose-secrets.test.mjs'");
+  assertNoPrWorkflowCredentials("run: bun test scripts/docker-compose-secrets.test.mjs");
+  assertNoPrWorkflowCredentials("if: ${{ always() }}\nrun: bun test scripts/docker-compose-secrets.test.mjs");
+  assertNoPrWorkflowCredentials("if: ${{ startsWith(github.ref, 'ref') }}\nrun: 'bun test scripts/docker-compose-secrets.test.mjs'");
   for (const source of ["env: ${{ secrets.EXAMPLE }}", "env: ${{ secrets['EXAMPLE'] }}", "env: ${{ toJSON(secrets) }}", "env: ${{ format('}}', secrets.EXAMPLE) }}",
     "# Expressions start with '${{'.\nTOKEN: ${{ secrets.PR_TOKEN }}",
     "name: Example # Expressions start with '${{'.\nTOKEN: ${{ secrets.PR_TOKEN }}"]) {
@@ -441,9 +441,9 @@ test("workflow exporter runs trusted code and keeps keys out of the PR jobs", ()
   assert.equal(workflow.match(/^  [a-z_]+:$/gm).filter((line) => !["  workflow_run:", "  export:"].includes(line)).length, 0);
   assert.equal(workflow.match(/environment:/g).length, 1);
   assert.match(workflow, /environment: ci-profiling/);
-  assert.doesNotMatch(workflow, /head_sha|secrets: inherit|contents: write|pull-requests: write|pnpm install/);
+  assert.doesNotMatch(workflow, /head_sha|secrets: inherit|contents: write|pull-requests: write|bun install/);
   const pr = readFileSync(new URL("../../workflows/pr-trusted.yml", import.meta.url), "utf8");
-  assert.equal(secretReference("run: node --test scripts/docker-compose-secrets.test.mjs"), false);
+  assert.equal(secretReference("run: bun test scripts/docker-compose-secrets.test.mjs"), false);
   for (const lookup of ["${{ secrets.PR_TOKEN }}", "${{ secrets['PR_TOKEN'] }}", "${{\n secrets.PR_TOKEN\n }}", "${{ toJSON(secrets) }}", "${{ secrets.HONEYCOMB_API_KEY }}"]) {
     assert.equal(secretReference(lookup), true);
   }
@@ -457,7 +457,7 @@ test("workflow exporter runs trusted code and keeps keys out of the PR jobs", ()
   }
   for (const nonSecret of [
     "${{ format('secrets.PR_TOKEN', 'literal') }}",
-    "${{ github.sha }}\nrun: node --test scripts/docker-compose-secrets.test.mjs",
+    "${{ github.sha }}\nrun: bun test scripts/docker-compose-secrets.test.mjs",
   ]) {
     assert.equal(secretReference(nonSecret), false);
   }

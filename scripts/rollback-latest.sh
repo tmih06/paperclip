@@ -55,7 +55,7 @@ if [ "$dry_run" = false ] && ! npm whoami >/dev/null 2>&1; then
 fi
 
 list_public_package_names() {
-  node - "$REPO_ROOT" <<'NODE'
+  bun - "$REPO_ROOT" <<'NODE'
 const fs = require('fs');
 const path = require('path');
 

@@ -13,7 +13,7 @@ async function fixture(secrets: string[] = []) {
   const repositoryRoot = path.join(root, "repo"), temporaryRoot = path.join(root, "attempt"), uploadDir = path.join(root, "uploaded");
   const put = async (file: string, value: string | Buffer) => { await mkdir(path.dirname(path.join(repositoryRoot, file)), { recursive: true }); await writeFile(path.join(repositoryRoot, file), value); };
   await put("scripts/ensure-plugin-build-deps.mjs", await readFile(new URL("../../scripts/ensure-plugin-build-deps.mjs", import.meta.url)));
-  await put("pnpm-lock.yaml", "synthetic unit lock\n");
+  await put("bun.lock", "synthetic unit lock\n");
   for (const directory of ["packages/shared", "packages/plugins/sdk"]) {
     await put(`${directory}/src/index.ts`, "export const syntheticFixture = true;\n"); await put(`${directory}/tsconfig.json`, "{}");
   }

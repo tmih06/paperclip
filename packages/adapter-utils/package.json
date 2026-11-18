@@ -38,9 +38,9 @@
     "acpx"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "bun x --bun --no-install tsc",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bun x --bun --no-install tsc --noEmit"
   },
   "dependencies": {
     "@paperclipai/shared": "workspace:*",
@@ -50,7 +50,6 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "engines": {

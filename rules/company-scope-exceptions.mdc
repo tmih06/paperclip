@@ -1,6 +1,6 @@
 ---
-description: The known instance-wide data is announcement dismissals, the announcement publication-ID registry, personal workspace presentation preferences, the per-user sidebar company order, and the instance-admin server metrics snapshot; these grant no authority, and a new exception must be added to this list.
-globs: "packages/db/src/schema/announcement_dismissals.ts,packages/shared/src/announcements.ts,server/src/routes/announcements.ts,server/src/services/announcements.ts,server/src/services/announcement-feed.ts,packages/db/src/schema/user_workspace_preferences.ts,packages/shared/src/workspace-preferences.ts,server/src/routes/workspace-preferences.ts,server/src/services/workspace-preferences.ts,packages/db/src/schema/user_sidebar_preferences.ts,packages/shared/src/types/sidebar-preferences.ts,server/src/routes/sidebar-preferences.ts,server/src/services/sidebar-preferences.ts,server/src/routes/instance-server-metrics.ts,server/src/services/server-metrics.ts"
+description: The known instance-wide data is announcement dismissals, the announcement publication-ID registry, personal workspace presentation preferences, the per-user sidebar company order, the instance-admin server metrics snapshot, and the instance-admin cluster network inventory; these grant no authority, and a new exception must be added to this list.
+globs: "packages/db/src/schema/announcement_dismissals.ts,packages/shared/src/announcements.ts,server/src/routes/announcements.ts,server/src/services/announcements.ts,server/src/services/announcement-feed.ts,packages/db/src/schema/user_workspace_preferences.ts,packages/shared/src/workspace-preferences.ts,server/src/routes/workspace-preferences.ts,server/src/services/workspace-preferences.ts,packages/db/src/schema/user_sidebar_preferences.ts,packages/shared/src/types/sidebar-preferences.ts,server/src/routes/sidebar-preferences.ts,server/src/services/sidebar-preferences.ts,server/src/routes/instance-server-metrics.ts,server/src/services/server-metrics.ts,server/src/routes/network.ts,server/src/services/network.ts,server/src/services/network/kubernetes.ts"
 alwaysApply: false
 ---
 
@@ -36,6 +36,14 @@ company scope here.
   an instance admin can read it, it is off unless `PAPERCLIP_SERVER_METRICS` is
   set, and it returns numbers and a build revision only: no SQL, names, IDs or
   hostnames. It persists nothing and changes nothing.
+
+- **Cluster network inventory** (`GET /api/companies/:companyId/network`) combines
+  company-owned task leases with shared Kubernetes node capacity and system pods.
+  Only an instance admin with access to the requested company can read it. Node
+  requests include all workloads so slot estimates are meaningful, but pod names,
+  namespaces, run IDs and agent identities from other companies are omitted.
+  It is an on-demand, read-only snapshot using the controller's existing credentials;
+  it grants no execution authority and persists nothing.
 
 ## Requirements
 

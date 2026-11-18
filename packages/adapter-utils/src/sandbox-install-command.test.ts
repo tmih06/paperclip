@@ -13,6 +13,7 @@ describe("buildSandboxNpmInstallCommand", () => {
     const command = buildSandboxNpmInstallCommand("@google/gemini-cli");
     expect(command).toContain("if ! command -v npm >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1 ||");
     expect(command).toContain("process.versions.node");
+    expect(command).toContain("!process.versions.bun");
     expect(command).toContain("v[0]>24||(v[0]===24&&v[1]>=11)");
     expect(command).toContain("https://nodejs.org/dist/");
     expect(command).toContain('export PATH="$HOME/.local/bin:$PATH"');

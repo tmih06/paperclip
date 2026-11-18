@@ -11,7 +11,7 @@ const registryPath = "tests/runner-e2e/source-sdk-public-inputs.json";
 const reportLockPath = "tests/runner-e2e/report-lock.json";
 const sourceRoots = ["packages/shared/src", "packages/plugins/sdk/src"];
 const buildInputs = ["package.json", "packages/plugins/sdk/package.json", "packages/plugins/sdk/tsconfig.json",
-  "packages/shared/package.json", "packages/shared/tsconfig.json", "pnpm-lock.yaml",
+  "packages/shared/package.json", "packages/shared/tsconfig.json", "bun.lock",
   "scripts/ensure-plugin-build-deps.mjs", "tsconfig.base.json", "tsconfig.json"];
 const sourcePath = file => sourceRoots.some(root => file.startsWith(`${root}/`));
 const blob = bytes => createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
@@ -29,9 +29,9 @@ const hex64 = value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value)
 export function reviewedSdkLockSha256(root, revision) {
   const policy = JSON.parse(committedBytes(root, revision, reportLockPath).toString("utf8"));
   if (!hex64(policy.inputSha256) || !hex64(policy.outputSha256)) fail();
-  const committedLock = sha256(committedBytes(root, revision, "pnpm-lock.yaml"));
+  const committedLock = sha256(committedBytes(root, revision, "bun.lock"));
   if (![policy.inputSha256, policy.outputSha256].includes(committedLock)) {
-    throw new Error(`SDK public input synchronization refused: the committed pnpm-lock.yaml is not reviewed by ${reportLockPath}`);
+    throw new Error(`SDK public input synchronization refused: the committed bun.lock is not reviewed by ${reportLockPath}`);
   }
   return policy.outputSha256;
 }
@@ -68,7 +68,7 @@ export async function synchronizeSdkPublicInputs(root, revision, { write = false
     if (!stat.isFile() || stat.isSymbolicLink() || await realpath(filename) !== filename || stat.size > 8 * 1024 * 1024) fail();
     const bytes = await readFile(filename);
     // Preserve the existing, separately authenticated restored-lock exception.
-    if (blob(bytes) !== expected && !(file === "pnpm-lock.yaml" && sha256(bytes) === lockSha256)) fail();
+    if (blob(bytes) !== expected && !(file === "bun.lock" && sha256(bytes) === lockSha256)) fail();
   }
   const updated = { ...baseline, lockSha256, inputs: Object.fromEntries(Object.entries(inputs).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) };
   const output = `${JSON.stringify(updated, null, 2)}\n`;
@@ -114,7 +114,7 @@ function compareSdkPublicInputs(registry, actual, policy) {
 }
 
 const committedLockBlob = root => {
-  try { return git(root, ["rev-parse", "--verify", "--quiet", "HEAD:pnpm-lock.yaml"]).trim(); }
+  try { return git(root, ["rev-parse", "--verify", "--quiet", "HEAD:bun.lock"]).trim(); }
   catch { return null; }
 };
 
@@ -136,7 +136,7 @@ export async function staleSdkPublicInputsInWorkingTree(root) {
       // Preserve the authenticated restored-lock exception: prepare-report-lock.mjs may leave the
       // reviewed output lock in the working tree while the registry keeps the committed input pin.
       // It applies only as an uncommitted overlay over a committed lock that matches its pin.
-      actual[file] = file === "pnpm-lock.yaml" && hex64(registry.lockSha256) && sha256(bytes) === registry.lockSha256
+      actual[file] = file === "bun.lock" && hex64(registry.lockSha256) && sha256(bytes) === registry.lockSha256
         && committedLockBlob(root) === registry.inputs?.[file] ? registry.inputs[file] : blob(bytes);
     } catch (error) { if (error.code !== "ENOENT") throw error; }
   }
@@ -147,12 +147,12 @@ export async function staleSdkPublicInputsInWorkingTree(root) {
 /** The actionable failure text shared by the CI drift guard and local verification. */
 export function staleSdkPublicInputsMessage(stale) {
   return `${registryPath} is stale for ${stale.length} pinned input(s): ${stale.slice(0, 10).map(row => `${row.file} (${row.change})`).join(", ")}${stale.length > 10 ? ", ..." : ""}. `
-    + "Commit your change, run `node tests/runner-e2e/source-sdk-public-inputs.mjs $(git rev-parse HEAD) --write`, and commit the updated registry.";
+    + "Commit your change, run `bun tests/runner-e2e/source-sdk-public-inputs.mjs $(git rev-parse HEAD) --write`, and commit the updated registry.";
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [revision, mode] = process.argv.slice(2);
-  if (process.argv.length !== 4 || !["--check", "--write"].includes(mode)) throw new Error("Usage: node tests/runner-e2e/source-sdk-public-inputs.mjs <HEAD-40hex> --check|--write");
+  if (process.argv.length !== 4 || !["--check", "--write"].includes(mode)) throw new Error("Usage: bun tests/runner-e2e/source-sdk-public-inputs.mjs <HEAD-40hex> --check|--write");
   const root = await realpath(path.resolve(fileURLToPath(new URL("../..", import.meta.url))));
   const result = await synchronizeSdkPublicInputs(root, revision, { write: mode === "--write" });
   console.log(JSON.stringify(result));

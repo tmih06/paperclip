@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Public npm graph + explicit setup only. No credentials, inference, publication,
 // checkout mount, candidate overrides, or native Cursor assets in the tarballs.
 import assert from 'node:assert/strict';

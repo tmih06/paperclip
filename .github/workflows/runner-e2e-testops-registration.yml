@@ -93,7 +93,7 @@ jobs:
           ALLURE_PROJECT_ID: '1'
           REGISTRATION_PLAN: ${{ inputs.plan }}
           REGISTRATION_OPERATION: ${{ inputs.operation }}
-        run: node tests/runner-e2e/reliability-testops-registration.mjs testops-registration/receipt.json
+        run: bun tests/runner-e2e/reliability-testops-registration.mjs testops-registration/receipt.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:

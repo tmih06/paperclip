@@ -167,7 +167,7 @@ test("runner consumes the exact manifest, and rejects stale, missing, or mismatc
 test("forced modes, config, fixtures, deletions and unknown inputs cannot narrow CI", () => {
   const plan = fixturePlan().plan;
   assert.equal(selectionEligibility(plan), null);
-  for (const changed of [["ui/vitest.setup.ts"], ["ui/vite.config.ts"], ["package.json"], ["pnpm-lock.yaml"],
+  for (const changed of [["ui/vitest.setup.ts"], ["ui/vite.config.ts"], ["package.json"], ["bun.lock"],
     ["docs/api/issues.md"], ["ui/src/missing-deleted.ts"], ["server/fixtures/input.json"], []]) {
     assert.ok(selectionEligibility({ ...plan, changed }), JSON.stringify(changed));
   }

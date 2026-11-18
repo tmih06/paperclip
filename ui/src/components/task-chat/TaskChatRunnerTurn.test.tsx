@@ -1693,7 +1693,7 @@ describe("TaskChatRunnerTurn", () => {
           kind: "tool",
           name: "Command",
           rawName: "bash",
-          target: "pnpm test",
+          target: "bun run test",
           status: "failed",
         },
       ],

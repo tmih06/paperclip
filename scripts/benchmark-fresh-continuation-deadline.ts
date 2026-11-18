@@ -4,7 +4,7 @@
 // Compares a baseline revision with the working tree on identical data and
 // fails on any difference in complete positional rows.
 //
-//   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-fresh-continuation-deadline.ts \
+//   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-fresh-continuation-deadline.ts \
 //     --baseline-ref=<sha> [--context-kib=60] [--samples=7] [--warmups=2] [--print-plans]
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";

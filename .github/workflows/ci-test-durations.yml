@@ -42,11 +42,11 @@ jobs:
         if: steps.pending.outputs.count == '0'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/ci/refresh-test-durations.mjs "--pr-body=$RUNNER_TEMP/ci-duration-pr.md"
+        run: bun scripts/ci/refresh-test-durations.mjs "--pr-body=$RUNNER_TEMP/ci-duration-pr.md"
       - name: Verify timing data and complete shard coverage
         if: steps.pending.outputs.count == '0'
         run: >-
-          node --test scripts/ci/test-selection-timings.test.mjs scripts/ci/test-selection-pr-timings.test.mjs
+          bun test scripts/ci/test-selection-timings.test.mjs scripts/ci/test-selection-pr-timings.test.mjs
           scripts/__tests__/run-vitest-stable-shard.test.mjs scripts/__tests__/e2e-shard.test.mjs
       - name: Open a timing-only pull request
         if: steps.pending.outputs.count == '0'
@@ -58,7 +58,7 @@ jobs:
           for file in $manifests; do [ ! -e "$file" ] || git add -N -- "$file"; done
           if git diff --quiet; then exit 0; fi
           # The collector must not cause unrelated code to enter the bot PR.
-          git diff --name-only -z | node --input-type=module -e '
+          git diff --name-only -z | bun --input-type=module -e '
             import {readFileSync} from "node:fs";
             import assert from "node:assert/strict";
             const allowed = new Set(["scripts/general-server-shard-durations.json", "scripts/serialized-shard-durations.json",

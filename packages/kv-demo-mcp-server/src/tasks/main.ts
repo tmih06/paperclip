@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createTasksDemoHttpServer } from "./http.js";

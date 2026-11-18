@@ -103,8 +103,8 @@ function packLocalPackage(packagePath: string, outputDir: string): string {
   const sdkBundleDir = path.join(outputDir, ".paperclip-sdk");
 
   fs.mkdirSync(sdkBundleDir, { recursive: true });
-  execFileSync("pnpm", ["build"], { cwd: packagePath, stdio: "pipe" });
-  execFileSync("pnpm", ["pack", "--pack-destination", sdkBundleDir], { cwd: packagePath, stdio: "pipe" });
+  execFileSync("bun", ["run", "build"], { cwd: packagePath, stdio: "pipe" });
+  execFileSync("bun", ["pm", "pack", "--destination", sdkBundleDir], { cwd: packagePath, stdio: "pipe" });
 
   const tarballPath = path.join(sdkBundleDir, tarballFileName);
   if (!fs.existsSync(tarballPath)) {
@@ -666,10 +666,10 @@ ${description}
 ## Development
 
 \`\`\`bash
-pnpm install
+bun install
 pnpm dev            # watch builds
 pnpm dev:ui         # local dev server with hot-reload events
-pnpm test
+bun run test
 \`\`\`
 
 \`pnpm dev\` rebuilds the worker, manifest, and UI bundles into \`dist/\`.
@@ -689,8 +689,8 @@ paperclipai plugin install ${shellQuote(toPosixPath(outputDir))}
 
 ## Build Options
 
-- \`pnpm build\` uses esbuild presets from \`@paperclipai/plugin-sdk/bundlers\`.
-- \`pnpm build:rollup\` uses rollup presets from the same SDK.
+- \`bun run build\` uses esbuild presets from \`@paperclipai/plugin-sdk/bundlers\`.
+- \`bun run build:rollup\` uses rollup presets from the same SDK.
 `,
   );
 

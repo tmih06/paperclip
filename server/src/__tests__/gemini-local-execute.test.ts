@@ -5,7 +5,7 @@ import path from "node:path";
 import { execute } from "@paperclipai/adapter-gemini-local/server";
 
 async function writeFakeGeminiCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 const fs = require("node:fs");
 
 const capturePath = process.env.PAPERCLIP_TEST_CAPTURE_PATH;
@@ -52,7 +52,7 @@ async function writeFailingGeminiCommand(
   const stdout = options.stdout ?? "";
   const stderr = options.stderr ?? "";
   const exit = options.exitCode ?? 1;
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 for (const line of ${JSON.stringify(stdoutLines.map((line) => JSON.stringify(line)))}) {
   console.log(line);
 }

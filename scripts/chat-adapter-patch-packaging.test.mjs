@@ -24,10 +24,6 @@ const rootPackage = JSON.parse(
 const serverPackage = JSON.parse(
   readFileSync(new URL("../server/package.json", import.meta.url), "utf8"),
 );
-const workspace = readFileSync(
-  new URL("../pnpm-workspace.yaml", import.meta.url),
-  "utf8",
-);
 const required = [
   ["@chat-adapter/discord", "4.39.0"],
   ["@chat-adapter/github", "4.39.0"],
@@ -63,12 +59,8 @@ for (const [name, version] of required) {
       "the patched runtime must remain in the published tarball",
     );
     const specifier = `${name}@${version}`;
-    const patchPath = rootPackage.pnpm.patchedDependencies[specifier];
+    const patchPath = rootPackage.patchedDependencies[specifier];
     assert.equal(typeof patchPath, "string");
-    assert.ok(
-      workspace.includes(`"${specifier}": ${patchPath}`),
-      "both supported pnpm configuration paths must match",
-    );
     // Parse the actual full patch, not merely its configured filename. This is
     // read-only; clean-package materialization is a separate qualification.
     execFileSync("git", ["apply", "--stat", patchPath], {
@@ -83,7 +75,10 @@ test("release selection includes every chat runtime patch and the existing ACPX 
     join(tmpdir(), "paperclip-chat-release-contract-"),
   );
   t.after(() => rmSync(destination, { recursive: true, force: true }));
-  for (const [name, version] of [...required, ["acpx", "0.13.1"]]) {
+  const patchedRuntimes = serverPackage.bundleDependencies
+    .map(name => [name, serverPackage.dependencies[name]])
+    .filter(([name, version]) => rootPackage.patchedDependencies[`${name}@${version}`]);
+  for (const [name, version] of patchedRuntimes) {
     const directory = join(destination, "node_modules", name);
     mkdirSync(directory, { recursive: true });
     writeFileSync(
@@ -94,14 +89,12 @@ test("release selection includes every chat runtime patch and the existing ACPX 
   const selected = selectBundledDependencyPatches(
     destination,
     serverPackage.bundleDependencies,
-    rootPackage.pnpm.patchedDependencies,
+    rootPackage.patchedDependencies,
   );
+  assert.ok(selected.some(({ specifier }) => specifier === `acpx@${serverPackage.dependencies.acpx}`));
   assert.deepEqual(
     selected.map(({ specifier }) => specifier).sort(),
-    [
-      ...required.map(([name, version]) => `${name}@${version}`),
-      "acpx@0.13.1",
-    ].sort(),
+    patchedRuntimes.map(([name, version]) => `${name}@${version}`).sort(),
   );
   writeFileSync(
     join(destination, "node_modules", "@discordjs/ws", "package.json"),
@@ -115,7 +108,7 @@ test("release selection includes every chat runtime patch and the existing ACPX 
       selectBundledDependencyPatches(
         destination,
         serverPackage.bundleDependencies,
-        rootPackage.pnpm.patchedDependencies,
+        rootPackage.patchedDependencies,
       ),
     /installed @discordjs\/ws@1\.2\.4/,
   );

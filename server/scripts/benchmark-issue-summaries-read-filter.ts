@@ -12,7 +12,7 @@
  * the working tree's route on the same database. The script fails unless both
  * return the same summaries for every actor.
  *
- *   pnpm --filter @paperclipai/server exec tsx scripts/benchmark-issue-summaries-read-filter.ts --baseline-ref=<pre-fix commit>
+ *   bun run --filter @paperclipai/server exec tsx scripts/benchmark-issue-summaries-read-filter.ts --baseline-ref=<pre-fix commit>
  *
  * Optional sizes: IDS (default 50, the route maximum), NOISE_ISSUES (5000),
  * POOL (10), REQUESTS (40), CONCURRENT (8), WAVES (10).

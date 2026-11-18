@@ -598,7 +598,7 @@ function readJsonFile(filePath: string): Record<string, unknown> {
 function findWorkspaceRoot(startCwd: string) {
   let current = path.resolve(startCwd);
   while (true) {
-    if (existsSync(path.join(current, "pnpm-workspace.yaml"))) {
+    if (existsSync(path.join(current, "bunfig.toml"))) {
       return current;
     }
     const parent = path.dirname(current);

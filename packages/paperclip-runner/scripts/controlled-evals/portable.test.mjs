@@ -15,16 +15,33 @@ const source = dirname(fileURLToPath(import.meta.url));
 const isolatedProbe = `
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { registerHooks, isBuiltin, createRequire } from 'node:module';
+import { createRequire } from 'node:module';
+import { lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { join } from 'node:path';
 const root = await realpath(process.argv[2]), prefix = pathToFileURL(root + '/').href;
-registerHooks({ resolve(specifier, context, nextResolve) {
-  const result = nextResolve(specifier, context);
-  if (context.parentURL?.startsWith(prefix) && !isBuiltin(result.url) && !result.url.startsWith(prefix)) throw new Error('Runtime depends on a file outside its artifact');
-  return result;
+// Bun has no module.registerHooks. Enforce the same boundary with a resolver
+// that refuses any resolved file outside the copied runtime, plus an audit of
+// the artifact tree so a symlinked dependency cannot carry the runtime out.
+Bun.plugin({ name: 'portable-artifact-boundary', setup(build) {
+  build.onResolve({ filter: /.*/ }, args => {
+    if (!args.importer.startsWith(root + '/')) return undefined;
+    let resolved;
+    try { resolved = Bun.resolveSync(args.path, dirname(args.importer)); } catch { return undefined; }
+    if (!resolved.startsWith(root + '/')) throw new Error('Runtime depends on a file outside its artifact');
+    return undefined;
+  });
 } });
+const audit = directory => {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (lstatSync(path).isSymbolicLink()) {
+      if (!realpathSync(path).startsWith(root + '/')) throw new Error('Runtime depends on a file outside its artifact');
+    } else if (entry.isDirectory()) audit(path);
+  }
+};
+audit(root);
 const { costRuntime } = await import(prefix + 'controlled-evals/manifest.mjs');
 const protobuf = createRequire(join(root, 'server/package.json'))('protobufjs');
 const type = protobuf.parse('syntax = "proto3"; message Value { int64 int_value = 3; } message Log { fixed64 time_unix_nano = 1; Value body = 5; } message Scope { repeated Log log_records = 2; } message Resource { repeated Scope scope_logs = 2; } message Data { repeated Resource resource_logs = 1; }').root.lookupType('Data');
@@ -85,14 +102,19 @@ test('copied controller runs without source dependencies, retains native evidenc
   `);
   assert.match((await stdin).stdout, /stdin imports are side-effect free/);
   const cases = 'real child requests|disjoint concurrent|controller owns native|cancellation during root export|campaign collection retains and audits private archives|native post-child otlp-native.jsonl rejects fifo|credential redaction replaces|missing provider artifacts|hosted workers reject reruns|hosted context requires a manifest|failed final OTLP receipt';
-  const behavioral = await exec(process.execPath, ['--test', '--test-reporter=tap', '--test-name-pattern', cases, join(source, 'controller.test.mjs')], {
+  // Bun runs the copied runtime's own test files through its test runner; Node
+  // takes the `node --test` flags.
+  const runnerArgs = process.versions.bun ? ['test'] : ['--test', '--test-reporter=tap'];
+  // Bun prints the pass summary on stderr; Node prints TAP on stdout.
+  const observed = result => `${result.stdout}${result.stderr}`;
+  const behavioral = await exec(process.execPath, [...runnerArgs, '--test-name-pattern', cases, join(source, 'controller.test.mjs')], {
     cwd: root, env: { ...environment, PAPERCLIP_CONTROLLER_TEST_RUNTIME: join(directory, 'controlled-evals') }, timeout: 80_000, maxBuffer: 1_048_576,
   });
-  assert.match(behavioral.stdout, /# pass 12\b/);
-  const hosted = await exec(process.execPath, ['--test', '--test-reporter=tap', join(source, 'hosted.test.mjs')], {
+  assert.match(observed(behavioral), process.versions.bun ? /\n 12 pass\n/ : /# pass 12\b/);
+  const hosted = await exec(process.execPath, [...runnerArgs, join(source, 'hosted.test.mjs')], {
     cwd: root, env: { ...environment, PAPERCLIP_CONTROLLER_TEST_RUNTIME: join(directory, 'controlled-evals') }, timeout: 30000, maxBuffer: 1_048_576,
   });
-  assert.match(hosted.stdout, /# pass 8\b/);
+  assert.match(observed(hosted), process.versions.bun ? /\n 8 pass\n/ : /# pass 8\b/);
 
 
   const cli = await exec(process.execPath, [join(directory, 'controlled-evals/archive.mjs'), 'report-attempts', join(root, 'empty-attempts')], {

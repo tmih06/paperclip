@@ -9,6 +9,8 @@ vi.mock("../../src/kube-client.js", () => ({
   makeKubeClients: vi.fn(() => h.clients),
 }));
 
+vi.mock("../../src/tenant-orchestrator.js", () => ({ ensureTenant: vi.fn() }));
+
 import plugin from "../../src/plugin.js";
 
 const CONFIG = { inCluster: true, backend: "sandbox-cr" };
@@ -43,13 +45,33 @@ beforeEach(() => {
   h.clients = {};
 });
 
+describe("onEnvironmentAcquireLease", () => {
+  it("records the mounted workspace root before the first native sync", async () => {
+    h.clients = {
+      custom: {
+        createNamespacedCustomObject: vi.fn().mockResolvedValue({ metadata: { uid: "uid-1" } }),
+        getNamespacedCustomObject: vi.fn().mockResolvedValue(readySandboxCr("pc-new-pod")),
+      },
+      core: { createNamespacedSecret: vi.fn().mockResolvedValue({}) },
+    };
+    const config = { ...CONFIG, adapterType: "ompig_slim", adapters: [{ adapterType: "ompig_slim", runtimeImage: "ompig:verified" }] };
+    const lease = await plugin.definition.onEnvironmentAcquireLease!({
+      driverKey: "kubernetes", companyId: "acme", environmentId: "env-1", runId: "run-1", config,
+    });
+    expect(lease.metadata?.remoteCwd).toBe("/workspace");
+    await expect(plugin.definition.onEnvironmentSyncIn!({
+      driverKey: "kubernetes", companyId: "acme", environmentId: "env-1", config, lease, operations: [],
+    })).resolves.toEqual(expect.objectContaining({ operations: [] }));
+  });
+});
+
 describe("onEnvironmentResumeLease", () => {
   it("is implemented (Daytona feature parity)", () => {
     expect(plugin.definition.onEnvironmentResumeLease).toBeTypeOf("function");
     expect(plugin.definition.onEnvironmentDestroyLease).toBeTypeOf("function");
   });
 
-  it("returns a valid lease handle for a live sandbox-cr lease", async () => {
+  it.each([undefined, "/workspace/project-a"])("returns a valid lease handle preserving workspace root %s", async remoteCwd => {
     h.clients = {
       custom: {
         getNamespacedCustomObject: vi.fn().mockResolvedValue(readySandboxCr("pc-abc-pod")),
@@ -68,7 +90,7 @@ describe("onEnvironmentResumeLease", () => {
       environmentId: "env-1",
       config: CONFIG,
       providerLeaseId: "pc-abc",
-      leaseMetadata: leaseMetadata(),
+      leaseMetadata: leaseMetadata(remoteCwd ? { remoteCwd } : {}),
     });
 
     expect(lease.providerLeaseId).toBe("pc-abc");
@@ -81,6 +103,7 @@ describe("onEnvironmentResumeLease", () => {
         phase: "Running",
         backend: "sandbox-cr",
         resumedLease: true,
+        remoteCwd: remoteCwd ?? "/workspace",
         // sandbox-cr has a pod-exec channel, so native file sync stays enabled.
         nativeFileSyncUnsupported: false,
       }),

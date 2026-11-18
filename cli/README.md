@@ -299,7 +299,7 @@ Or manually:
 ```bash
 git clone https://github.com/paperclipai/paperclip.git
 cd paperclip
-pnpm install
+bun install
 pnpm dev
 ```
 
@@ -350,16 +350,16 @@ The board UI has matching Export and Import pages in company settings: the Expor
 pnpm dev              # Full dev (API + UI, watch mode)
 pnpm dev:once         # Full dev without file watching
 pnpm dev:server       # Server only
-pnpm build            # Build all
-pnpm typecheck        # Type checking
-pnpm test             # Cheap default test run (Vitest only)
-pnpm test:watch       # Vitest watch mode
-pnpm test:e2e         # Playwright browser suite
+bun run build            # Build all
+bun run typecheck        # Type checking
+bun run test             # Cheap default test run (Vitest only)
+bun run test:watch       # Vitest watch mode
+bun run test:e2e         # Playwright browser suite
 pnpm db:generate      # Generate DB migration
 pnpm db:migrate       # Apply migrations
 ```
 
-`pnpm test` does not run Playwright. Browser suites stay separate and are typically run only when working on those flows or in CI.
+`bun run test` does not run Playwright. Browser suites stay separate and are typically run only when working on those flows or in CI.
 
 See [doc/DEVELOPING.md](https://github.com/paperclipai/paperclip/blob/master/doc/DEVELOPING.md) for the full development guide.
 

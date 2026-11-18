@@ -61,7 +61,7 @@ describe("resolveRuntimeProvisionStatus", () => {
   it("continues to recognize custom runtime dependency provisioning", () => {
     expect(
       resolveRuntimeProvisionStatus({
-        runtimeProvisionCommand: "pnpm install",
+        runtimeProvisionCommand: "bun install",
         operations: [operation({ phase: "workspace_runtime_provision" })],
       }),
     ).toMatchObject({ kind: "provisioned" });

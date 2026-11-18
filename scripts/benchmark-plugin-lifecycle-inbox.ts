@@ -1,5 +1,5 @@
 // Compares the plugin lifecycle inbox page, idle probe and acknowledgment before and after a change.
-// Usage: pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-plugin-lifecycle-inbox.ts \
+// Usage: bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-plugin-lifecycle-inbox.ts \
 //   --baseline-ref=<sha> [--agents=40] [--per-agent=2500] [--acked=2000] [--samples=5] [--treatment-only]
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

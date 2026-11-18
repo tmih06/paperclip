@@ -37,7 +37,7 @@ const result: PrpStructuredRunResult = {
   completionClaim: { contractRevision: "1", objectiveSatisfied: true,
     criteria: [{ criterionId: "objective", status: "satisfied", evidenceRefs: [] }], remainingWork: [] },
   evidence: [],
-  verification: [{ commandOrCheck: "pnpm test", status: "passed" }],
+  verification: [{ commandOrCheck: "bun run test", status: "passed" }],
   attentionRequests: [],
   artifacts: [],
 };

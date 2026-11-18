@@ -152,7 +152,7 @@ async function shadowLauncher(dotenv: string, host?: { platform: NodeJS.Platform
   async function launch(args: string[], environment: NodeJS.ProcessEnv = {}) {
     try {
       return { code: 0, ...await promisify(execFile)(process.execPath,
-        ["--import", path.resolve(import.meta.dirname, "../../cli/node_modules/tsx/dist/loader.mjs"), path.join(directory, "launch.ts"), ...args],
+        [path.join(directory, "launch.ts"), ...args],
         { cwd: repository, timeout: 20_000, env: { PATH: process.env.PATH, HOME: home, PAPERCLIP_E2E_CAMPAIGN_ID: "dotenv-probe", ...environment } }) };
     } catch (error) {
       const result = error as { code: number; stdout: string; stderr: string };

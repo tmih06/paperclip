@@ -137,7 +137,7 @@ export function classifyPoint(point: CrashPointName, exitCode: number | null, en
 /** One wave for every selected point: one boot, one point at a time. */
 async function runSuite(points: readonly CrashPointName[], options: SuiteOptions, runDir: string): Promise<{ results: PointResult[]; exitCode: number | null; waveDir: string | null }> {
   const cells = options.adapters.length * options.workloads.length;
-  const args = [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(import.meta.dirname, "main.ts"),
+  const args = [path.join(import.meta.dirname, "main.ts"),
     "--env", options.env, "--adapters", options.adapters.join(","), "--workloads", options.workloads.join(","),
     "--tasks", String(cells * points.length), "--concurrency", String(cells), "--seed", String(options.seed),
     "--crash-point", points.map(point => `${point}:${options.nth}`).join(","), ...options.passthrough];

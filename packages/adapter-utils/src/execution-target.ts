@@ -756,6 +756,32 @@ export async function ensureAdapterExecutionTargetCommandResolvable(
   });
 }
 
+export async function ensureAdapterExecutionTargetCommandsResolvable(
+  commands: readonly string[],
+  target: AdapterExecutionTarget | null | undefined,
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+): Promise<void> {
+  if (target?.kind !== "remote" || target.transport !== "sandbox" || commands.length < 2) {
+    for (const command of commands) await ensureAdapterExecutionTargetCommandResolvable(command, target, cwd, env);
+    return;
+  }
+  const result = await runRemoteExecutionTargetCheck(target, "checking required commands on sandbox target", () =>
+    requireSandboxRunner(target).execute({
+      command: "sh",
+      args: ["-c", commands.map(command =>
+        `command -v -- ${shellQuote(command)} >/dev/null || { printf '%s\\n' ${shellQuote(`Command "${command}" is not installed or not on PATH in the sandbox environment.`)} >&2; exit 1; }`
+      ).join("\n")],
+      cwd: target.remoteCwd,
+      env: sanitizeRemoteExecutionEnv(Object.fromEntries(
+        Object.entries(env).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+      )),
+      timeoutMs: target.timeoutMs ?? 15_000,
+    }),
+  );
+  if (result.exitCode !== 0) throw new Error(result.stderr.trim() || "Sandbox command preflight failed.");
+}
+
 function executionTargetCheckUnavailable(message: string, cause?: unknown): Error {
   return Object.assign(new Error(message, { cause }), { code: "adapter_execution_target_unavailable" });
 }
@@ -2755,7 +2781,7 @@ export async function startAdapterExecutionTargetProcessSessionBridge(input: {
 }
 
 function getProcessSessionProxySource(input: { port: number; token: string }): string {
-  return `#!/usr/bin/env node
+  return `#!/usr/bin/env bun
 import net from "node:net";
 
 const socket = net.createConnection({ host: "127.0.0.1", port: ${input.port} });

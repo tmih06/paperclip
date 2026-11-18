@@ -25,6 +25,27 @@ describe("kubernetesProviderConfigSchema", () => {
     );
   });
 
+  it("accepts an explicitly registered custom adapter as the default", () => {
+    const parsed = parseKubernetesProviderConfig({
+      inCluster: true,
+      adapterType: "ompig_slim",
+      adapters: [{ adapterType: "ompig_slim", runtimeImage: "ompig:verified" }],
+    });
+    expect(parsed.adapterType).toBe("ompig_slim");
+  });
+
+  it("rejects an unregistered custom adapter", () => {
+    expect(() => parseKubernetesProviderConfig({ inCluster: true, adapterType: "ompig_slim" })).toThrow();
+  });
+
+  it("does not fall back to a built-in adapter outside the explicit registry", () => {
+    expect(() => parseKubernetesProviderConfig({
+      inCluster: true,
+      adapterType: "claude_local",
+      adapters: [{ adapterType: "ompig_slim", runtimeImage: "ompig:verified" }],
+    })).toThrow();
+  });
+
   it("rejects invalid companySlug", () => {
     expect(() =>
       parseKubernetesProviderConfig({ inCluster: true, companySlug: "INVALID UPPER" }),

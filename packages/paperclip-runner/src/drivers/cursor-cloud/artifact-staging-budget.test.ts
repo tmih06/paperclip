@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { spawn, type ChildProcess } from "node:child_process";
 import { chmod, link, lstat, mkdir, mkdtemp, open, readFile, readdir, rename, rm, symlink, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CursorCloudCheckpointStore } from "./checkpoint.js";
@@ -59,8 +58,7 @@ process.once('message', async () => {
 });
 process.send({ ready: true });
 `, { mode: 0o600 });
-  const loader = createRequire(import.meta.url).resolve("tsx");
-  const child = spawn(process.execPath, ["--import", loader, script], { env: { PATH: process.env.PATH }, stdio: ["ignore", "pipe", "pipe", "ipc"] });
+  const child = spawn(process.execPath, [script], { env: { PATH: process.env.PATH }, stdio: ["ignore", "pipe", "pipe", "ipc"] });
   children.add(child); let stderr = ""; child.stderr!.on("data", value => { stderr += value; });
   const ready = new Promise<void>((resolve, reject) => {
     child.once("error", reject);

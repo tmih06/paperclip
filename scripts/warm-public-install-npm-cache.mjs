@@ -1,6 +1,6 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Fill an npm cache with the public registry graph of the packages the
-// public-install verifier stages, while `pnpm build` still runs. The verifier
+// public-install verifier stages, while `bun run build` still runs. The verifier
 // starts after the build with an empty cache, and its consumer install then
 // downloads the whole graph (106-127s in runs 38241687458 to 38250487646,
 // 2026-10-12). The graph is fixed by source manifests, so it can be fetched

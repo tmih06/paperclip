@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
+COPY --from=oven/bun:1.4.4-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e /usr/local/bin/bun /usr/local/bin/bun
 
-ARG NODE_MAJOR=24
 ARG PAPERCLIPAI_VERSION=latest
 ARG HOST_UID=10001
 
@@ -13,18 +13,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
   LANG=en_US.UTF-8 \
   LC_ALL=en_US.UTF-8 \
   NPM_CONFIG_UPDATE_NOTIFIER=false \
-  NODE_MAJOR=${NODE_MAJOR} \
   PAPERCLIPAI_VERSION=${PAPERCLIPAI_VERSION}
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl gnupg locales \
-  && mkdir -p /etc/apt/keyrings \
-  && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-    | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-  && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
-    > /etc/apt/sources.list.d/nodesource.list \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends nodejs \
+  && apt-get install -y --no-install-recommends ca-certificates curl locales \
   && locale-gen en_US.UTF-8 \
   && groupadd --gid 10001 paperclip \
   && useradd --create-home --shell /bin/bash --uid "${HOST_UID}" --gid 10001 paperclip \
@@ -42,4 +34,4 @@ USER paperclip
 # and ignore the deployment env vars. A loopback listener inside the container
 # is unreachable through Docker's port mapping, so the smoke health check can
 # never pass without this flag.
-CMD ["bash", "-lc", "set -euo pipefail; mkdir -p \"$PAPERCLIP_HOME\"; npx --yes \"paperclipai@${PAPERCLIPAI_VERSION}\" onboard --yes --bind lan --data-dir \"$PAPERCLIP_HOME\""]
+CMD ["bash", "-lc", "set -euo pipefail; mkdir -p \"$PAPERCLIP_HOME\"; bun x --bun --registry=https://registry.npmjs.org \"paperclipai@${PAPERCLIPAI_VERSION}\" onboard --yes --bind lan --data-dir \"$PAPERCLIP_HOME\""]

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-pr-lockfile.mjs
  * Advisory check that lock content was not edited by hand. `pr-trusted.yml` enforces the
@@ -22,7 +22,7 @@ export function checkLockfile(files, prAuthor, prBranch) {
     passed: false,
     failures: [
       `You have changes to ${edited} — \`pr.yml\` will hard-fail this PR because only the lockfile refresh workflow and Dependabot may change lock content. ` +
-      'To fix: run `pnpm install` locally, exclude the lockfile from your commit, push again. ' +
+      'To fix: run `bun install` locally, exclude the lockfile from your commit, push again. ' +
       'The refresh bot regenerates every managed lockfile after your PR merges.',
     ],
   };

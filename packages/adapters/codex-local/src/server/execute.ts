@@ -214,7 +214,7 @@ function resolveCodexBiller(env: Record<string, string>, billingType: "api" | "s
 
 async function isLikelyPaperclipRepoRoot(candidate: string): Promise<boolean> {
   const [hasWorkspace, hasPackageJson, hasServerDir, hasAdapterUtilsDir] = await Promise.all([
-    pathExists(path.join(candidate, "pnpm-workspace.yaml")),
+    pathExists(path.join(candidate, "bunfig.toml")),
     pathExists(path.join(candidate, "package.json")),
     pathExists(path.join(candidate, "server")),
     pathExists(path.join(candidate, "packages", "adapter-utils")),

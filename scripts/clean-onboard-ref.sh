@@ -74,7 +74,7 @@ echo "PAPERCLIP_PORT: $PAPERCLIP_PORT"
 git -C "$REPO_ROOT" worktree add --detach "$PC_REPO" "$TARGET_COMMIT"
 
 cd "$PC_REPO"
-pnpm install
+bun install
 
 env \
   HOME="$PC_HOME" \
@@ -83,4 +83,4 @@ env \
   HOST="$PAPERCLIP_HOST" \
   PORT="$PAPERCLIP_PORT" \
   PAPERCLIP_OPEN_ON_LISTEN="$PAPERCLIP_OPEN_ON_LISTEN" \
-  pnpm paperclipai onboard --yes --data-dir "$PC_DATA"
+  bun run paperclipai onboard --yes --data-dir "$PC_DATA"

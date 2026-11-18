@@ -8,7 +8,9 @@ import { promisify } from "node:util";
 import { expect, it } from "vitest";
 
 const execute = promisify(execFile);
-const tsx = fileURLToPath(new URL("../../node_modules/.bin/tsx", import.meta.url));
+// Bun runs the TypeScript CLI directly, so the entrypoint is the process under
+// test rather than a loader's launcher.
+const run = (args: string[]) => execute(process.execPath, args, { timeout: 15_000 });
 
 it("runs the eval CLI parser through both canonical and symlinked paths", async () => {
   const cli = await realpath(fileURLToPath(new URL("./eval-session.ts", import.meta.url)));
@@ -19,10 +21,10 @@ it("runs the eval CLI parser through both canonical and symlinked paths", async 
     for (const path of [cli, join(alias, "eval-session.ts")]) {
       // A skipped main guard silently exits zero. Rejecting the invalid option
       // proves actual CLI execution without loading credentials or a provider.
-      await expect(execute(tsx, [path, "--unknown", "value"], { timeout: 15_000 }))
+      await expect(run([path, "--unknown", "value"]))
         .rejects.toMatchObject({ code: 1, stderr: "unknown argument: --unknown\n" });
     }
-    const imported = await execute(tsx, ["--eval", `import(${JSON.stringify(cli)}).then(() => console.log("imported"))`], { timeout: 15_000 });
+    const imported = await run(["--eval", `import(${JSON.stringify(cli)}).then(() => console.log("imported"))`]);
     expect(imported.stdout.trim()).toBe("imported");
     expect(imported.stderr).toBe("");
   } finally {

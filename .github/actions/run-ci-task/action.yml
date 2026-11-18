@@ -29,7 +29,7 @@ runs:
         CI_TASK: ${{ inputs.task }}
         CI_TASK_ARGS: ${{ inputs.args }}
         CI_FORCE_TASKS: ${{ inputs.force }}
-      run: node scripts/ci/run-task.mjs
+      run: bun scripts/ci/run-task.mjs
     - name: Save successful task results
       if: success() && inputs.force != 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9

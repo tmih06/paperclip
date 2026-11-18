@@ -281,7 +281,7 @@ async function main() {
   );
   if (!bundleArgument) {
     throw new Error(
-      "Usage: pnpm test:e2e:runner:dashboard -- <published-bundle-directory> [--history <history.json>] [--feedback-review <review.json>]",
+      "Usage: bun run test:e2e:runner:dashboard -- <published-bundle-directory> [--history <history.json>] [--feedback-review <review.json>]",
     );
   }
   const historyIndex = arguments_.indexOf("--history");

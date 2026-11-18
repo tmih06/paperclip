@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Test double for curl used by scripts/install.sh. It records the requested URL
+# and serves a fixture file in place of the network response, so installer tests
+# exercise the real pinned-SHA-256 verification without reaching a registry.
+: "${PAPERCLIP_INSTALL_TEST_LOG:?PAPERCLIP_INSTALL_TEST_LOG is required}"
+: "${PAPERCLIP_INSTALL_TEST_ARTIFACT:?PAPERCLIP_INSTALL_TEST_ARTIFACT is required}"
+
+destination=""
+url=""
+positional=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o)
+      destination="${2:-}"
+      shift 2
+      ;;
+    --proto)
+      shift 2
+      ;;
+    --proto=*|--tlsv1.[0-9]|--tlsv1.[0-9]=*)
+      shift
+      ;;
+    -*)
+      shift
+      ;;
+    *)
+      if [ "$positional" = "0" ]; then
+        url="$1"
+      fi
+      positional=$((positional + 1))
+      shift
+      ;;
+  esac
+done
+
+{
+  printf 'URL=%s\n' "$url"
+} >>"${PAPERCLIP_INSTALL_TEST_CURL_LOG:-$PAPERCLIP_INSTALL_TEST_LOG}"
+
+if [ -z "$url" ] || [ -z "$destination" ]; then
+  printf 'curl stub requires a URL and -o <destination>\n' >&2
+  exit 2
+fi
+if [ ! -f "$PAPERCLIP_INSTALL_TEST_ARTIFACT" ]; then
+  printf 'curl: (22) The requested URL returned error: 404\n' >&2
+  exit 22
+fi
+cp "$PAPERCLIP_INSTALL_TEST_ARTIFACT" "$destination"

@@ -12,7 +12,7 @@ mkdirSync(output, { recursive: true });
 const results = [];
 const commands = [
   ['general-server', process.execPath, ['scripts/run-vitest-stable.mjs', '--mode', 'general', '--group', 'general-server-without-chat-or-native-runner', '--shard-index', '0', '--shard-count', '12']],
-  ['fixtures', 'pnpm', ['exec', 'vitest', 'run', '--project', '@paperclipai/server',
+  ['fixtures', process.execPath, ['x', '--bun', '--no-install', 'vitest', 'run', '--project', '@paperclipai/server',
     'server/src/services/workspace-git-snapshot-streaming.test.ts', 'server/src/__tests__/workspace-runtime.test.ts',
     '-t', 'streams.*all four real Git|commits fixed-port reservations']],
 ];
@@ -36,7 +36,7 @@ for (const [variant, cwd] of [['baseline', baseline], ['candidate', candidate]])
         .map((record) => [record.file, record.name, record.status]).sort(),
       files: records.filter((record) => record.kind === 'file').map((record) => record.file).sort(),
     });
-    writeFileSync(path.join(output, 'results.json'), JSON.stringify({ node: process.version, results }, null, 2));
+    writeFileSync(path.join(output, 'results.json'), JSON.stringify({ bun: process.versions.bun, results }, null, 2));
     assert.equal(result.status, 0, `${variant}/${name} failed: ${result.error ?? ''}; see ${output}`);
     console.log(`${variant}/${name}: ${(wallMs / 1000).toFixed(2)}s`);
   }
@@ -68,7 +68,7 @@ for (const [name] of commands) {
 }
 const summary = ['| Work | Baseline | Candidate | Reduction | Executed cases |',
   '|---|---:|---:|---:|---:|', ...rows,
-  '', 'Paired sequential runs on one host with Node ' + process.version + '. Setup, cache transfer, queue time and the full CI critical path are outside these command timings.',
+  '', 'Paired sequential runs on one host with Bun ' + process.versions.bun + '. Setup, cache transfer, queue time and the full CI critical path are outside these command timings.',
 ].join('\n');
 writeFileSync(path.join(output, 'summary.md'), summary + '\n');
 console.log(summary);

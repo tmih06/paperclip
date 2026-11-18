@@ -2,7 +2,7 @@
  * Config and aged-state fault waves (CF1–CF3). See config-faults.ts for the
  * oracle and SCENARIOS.md ("Config faults") for usage.
  *
- *   node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/config-wave.ts \
+ *   bun tests/restart-chaos/config-wave.ts \
  *     --faults CF1,CF3 --adapters codex --tasks 4 --concurrency 1 --restarts K1,K2 --seed 61
  *
  * Each task gets its own agent, credential secret and project, so breaking
@@ -81,7 +81,7 @@ function preflight(tasks: readonly ConfigTaskPlan[]) {
   const missing = [...new Set(tasks.map(task => CREDENTIAL_FOR_ADAPTER[task.adapter]))].filter(key => !process.env[key]);
   if (missing.length) throw new Error(`Missing credentials ${missing.join(", ")}. Run: set -a; source ~/.secrets; set +a`);
   const runner = process.env.PAPERCLIP_RUNNER_BINARY ?? path.join(repositoryRoot, "packages/paperclip-runner/runner/target/debug/paperclip-runnerd");
-  if (!existsSync(runner)) throw new Error(`Runner binary missing at ${runner}. Run: node scripts/agent-preflight.mjs`);
+  if (!existsSync(runner)) throw new Error(`Runner binary missing at ${runner}. Run: bun scripts/agent-preflight.mjs`);
   const build = spawnSync(process.execPath, [path.join(repositoryRoot, "packages/paperclip-runner/scripts/build-verified-provider-entrypoints.mjs")],
     { cwd: repositoryRoot, stdio: "inherit" });
   if (build.status !== 0) throw new Error("Verified provider entrypoint build failed");

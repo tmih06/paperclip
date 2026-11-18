@@ -109,8 +109,7 @@ fi
 catalog_dir="$(mktemp -d)"
 trap 'rm -rf "$catalog_dir"' EXIT
 catalog_file="$catalog_dir/feature-catalog.json"
-node "$REPO_ROOT/cli/node_modules/tsx/dist/cli.mjs" \
-  "$REPO_ROOT/scripts/generate-feature-catalog.ts" \
+bun "$REPO_ROOT/scripts/generate-feature-catalog.ts" \
   --version "$version" \
   --out "$catalog_file"
 

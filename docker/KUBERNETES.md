@@ -178,7 +178,7 @@ export default {
 JS
 
 docker run --rm -v "$PWD/docker/kubernetes-local/package:/plugin" \
-  --entrypoint node "$PAPERCLIP_IMAGE" -e '
+  --entrypoint bun "$PAPERCLIP_IMAGE" -e '
     const fs = require("fs");
     const j = JSON.parse(fs.readFileSync("/plugin/package.json"));
     j.paperclipPlugin = {
@@ -265,6 +265,37 @@ That is broad: it permits public Internet on all ports. Use `egressMode:
 If your Docker network uses a different subnet, change `PAPERCLIP_SERVER_IP`
 and the `172.18.0.3/32` egress entry together, and pass that address in
 `PAPERCLIP_ALLOWED_HOSTNAMES` (the overlay already does).
+
+## Small-host task limits
+
+After the company's namespace exists, cap it at two task pods, each limited to
+2 CPUs and 4 GiB RAM. Existing quotas survive provider and app restarts.
+
+```sh
+kubectl -n paperclip-<company-id> apply -f docker/kubernetes-task-limits.yml
+```
+
+This is a per-company cap. Apply it separately to each company; it is not a
+cluster-wide concurrency limit.
+
+## Development mode
+
+On a Linux checkout with dependencies installed (`bun install`), add the dev
+overlay. It runs the local source with Vite and server watching in the published
+image, retaining the same database, credentials, Kubernetes configuration, and
+port 3100. Agentation is enabled only in development.
+
+```sh
+cp "$(command -v bun)" docker/kubernetes-local/bun
+export PAPERCLIP_DEV_UID=$(id -u) PAPERCLIP_DEV_GID=$(id -g)
+docker compose --env-file docker/.env \
+  -f docker/docker-compose.yml -f docker/docker-compose.kubernetes.yml \
+  -f docker/docker-compose.kubernetes-dev.yml up -d --no-build --wait
+```
+
+Return to the published production app by running the start command without the
+dev overlay. Back up the database before switching source revisions: development
+startup can apply newer migrations.
 
 ## Verifying
 

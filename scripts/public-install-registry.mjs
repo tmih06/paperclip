@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+
 import { createReadStream, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
+
+export const PUBLIC_INSTALL_NPM_VERSION = '11.18.0';
 
 const catalogFile = 'registry-packages.json';
 const packageName = /^(?:@[a-z0-9_.-]+\/)?[a-z0-9_.-]+$/;
@@ -79,7 +82,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const registry = await startPackedRegistry(process.argv[2]);
   try {
     const status = await new Promise((resolve, reject) => {
-      const child = spawn('npm', ['install', '--registry', registry.url, '--replace-registry-host=never', '--ignore-scripts', '--omit=dev', ...registry.specs], { stdio: 'inherit' });
+      const child = spawn(process.execPath, ['x', '--yes', `npm@${PUBLIC_INSTALL_NPM_VERSION}`, 'install', '--registry', registry.url, '--replace-registry-host=never', '--ignore-scripts', '--omit=dev', ...registry.specs], { stdio: 'inherit' });
       child.once('error', reject);
       child.once('exit', (code, signal) => signal ? reject(new Error(`npm install received ${signal}`)) : resolve(code));
     });

@@ -34,7 +34,7 @@ echo "==> Testing Docker build with $RUNTIME"
 echo "==> Verifying key binaries in image"
 "$RUNTIME" run --rm "$IMAGE_TAG" sh -c '
   set -e
-  node --version
+  bun --version
   git --version
   tailscale version
   tailscaled --version

@@ -16,19 +16,20 @@ import {
   SANDBOX_PROVIDERS,
   typecheckTestPrograms,
 } from "./typecheck-test-programs.mjs";
+import { parseWorkspaceEntries } from "./lib/workspace-packages.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tsc = path.join(root, "node_modules", "typescript", "bin", "tsc");
 
 const harness = (overrides = {}) => {
-  const calls = { pnpm: [], tsc: [], linked: 0, errors: [] };
+  const calls = { bun: [], tsc: [], linked: 0, errors: [] };
   return {
     calls,
     options: {
       root: "/repo",
       programs: ["a/tsconfig.test.json", "b/tsconfig.test.json"],
-      pnpm: (args, { cwd }) => {
-        calls.pnpm.push({ args, cwd });
+      bun: (args, { cwd }) => {
+        calls.bun.push({ args, cwd });
         return 0;
       },
       linkPlugins: () => {
@@ -59,15 +60,17 @@ test("findUncheckedTests reports only test files outside programs and other chec
 
 test("every program exists, and the provider list matches the tracked provider packages", () => {
   for (const program of PROGRAMS) assert.ok(existsSync(path.join(root, program)), program);
-  assert.ok(existsSync(path.join(root, PROVIDER_WORKSPACE, "pnpm-lock.yaml")));
+  assert.ok(existsSync(path.join(root, PROVIDER_WORKSPACE, "bun.lock")));
   const tracked = execFileSync("git", ["ls-files", "packages/plugins/sandbox-providers"], { cwd: root, encoding: "utf8" });
   const manifests = tracked.split("\n").filter((file) => file.endsWith("/package.json"));
   assert.deepEqual(manifests.map((manifest) => path.dirname(manifest)).sort(), [...SANDBOX_PROVIDERS].sort());
 });
 
 test("the provider workspace lists every provider without its own lockfile by full path, so Dependabot sees them", () => {
-  const workspace = readFileSync(path.join(root, PROVIDER_WORKSPACE, "pnpm-workspace.yaml"), "utf8");
-  const listed = [...workspace.matchAll(/^\s+-\s+(\S+)\s*$/gm)].map((match) => match[1]);
+  const workspace = readFileSync(path.join(root, PROVIDER_WORKSPACE, "package.json"), "utf8");
+  const listed = parseWorkspaceEntries(workspace)
+    .filter((entry) => !entry.negated)
+    .map((entry) => entry.pattern);
   assert.ok(listed.every((entry) => !entry.includes("*")), "Dependabot does not expand a glob that starts with ../");
   const providers = listed.map((entry) => path.posix.normalize(path.posix.join(PROVIDER_WORKSPACE, entry)));
   const unlocked = SANDBOX_PROVIDERS.filter((provider) => !LOCKED_PROVIDERS.includes(provider));
@@ -77,15 +80,15 @@ test("the provider workspace lists every provider without its own lockfile by fu
 test("each provider with its own lockfile is a provider and has that lockfile", () => {
   for (const provider of LOCKED_PROVIDERS) {
     assert.ok(SANDBOX_PROVIDERS.includes(provider), provider);
-    assert.ok(existsSync(path.join(root, provider, "pnpm-lock.yaml")), provider);
+    assert.ok(existsSync(path.join(root, provider, "bun.lock")), provider);
   }
 });
 
 test("no provider commits a lockfile, except the one Daytona already has", () => {
   const tracked = execFileSync("git", ["ls-files", "packages/plugins/sandbox-providers"], { cwd: root, encoding: "utf8" });
   assert.deepEqual(
-    tracked.split("\n").filter((file) => file.endsWith("/pnpm-lock.yaml")),
-    ["packages/plugins/sandbox-providers/daytona/pnpm-lock.yaml"],
+    tracked.split("\n").filter((file) => file.endsWith("/bun.lock")),
+    ["packages/plugins/sandbox-providers/daytona/bun.lock"],
   );
 });
 
@@ -117,7 +120,7 @@ test("a killed compiler stops the run", () => {
 test("providers install frozen without scripts, then relink the SDK", () => {
   const { options, calls } = harness();
   assert.equal(typecheckTestPrograms(options), 0);
-  const install = calls.pnpm.find(({ cwd }) => cwd === path.join("/repo", PROVIDER_WORKSPACE));
+  const install = calls.bun.find(({ cwd }) => cwd === path.join("/repo", PROVIDER_WORKSPACE));
   assert.ok(install.args.includes("--frozen-lockfile"));
   assert.ok(install.args.includes("--ignore-scripts"));
   assert.equal(calls.linked, 1);
@@ -126,13 +129,13 @@ test("providers install frozen without scripts, then relink the SDK", () => {
 test("preparation runs on its own, and a run that skips it only checks", () => {
   const prepared = harness();
   assert.equal(prepareTestPrograms(prepared.options), 0);
-  assert.ok(prepared.calls.pnpm.some(({ cwd }) => cwd === path.join("/repo", PROVIDER_WORKSPACE)));
+  assert.ok(prepared.calls.bun.some(({ cwd }) => cwd === path.join("/repo", PROVIDER_WORKSPACE)));
   assert.equal(prepared.calls.linked, 1);
   assert.deepEqual(prepared.calls.tsc, []);
 
   const checked = harness();
   assert.equal(typecheckTestPrograms({ ...checked.options, prepare: false }), 0);
-  assert.deepEqual(checked.calls.pnpm, []);
+  assert.deepEqual(checked.calls.bun, []);
   assert.equal(checked.calls.linked, 0);
   assert.equal(checked.calls.tsc.length, 2);
 });
@@ -141,7 +144,7 @@ test("a locked provider installs frozen from its own lockfile, outside any works
   const { options, calls } = harness();
   assert.equal(typecheckTestPrograms(options), 0);
   for (const provider of LOCKED_PROVIDERS) {
-    const install = calls.pnpm.find(({ cwd }) => cwd === path.join("/repo", provider));
+    const install = calls.bun.find(({ cwd }) => cwd === path.join("/repo", provider));
     assert.ok(install.args.includes("--ignore-workspace"));
     assert.ok(install.args.includes("--frozen-lockfile"));
     assert.ok(install.args.includes("--ignore-scripts"));
@@ -153,34 +156,34 @@ const staleOnce = (directory, calls) => {
   const cwd = path.join("/repo", directory);
   let frozenAttempts = 0;
   return (args, options) => {
-    calls.pnpm.push({ args, cwd: options.cwd });
+    calls.bun.push({ args, cwd: options.cwd });
     if (options.cwd !== cwd || !args.includes("--frozen-lockfile")) return 0;
     frozenAttempts += 1;
     return frozenAttempts === 1 ? 1 : 0;
   };
 };
 const installSteps = (calls, directory) =>
-  calls.pnpm
+  calls.bun
     .filter(({ cwd }) => cwd === path.join("/repo", directory))
     .map(({ args }) => (args.includes("--frozen-lockfile") ? "frozen" : args));
 
 test("a stale provider lockfile is resolved in place, then installed frozen", () => {
   const { options, calls } = harness();
-  options.pnpm = staleOnce(PROVIDER_WORKSPACE, calls);
+  options.bun = staleOnce(PROVIDER_WORKSPACE, calls);
   assert.equal(typecheckTestPrograms(options), 0);
   assert.deepEqual(installSteps(calls, PROVIDER_WORKSPACE), ["frozen", RESOLVE_ARGS, "frozen"]);
-  assert.ok(RESOLVE_ARGS.includes("--resolution-only") && RESOLVE_ARGS.includes("--ignore-scripts"));
+  assert.ok(RESOLVE_ARGS.includes("--lockfile-only") && RESOLVE_ARGS.includes("--ignore-scripts"));
   assert.equal(calls.tsc.length, 2);
 });
 
 test("a stale locked-provider lockfile is resolved in place, outside any workspace", () => {
   const [provider] = LOCKED_PROVIDERS;
   const { options, calls } = harness();
-  options.pnpm = staleOnce(provider, calls);
+  options.bun = staleOnce(provider, calls);
   assert.equal(typecheckTestPrograms(options), 0);
   const [, resolve] = installSteps(calls, provider);
   assert.deepEqual(installSteps(calls, provider), ["frozen", resolve, "frozen"]);
-  for (const flag of ["--ignore-workspace", "--resolution-only", "--ignore-scripts", "--no-frozen-lockfile"]) {
+  for (const flag of ["--ignore-workspace", "--lockfile-only", "--ignore-scripts", "--no-frozen-lockfile"]) {
     assert.ok(resolve.includes(flag), flag);
   }
   assert.equal(calls.tsc.length, 2);
@@ -189,7 +192,7 @@ test("a stale locked-provider lockfile is resolved in place, outside any workspa
 test("a locked provider install that still fails stops before any program runs", () => {
   const [provider] = LOCKED_PROVIDERS;
   const { options, calls } = harness({
-    pnpm: (args, { cwd }) => (cwd === path.join("/repo", provider) ? 1 : 0),
+    bun: (args, { cwd }) => (cwd === path.join("/repo", provider) ? 1 : 0),
   });
   assert.equal(typecheckTestPrograms(options), 1);
   assert.equal(calls.tsc.length, 0);
@@ -198,7 +201,7 @@ test("a locked provider install that still fails stops before any program runs",
 
 test("a provider install that still fails stops before any program runs", () => {
   const { options, calls } = harness({
-    pnpm: (args, { cwd }) => (cwd === path.join("/repo", PROVIDER_WORKSPACE) ? 1 : 0),
+    bun: (args, { cwd }) => (cwd === path.join("/repo", PROVIDER_WORKSPACE) ? 1 : 0),
   });
   assert.equal(typecheckTestPrograms(options), 1);
   assert.equal(calls.tsc.length, 0);

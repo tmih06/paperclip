@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync, spawnSync } from "node:child_process";
 
-assert.equal(process.version, "v24.22.2", "Use Node24.22.2 for the recorded comparison");
+assert.equal(process.versions.bun, "1.4.4", "Use Bun1.4.4 for this comparison");
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const output = path.resolve(process.argv[2] ?? mkdtempSync(path.join(tmpdir(), "presentation-benchmark-")));
 mkdirSync(output, { recursive: true });
@@ -22,9 +22,9 @@ const files = ["query", "work"].map(kind => `server/src/services/native-runtime/
 for (const file of files) assert.equal(existsSync(path.join(root, file)), false, `Refusing to replace ${file}`);
 const env = { ...process.env, PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH ?? ""}`,
   PAPERCLIP_PRESENTATION_BENCHMARK_OUTPUT: output };
-assert.equal(execFileSync("pnpm", ["--version"], { cwd: root, env, encoding: "utf8" }).trim(), "9.15.4", "Use pnpm9.15.4");
+assert.equal(execFileSync("bun", ["--version"], { cwd: root, env, encoding: "utf8" }).trim(), "1.4.4", "Use Bun1.4.4");
 writeFileSync(path.join(output, "metadata.json"), JSON.stringify({ baseline, treatment: git("rev-parse", "HEAD").trim(),
-  node: process.version, execPath: process.execPath, pairs: 5, runs: 10,
+  bun: process.versions.bun, nodeCompatibility: process.versions.node, execPath: process.execPath, pairs: 5, runs: 10,
   mode: "real PostgreSQL source service under Vitest; accelerated retry timers; instrumented process CPU" }, null, 2));
 const benchmark = String.raw`  it("measures equivalent completed accepted-response work without artificial sleeps", async () => {
     const { appendFileSync } = await import("node:fs");
@@ -34,8 +34,8 @@ const benchmark = String.raw`  it("measures equivalent completed accepted-respon
     const { createDatabaseResponseCapture, installDatabaseResponseCapture } = await import("@paperclipai/db/response-capture");
     const schema = await import("@paperclipai/db");
     appendFileSync(output + "/child-runtime.jsonl",
-      JSON.stringify({ version: process.version, execPath: process.execPath }) + "\n");
-    expect(process.version).toBe("v24.22.2");
+      JSON.stringify({ runtime: "bun", version: process.versions.bun, execPath: process.execPath }) + "\n");
+    expect(process.versions.bun).toBe("1.4.4");
     const fixedTime = Date.now();
     const capture = createDatabaseResponseCapture({ start: fixedTime - 1, end: fixedTime + 59_999 }, () => {}, () => fixedTime);
     let measuring = false, queries = 0, rows = 0, queryErrors = 0;
@@ -114,7 +114,7 @@ try {
   writeFileSync(path.join(root, integration), original.replace(anchor, benchmark + anchor));
   const log = openSync(path.join(output, "vitest.log"), "wx");
   try {
-    const result = spawnSync("pnpm", ["exec", "vitest", "run", "--project", "@paperclipai/server", integration,
+    const result = spawnSync("bun", ["x", "--bun", "--no-install", "vitest", "run", "--project", "@paperclipai/server", integration,
       "-t", "measures equivalent completed accepted-response work without artificial sleeps"],
       { cwd: root, env, stdio: ["ignore", log, log] });
     if (result.error) throw result.error;

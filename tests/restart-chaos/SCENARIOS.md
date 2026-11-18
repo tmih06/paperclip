@@ -7,7 +7,7 @@ grading, and output are in [README.md](README.md).
 ## Restart storm (K13, `--storm-minutes`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude,opencode --concurrency 6 --storm-minutes 60 --seed 7
 ```
 
@@ -28,10 +28,10 @@ crossed it, without a new storm. `--triggers time,result` may join a storm: a `r
 
 ```sh
 # Approval-gated action: the fault fires 0-3 s after the approval appears pending.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude --workloads G1 --faults K1,K2,K4 --triggers approval --concurrency 4 --tasks 6 --seed 31
 # Budget hard stop: its own wave, one task at a time.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude --workloads H1 --faults K1,K2,K4 --triggers paused --concurrency 1 --tasks 3 --seed 32
 ```
 
@@ -74,7 +74,7 @@ observer saw are in the timeline (`governance_*`) and in each task's grade
 ## Stop while running, then continue (S1, `--triggers stop`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude --workloads S1 --faults K1,K2,K4 --triggers stop --concurrency 4 --tasks 6 --seed 23
 ```
 
@@ -92,7 +92,7 @@ oracle checks only the continue. S1 is not a default workload.
 ## Human-in-the-loop journeys (Q1, Q2, Q3)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude --workloads Q1,Q2,Q3 --faults K1,K2,K4 --triggers asked,answered --concurrency 2 --tasks 4 --seed 41
 ```
 
@@ -172,7 +172,7 @@ The oracle checks these points:
 ## Journey × fault matrix (`--matrix`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads Q1,Q2,Q3 --faults K1,K2,K4 --matrix --concurrency 2 --seed 43
 ```
 
@@ -201,15 +201,15 @@ Then run the same wave against it with `--server-from`. The harness code stays t
 same; every server start and restart runs the older build:
 
 ```sh
-git worktree add --detach ../paperclip-pre20363 3cc1032f6a^ && (cd ../paperclip-pre20363 && node scripts/agent-preflight.mjs)
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local --adapters codex --workloads Q2 \
+git worktree add --detach ../paperclip-pre20363 3cc1032f6a^ && (cd ../paperclip-pre20363 && bun scripts/agent-preflight.mjs)
+bun tests/restart-chaos/main.ts --env local --adapters codex --workloads Q2 \
   --faults K1 --triggers answered --concurrency 1 --tasks 1 --seed 44 --server-from ../paperclip-pre20363
 ```
 
 ## Code change in a real repository (R1, `--workspace-repo`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude --workloads R1,C1 --workspace-repo /path/to/paperclip \
   --faults K1,K2,K4 --concurrency 4 --tasks 8 --seed 22
 ```
@@ -226,8 +226,8 @@ not combine with `--workspace-repo`. Local only.
 
 ```sh
 git worktree add ../paperclip-838e9bf3 838e9bf3d2        # an older master build
-(cd ../paperclip-838e9bf3 && node scripts/agent-preflight.mjs)
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+(cd ../paperclip-838e9bf3 && bun scripts/agent-preflight.mjs)
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude --workloads A1,C1,M1 --faults K14 --upgrade-from ../paperclip-838e9bf3 \
   --concurrency 4 --tasks 8 --seed 21
 ```
@@ -250,7 +250,7 @@ it is never part of a storm's default faults.
 ## Redeploy (K15, `redeploy.ts`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
   --adapters opencode,claude --workloads A1,C1 --faults K15 --daytona-reuse-lease --concurrency 3 --tasks 6 --seed 9301
 ```
 
@@ -295,7 +295,7 @@ Limits:
 ### Long mid-tool redeploy (`--k15-hold-seconds`, T1, Runner logs)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
   --adapters opencode --workloads T1 --faults K15 --k15-hold-seconds 240-480 --concurrency 2 --tasks 4 --seed 9310
 ```
 
@@ -353,7 +353,7 @@ minutes. In staging class R, recovery then found the remote Runner gone
 ### Redeploy without a volume, with overlap (`--k15-fresh-home`, `--k15-overlap-seconds`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 --storage s3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 --storage s3 \
   --adapters codex,opencode --workloads A1,C1 --faults K15 --k15-fresh-home --k15-overlap-seconds 30-150 --concurrency 3 --tasks 6 --seed 9320
 ```
 
@@ -381,7 +381,7 @@ were `ENOENT` on a runtime asset, `Agent directory operation is already active` 
 ### Staging class R cells (CR1–CR6, `class-r.ts`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
   --adapters opencode,claude --workloads T1 --faults CR1 --concurrency 1 --tasks 2 --seed 9501
 ```
 
@@ -458,7 +458,7 @@ deletes a sandbox. An archived or stopped sandbox is recorded by its state alone
 ### Volume-free servers (`--ephemeral-server`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --storage s3 --ephemeral-server \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --storage s3 --ephemeral-server \
   --adapters codex --workloads W2 --faults K1,K2,K15 --k15-fresh-home --k15-overlap-seconds 30-90 --concurrency 3 --tasks 3 --seed 5501
 ```
 
@@ -480,7 +480,7 @@ eligibility check, so a replacement that refuses to start fails the wave.
 ### Runner exits before session.open (`--runner-bind-fault`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --storage s3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --storage s3 \
   --ephemeral-server --adapters claude --workloads W2 --faults K1,K2,K15 --k15-fresh-home --runner-bind-fault --seed 6402
 ```
 
@@ -499,14 +499,14 @@ Retry. It needs `--env daytona`.
 
 ```sh
 # Smoke: 2 swaps, 5 minutes apart, 90 s overlap, 2-minute settle.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local --adapters opencode --workloads A1,T1 \
+bun tests/restart-chaos/main.ts --env local --adapters opencode --workloads A1,T1 \
   --release-swap --release-swap-count 2 --release-swap-spacing-minutes 5 --release-swap-overlap-seconds 90 \
   --release-swap-settle-minutes 2 --concurrency 2 --tasks 40 --seed 7101
 # The default wave: 6 swaps, 40 minutes apart, 8.5-minute overlap, 15-minute settle, staging's volume-free shape.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --storage s3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --storage s3 \
   --daytona-warm --daytona-cpu 2 --adapters opencode,codex,claude --release-swap --concurrency 12 --tasks 200 --seed 7100
 # The short form for hourly comparisons of fix PRs: 3 swaps, 12 minutes apart, the same 8.5-minute overlap, 15-minute settle.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --storage s3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --storage s3 \
   --daytona-warm --daytona-cpu 2 --adapters opencode,codex,claude --release-swap-short --concurrency 12 --tasks 200 --seed 7110
 ```
 
@@ -524,18 +524,18 @@ Two local servers, volume-free, real Daytona sandboxes, two overlap swaps. `$IMG
 ```sh
 set -a; source ~/.secrets; set +a
 # Twin cell, variant G (graceful swaps): 6 tasks, 6 runs, 4-minute turns, 2 swaps 4 minutes apart, 120 s overlap. 18-23 minutes.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 1 --storage s3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 1 --storage s3 \
   --workload staging-mix --mix-tasks 6 --mix-runs 6 --mix-queue 0 --mix-ratio opencode=34,codex=33,claude=33 --mix-turn-minutes 4 \
   --mix-hold-minutes 2 --mix-arrival-cutoff-minutes 0 --release-swap --release-swap-count 2 --release-swap-spacing-minutes 4 \
   --release-swap-overlap-seconds 120 --release-swap-settle-minutes 1 --seed 7105
 # Variant G2: the same command; the outgoing server is SIGKILLed 120 s into each overlap.
-RESTART_CHAOS_K15_KILL_OLD_AFTER_SECONDS=120 node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts ...
+RESTART_CHAOS_K15_KILL_OLD_AFTER_SECONDS=120 bun tests/restart-chaos/main.ts ...
 # Variant G3: G2, and the incoming server is also frozen (SIGSTOP) for 150 s while the outgoing one stops, so it reaches the Runners late.
-RESTART_CHAOS_K15_KILL_OLD_AFTER_SECONDS=120 RESTART_CHAOS_K15_FREEZE_NEW_SECONDS=150 node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts ...
+RESTART_CHAOS_K15_KILL_OLD_AFTER_SECONDS=120 RESTART_CHAOS_K15_FREEZE_NEW_SECONDS=150 bun tests/restart-chaos/main.ts ...
 # Loaded twin L1: 48 tasks, 20 runs plus 20 queued, 12-22 minute turns, 2 swaps 13 minutes apart, swap 1 graceful, swap 2 G3. About 78 minutes.
 RESTART_CHAOS_DAYTONA_VCPU_BUDGET=48 RESTART_CHAOS_K15_KILL_OLD_SWAPS=2 RESTART_CHAOS_K15_KILL_OLD_AFTER_SECONDS=120 \
 RESTART_CHAOS_K15_FREEZE_SWAPS=2 RESTART_CHAOS_K15_FREEZE_NEW_SECONDS=150 RESTART_CHAOS_MIX_BANNER_REST_SECONDS=240 \
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 1 --storage s3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 1 --storage s3 \
   --workload staging-mix --mix-tasks 48 --mix-runs 20 --mix-queue 20 --mix-ratio opencode=34,codex=33,claude=33 --mix-turn-minutes 12-22 \
   --mix-hold-minutes 2 --mix-arrival-cutoff-minutes 0 --release-swap --release-swap-count 2 --release-swap-spacing-minutes 13 \
   --release-swap-overlap-seconds 120 --release-swap-settle-minutes 1 --seed 7301
@@ -657,7 +657,7 @@ with the two moments it started between and whether the outgoing or the incoming
 ## Absolute symlink in the workspace (F1)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
   --adapters codex,opencode --workloads F1 --faults K2 --storage s3 --concurrency 2 --tasks 2 --seed 9304
 ```
 
@@ -682,7 +682,7 @@ graded. F1 is meaningful with a remote workspace (`--env daytona`, with
 ## Sandbox disk full (DF1)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
   --adapters codex --workloads R1 --workspace-repo "$PWD" --faults DF1 --storage s3 --concurrency 2 --tasks 2 --seed 9412
 ```
 
@@ -729,9 +729,9 @@ and `w-20261111T134316-s9413` the disk-full rest showed "Recover saved files", n
 ## Environment-provider faults (EP1, `env-provider-wave.ts`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/env-provider-wave.ts --fault EP1 --adapters codex --tasks 2 --seed 71
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/env-provider-wave.ts --fault EP1N --tasks 1 --seed 72
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/env-provider-wave.ts --fault EP1D --tasks 1 --seed 73
+bun tests/restart-chaos/env-provider-wave.ts --fault EP1 --adapters codex --tasks 2 --seed 71
+bun tests/restart-chaos/env-provider-wave.ts --fault EP1N --tasks 1 --seed 72
+bun tests/restart-chaos/env-provider-wave.ts --fault EP1D --tasks 1 --seed 73
 ```
 
 Lease acquisition fails before any provider call, in the shapes staging recorded
@@ -753,9 +753,9 @@ task, and the A1 brief oracle must pass. Results go to `results/<wave>-ep/`.
 ## Config faults (CF1–CF3, `config-wave.ts`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/config-wave.ts \
+bun tests/restart-chaos/config-wave.ts \
   --faults CF1,CF3 --adapters codex --tasks 4 --concurrency 1 --restarts K1,K2 --seed 61
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/config-wave.ts --faults CF2 --tasks 1 --seed 62
+bun tests/restart-chaos/config-wave.ts --faults CF2 --tasks 1 --seed 62
 ```
 
 A fresh wave only has valid settings. Config faults break one saved setting that refers
@@ -801,7 +801,7 @@ and in every wave summary. CF4 (an instance aged by an older release) is designe
 ## Cloud storage (`--storage s3`, `--storage-faults`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude --workloads A1,C1 --faults K1,K2 --concurrency 4 --tasks 8 --seed 24 \
   --storage s3 --storage-faults ST1,ST2,ST3
 ```
@@ -909,19 +909,19 @@ serve no UI and click Retry through the API.
 
 ```sh
 # A Codex governed wait whose interruption terminal arrives 18 s late (PR #20330's boundary).
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads Q1 --faults PV1 --provider-fault-delays 18 --concurrency 1 --tasks 1 --seed 101
 # Sweep the window around the 15 s / 30 s deadlines, two tasks at a time.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads Q1 --faults PV1 --provider-fault-delays 5,14,25,29 --concurrency 2 --tasks 4 --seed 102
 # The saved question's terminal never arrives during shutdown (PR #20336's boundary).
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads Q1 --faults PV2 --concurrency 1 --tasks 1 --seed 103
 # The same for Claude (ACPX): its interrupted prompt's response is held 18 s.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters claude --workloads Q1 --faults PV1 --concurrency 1 --tasks 1 --seed 104
 # A dropped terminal straddles a control-plane kill -9: K1 fires 3 s after the drop.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads Q1 --faults PV2 --provider-fault-restart K1 --concurrency 1 --tasks 1 --seed 105
 ```
 
@@ -971,7 +971,7 @@ failed the run. No turn is interrupted, so the workloads are those that save a d
 finish (A1, C1):
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads A1 --faults PV2 --provider-fault-message tool_completed --concurrency 1 --tasks 1 --seed 301
 ```
 
@@ -1001,7 +1001,7 @@ next to the default, for example `S1=interrupt_ack,terminal`: S1 tasks fault the
 acknowledgement (Codex ends a Stop without its terminal) while Q1 tasks fault the terminal.
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads Q1,S1 --faults PV1,PV2 --provider-fault-restart K2,K4 --provider-fault-delays 40 \
   --provider-fault-message S1=interrupt_ack,terminal --concurrency 1 --tasks 4 --seed 211
 ```
@@ -1069,7 +1069,7 @@ the run-dispatch adapter test covers that state's same-run resume. Staging run e
 scheduled resume as a reconciliation hold, and the task stayed blocked with no Retry.
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads Q4 --faults PV2 --concurrency 1 --tasks 1 --seed 111
 ```
 
@@ -1081,10 +1081,10 @@ answers. Q4 is not a default workload.
 
 ```sh
 # One task: the parked question's warm owner is superseded before the answer.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local --lifecycle warm \
+bun tests/restart-chaos/main.ts --env local --lifecycle warm \
   --adapters codex --workloads Q1 --faults SR1 --concurrency 1 --tasks 1 --seed 301
 # Two tasks on the same agent: one change supersedes both owners at once.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local --lifecycle warm \
+bun tests/restart-chaos/main.ts --env local --lifecycle warm \
   --adapters codex --workloads Q1 --faults SR1 --concurrency 2 --tasks 2 --seed 302
 ```
 
@@ -1111,7 +1111,7 @@ is the two-concurrent-runs variant. SR1 does not combine with K* or PV* faults.
 ### SR1U: the retained owner cannot be retired
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-warm \
+bun tests/restart-chaos/main.ts --env daytona --daytona-warm \
   --daytona-image <image@sha256:…> --adapters codex --workloads Q1 --faults SR1U --concurrency 1 --tasks 1 --seed 311
 ```
 
@@ -1131,10 +1131,10 @@ its fault for the whole server, so it does not share a wave with SR1.
 
 ```sh
 # Ten tasks on one Codex agent with warm sandboxes; each task is woken again 0–60 s after its run succeeded.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 3 \
   --adapters codex --workloads W2,W2Q,W2C --faults K0 --concurrency 10 --tasks 10 --seed 5201
 # The same locally (warm local Runners).
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local --lifecycle warm \
+bun tests/restart-chaos/main.ts --env local --lifecycle warm \
   --adapters codex --workloads W2,W2Q,W2C --faults K0 --concurrency 10 --tasks 10 --seed 5101
 ```
 
@@ -1176,10 +1176,10 @@ Add `--long-turn-minutes 20` for staging's long predecessor turns.
 
 ```sh
 # Local: K1, then the replacement's first runnerd start fails once (spawn EAGAIN).
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local --adapters codex --workloads A1 \
+bun tests/restart-chaos/main.ts --env local --adapters codex --workloads A1 \
   --faults K1 --fail-recovery-step runnerd-start:1 --fault-after-seconds 10 --concurrency 1 --tasks 1 --seed 5303
 # Daytona: K1, then the replacement's first sandbox teardown does not finish.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
   --adapters codex --workloads A1 --faults K1 --fail-recovery-step teardown:1 --fault-after-seconds 30 --concurrency 1 --tasks 1 --seed 5312
 ```
 
@@ -1223,7 +1223,7 @@ receipt in `faults.json` names the armed step (`recoveryStep`).
 ## Long turn (`--long-turn-minutes`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 3 \
   --adapters codex --workloads W2 --faults K0 --long-turn-minutes 20 --concurrency 4 --tasks 4 --seed 5401
 ```
 
@@ -1241,19 +1241,19 @@ the turn. Waves get long and expensive: keep them small.
 
 ```sh
 # Smoke: 6 tasks, 5-minute turns, K15 overlap deploys at minutes 3 and 6.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 1 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 1 \
   --storage s3 --ephemeral-server --workload staging-mix --faults K15 --k15-overlap-seconds 30-150 --mix-runs 5 --mix-queue 1 \
   --mix-minutes 7 --mix-turn-minutes 5 --mix-tasks 6 --mix-fault-spacing-minutes 3 --mix-arrival-cutoff-minutes 0 --mix-hold-minutes 2 --seed 7101
 # Short form (about 1 hour, for fix-PR comparisons): 3 swaps 12 minutes apart with 8-9 minute overlaps, 5-15 minute turns, 15 runs.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 1 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-warm --daytona-cpu 1 \
   --storage s3 --ephemeral-server --workload staging-mix --faults K15 --k15-overlap-seconds 480-540 --mix-runs 15 --mix-queue 3 \
   --mix-minutes 40 --mix-fault-spacing-minutes 12 --mix-turn-minutes 5-15 --budget-cents <cap> --seed 7102
 # The same short form locally (agents on this Mac, so 10 runs). `--ephemeral-server` runs only on Daytona, so it is left out.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local --storage s3 --workload staging-mix --faults K15 \
+bun tests/restart-chaos/main.ts --env local --storage s3 --workload staging-mix --faults K15 \
   --k15-overlap-seconds 480-540 --mix-runs 10 --mix-queue 3 --mix-minutes 40 --mix-fault-spacing-minutes 12 --mix-turn-minutes 5-15 \
   --budget-cents 5000 --seed 7201
 # Full form (about 4.5 hours): 6 swaps 40 minutes apart, 15-45 minute turns, 30 runs and a queue of 6.
-RESTART_CHAOS_DAYTONA_VCPU_BUDGET=<org headroom> node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona \
+RESTART_CHAOS_DAYTONA_VCPU_BUDGET=<org headroom> bun tests/restart-chaos/main.ts --env daytona \
   --daytona-image $IMG --daytona-warm --daytona-cpu 1 --storage s3 --ephemeral-server --workload staging-mix --faults K15 \
   --k15-overlap-seconds 30-150 --mix-runs 30 --mix-queue 6 --mix-minutes 250 --mix-fault-spacing-minutes 40 --mix-turn-minutes 15-45 \
   --budget-cents <cap> --seed 7103
@@ -1428,7 +1428,7 @@ inbox.
 ## Database contention (L1, `--db-pressure`)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude --workloads L1 --faults K1 --concurrency 4 --tasks 4 --seed 20385 --db-pressure 4
 ```
 
@@ -1487,13 +1487,13 @@ that finished produced 208 log events and 20 receipts, well above the 40 and 6 t
 
 ```sh
 # Freeze, sleep and aged outage across running tasks.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads A1,C1 --faults TM1,TM2,TM3 --concurrency 2 --tasks 3 --seed 301
 # The aged wait: an approval left pending for a day across a restart.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads G1 --faults TM3 --triggers approval --concurrency 2 --tasks 2 --seed 302
 # Staging's 100 s event-loop stall: TM1 on Daytona, stalled during workspace preparation or mid-tool.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
+bun tests/restart-chaos/main.ts --env daytona --daytona-image $IMG --daytona-cpu 3 \
   --adapters codex,claude,opencode --workloads A1,T1 --faults TM1 --tm1-hold-seconds 70-120 --storage s3 \
   --concurrency 3 --tasks 6 --seed 303
 ```
@@ -1591,10 +1591,10 @@ when the board decides after a day, and the approved subtask must exist exactly 
 
 ```sh
 # Each kind across running tasks.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads A1,B5,C1 --faults RR1,RR2,RR3 --concurrency 3 --tasks 6 --seed 401
 # A second kill while an approval is pending.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads G1 --faults RR1 --triggers approval --concurrency 2 --tasks 2 --seed 402
 ```
 
@@ -1640,7 +1640,7 @@ fault as a harness error, with the stops so far recorded.
 ## Two servers, one database (MS1–MS3)
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex --workloads B5,Q1 --faults MS1,MS2 --concurrency 1 --tasks 3 --seed 301
 ```
 

@@ -31,7 +31,7 @@ export async function privateSshComputer(request: SshComputerRequest) {
   try {
     const filename = path.join(directory, "request.json"); await writeFile(filename, JSON.stringify({ ...request, executablePath: process.env.PAPERCLIP_RUNNER_E2E_CHROMIUM_EXECUTABLE ?? chromium.executablePath() }), { mode: 0o600 });
     let output: string;
-    try { output = (await promisify(execFile)(process.execPath, ["--import", fileURLToPath(new URL("../../../server/node_modules/tsx/dist/loader.mjs", import.meta.url)), fileURLToPath(new URL("./runtime-computers-private-worker.ts", import.meta.url)), filename],
+    try { output = (await promisify(execFile)(process.execPath, [fileURLToPath(new URL("./runtime-computers-private-worker.ts", import.meta.url)), filename],
       { timeout: 240000, maxBuffer: 32768, env: { PATH: process.env.PATH ?? "", HOME: directory, TMPDIR: directory, NODE_ENV: "test", DO_NOT_TRACK: "1" } })).stdout; }
     catch { throw new Error("Selected SSH operator journey failed; private inputs and diagnostics withheld"); }
     if ([request.privateKey, encodeURIComponent(request.privateKey), Buffer.from(request.privateKey).toString("base64")].some(x => x && output.includes(x))) throw new Error("SSH private child exceeded closed output boundary");

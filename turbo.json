@@ -3,8 +3,8 @@
   "globalDependencies": [
     "*",
     "**/package.json",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
+    "bun.lock",
+    "bunfig.toml",
     ".npmrc",
     "tsconfig*.json",
     "vitest.config.ts",

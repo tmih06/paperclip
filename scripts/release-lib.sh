@@ -30,7 +30,7 @@ github_repo_from_remote() {
   remote_url="${remote_url%.git}"
   remote_url="${remote_url#ssh://}"
 
-  node - "$remote_url" <<'NODE'
+  bun - "$remote_url" <<'BUN'
 const remoteUrl = process.argv[2];
 
 const patterns = [
@@ -47,7 +47,7 @@ for (const pattern of patterns) {
 }
 
 process.exit(1);
-NODE
+BUN
 }
 
 resolve_release_remote() {
@@ -108,7 +108,7 @@ get_current_stable_version() {
 }
 
 stable_version_slot_for_date() {
-  node - "${1:-}" <<'NODE'
+  bun - "${1:-}" <<'BUN'
 const input = process.argv[2];
 
 const date = input ? new Date(`${input}T00:00:00Z`) : new Date();
@@ -121,24 +121,24 @@ const month = String(date.getUTCMonth() + 1);
 const day = String(date.getUTCDate()).padStart(2, '0');
 
 process.stdout.write(`${date.getUTCFullYear()}.${month}${day}`);
-NODE
+BUN
 }
 
 utc_date_iso() {
-  node <<'NODE'
+  bun - <<'BUN'
 const date = new Date();
 const y = date.getUTCFullYear();
 const m = String(date.getUTCMonth() + 1).padStart(2, '0');
 const d = String(date.getUTCDate()).padStart(2, '0');
 process.stdout.write(`${y}-${m}-${d}`);
-NODE
+BUN
 }
 
 next_stable_version() {
   local release_date="$1"
   shift
 
-  node - "$release_date" "$@" <<'NODE'
+  bun - "$release_date" "$@" <<'BUN'
 const input = process.argv[2];
 const packageNames = process.argv.slice(3);
 const { execSync } = require("node:child_process");
@@ -194,7 +194,7 @@ for (const packageName of packageNames) {
 }
 
 process.stdout.write(`${stableSlot}.${max + 1}`);
-NODE
+BUN
 }
 
 require_prerelease_channel() {
@@ -211,7 +211,7 @@ next_prerelease_version() {
 
   require_prerelease_channel "$channel"
 
-  node - "$channel" "$stable_version" "$@" <<'NODE'
+  bun - "$channel" "$stable_version" "$@" <<'BUN'
 const channel = process.argv[2];
 const stable = process.argv[3];
 const packageNames = process.argv.slice(4);
@@ -261,7 +261,7 @@ for (const packageName of packageNames) {
 }
 
 process.stdout.write(`${stable}-${channel}.${max + 1}`);
-NODE
+BUN
 }
 
 next_canary_version() {
@@ -301,7 +301,7 @@ next_canary_version_from_source() {
   local candidate=$((position * 100 + run_attempt - 1))
   local range_end=$((position * 100 + 99))
   local published
-  published="$(node -e '
+  published="$(bun -e '
     const [file, stable, low, high] = process.argv.slice(1);
     let cache = {};
     try { cache = JSON.parse(require("node:fs").readFileSync(file, "utf8")); } catch {}
@@ -375,7 +375,7 @@ npm_package_version_exists() {
   local version="$2"
   local resolved
 
-  resolved="$(npm view "${package_name}@${version}" version 2>/dev/null || true)"
+  resolved="$(bun pm view "${package_name}@${version}" version 2>/dev/null || true)"
   [ "$resolved" = "$version" ]
 }
 
@@ -408,42 +408,109 @@ is_npm_tlog_duplicate_error() {
 }
 
 package_publish_tool() {
-  node -e '
-    const pkg = require(process.cwd() + "/package.json");
+  bun -e '
+    const pkg = require(process.argv[1] + "/package.json");
     const bundled = pkg.bundleDependencies ?? pkg.bundledDependencies ?? [];
-    process.stdout.write(bundled.length > 0 ? "npm" : "pnpm");
-  '
+    process.stdout.write(bundled.length > 0 ? "npm" : "bun");
+  ' "$PWD"
 }
 
+# npm's own CLI stays the registry publisher: `bun publish` cannot generate the
+# provenance statement that `npm publish --provenance` produces, and every
+# published package is expected to carry one. Packing also stays on npm because
+# it must reproduce the same bundled-dependency payload npm publishes.
 BUNDLED_NPM_PACK_VERSION="10.9.7"
 BUNDLED_NPM_PUBLISH_VERSION="11.18.0"
 
 run_bundled_npm_pack() {
-  npx --yes "npm@$BUNDLED_NPM_PACK_VERSION" "$@" --ignore-scripts
+  bun x --yes "npm@$BUNDLED_NPM_PACK_VERSION" "$@" --ignore-scripts
 }
 
 run_bundled_npm_publish() {
-  npx --yes "npm@$BUNDLED_NPM_PUBLISH_VERSION" "$@" --ignore-scripts --loglevel verbose
+  bun x --yes "npm@$BUNDLED_NPM_PUBLISH_VERSION" "$@" --ignore-scripts --loglevel verbose
 }
 
-run_package_publish() {
-  local publish_tool="$1"
-  local dist_tag="$2"
-  local disable_provenance="${3:-false}"
+# Rewrite a staged package.json the way the publish manifest requires:
+# publishConfig main/types/bin/exports override the development entrypoints and
+# workspace: dependency ranges resolve to the release version. pnpm applied
+# those overrides while publishing; npm publishes the manifest verbatim, so a
+# package whose dev entrypoints point into `src/*.ts` would otherwise ship a
+# manifest naming files its tarball does not contain.
+materialize_staged_manifest() {
+  local manifest_path="$1"
+
+  MANIFEST_PATH="$manifest_path" \
+  MANIFEST_HELPER="$REPO_ROOT/scripts/prepare-bundled-package.mjs" \
+  bun - <<'BUN'
+const { readFileSync, writeFileSync } = require("node:fs");
+
+const manifestPath = process.env.MANIFEST_PATH;
+const { materializePublishManifest } = await import(`file://${process.env.MANIFEST_HELPER}`);
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+writeFileSync(manifestPath, `${JSON.stringify(materializePublishManifest(manifest), null, 2)}\n`);
+BUN
+}
+
+# Pack a package from its own directory, then extract that tarball into a fresh
+# staging directory. Packing first keeps the package's own prepack/prepare/
+# postpack hooks authoritative about which files and manifest it publishes;
+# extracting afterwards means the source tree is never rewritten in place.
+stage_packed_archive() {
+  local source_dir="$1"
+  local staging_dir="$2"
+  local work_dir archive_path
+
+  work_dir="$(mktemp -d "${TMPDIR:-/tmp}/paperclip-release-stage.XXXXXX")"
+  if ! (cd "$source_dir" && bun pm pack --destination "$work_dir" --quiet >/dev/null 2>&1); then
+    rm -rf "$work_dir"
+    release_warn "failed to pack $source_dir for publishing."
+    return 1
+  fi
+
+  archive_path="$(find "$work_dir" -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+  if [ -z "$archive_path" ]; then
+    rm -rf "$work_dir"
+    release_warn "packing $source_dir produced no tarball."
+    return 1
+  fi
+
+  rm -rf "$staging_dir"
+  mkdir -p "$staging_dir"
+  if ! tar -xzf "$archive_path" -C "$staging_dir" --strip-components=1; then
+    rm -rf "$work_dir" "$staging_dir"
+    release_warn "failed to extract the packed archive for $source_dir."
+    return 1
+  fi
+  rm -rf "$work_dir"
+
+  materialize_staged_manifest "$staging_dir/package.json"
+}
+
+# Produce the directory npm publishes for one release package. Bundled packages
+# are staged by prepare-bundled-package.mjs, which installs their bundled
+# closure and already materializes the publish manifest; every other package
+# stages from its own packed archive.
+stage_publish_package() {
+  local source_dir="$1"
+  local staging_dir="$2"
+  local publish_tool="$3"
 
   if [ "$publish_tool" = "npm" ]; then
-    if [ "$disable_provenance" = "true" ]; then
-      run_bundled_npm_publish publish --tag "$dist_tag" --access public --provenance=false
-    else
-      run_bundled_npm_publish publish --tag "$dist_tag" --access public
-    fi
+    bun "$REPO_ROOT/scripts/prepare-bundled-package.mjs" "$source_dir" "$staging_dir"
     return
   fi
 
+  stage_packed_archive "$source_dir" "$staging_dir"
+}
+
+run_package_publish() {
+  local dist_tag="$1"
+  local disable_provenance="${2:-false}"
+
   if [ "$disable_provenance" = "true" ]; then
-    pnpm publish --no-git-checks --tag "$dist_tag" --access public --provenance=false
+    run_bundled_npm_publish publish --tag "$dist_tag" --access public --provenance=false
   else
-    pnpm publish --no-git-checks --tag "$dist_tag" --access public
+    run_bundled_npm_publish publish --tag "$dist_tag" --access public
   fi
 }
 
@@ -451,12 +518,11 @@ publish_package_to_npm() {
   local dist_tag="$1"
   local package_name="$2"
   local package_version="$3"
-  local publish_tool="${4:-pnpm}"
   local publish_log
 
   publish_log="$(mktemp "${TMPDIR:-/tmp}/paperclip-npm-publish.XXXXXX")"
 
-  if (set -o pipefail; run_package_publish "$publish_tool" "$dist_tag" false 2>&1 | tee "$publish_log"); then
+  if (set -o pipefail; run_package_publish "$dist_tag" false 2>&1 | tee "$publish_log"); then
     rm -f "$publish_log"
     return 0
   fi
@@ -484,7 +550,7 @@ publish_package_to_npm() {
   esac
 
   release_warn "Retrying ${package_name}@${package_version} once with npm provenance disabled."
-  if run_package_publish "$publish_tool" "$dist_tag" true; then
+  if run_package_publish "$dist_tag" true; then
     rm -f "$publish_log"
     return 0
   fi
@@ -588,7 +654,7 @@ verify_npm_installable() {
     return 1
   fi
 
-  installed_version="$(node -e "console.log(require(process.argv[1]).version)" "$install_dir/node_modules/paperclipai/package.json")"
+  installed_version="$(bun -e 'console.log(require(process.argv[1]).version)' "$install_dir/node_modules/paperclipai/package.json")"
   rm -rf "$install_dir"
 
   [ "$installed_version" = "$expected_version" ]
@@ -626,7 +692,7 @@ wait_for_release_registry_state() {
   local status
 
   while [ "$attempt" -le "$attempts" ]; do
-    if output="$(node "$REPO_ROOT/scripts/verify-release-registry-state.mjs" "$@" 2>&1)"; then
+    if output="$(bun "$REPO_ROOT/scripts/verify-release-registry-state.mjs" "$@" 2>&1)"; then
       [ -n "$output" ] && printf '%s\n' "$output"
       return 0
     fi
@@ -656,8 +722,8 @@ require_clean_worktree() {
 }
 
 require_runner_lockfile_current() {
-  if ! node "$REPO_ROOT/scripts/check-release-runner-lockfile.mjs"; then
-    release_fail "a beta or stable release needs a pnpm-lock.yaml that matches the Runner's manifests at HEAD."
+  if ! bun "$REPO_ROOT/scripts/check-release-runner-lockfile.mjs"; then
+    release_fail "a beta or stable release needs a bun.lock that matches the Runner's manifests at HEAD."
   fi
 }
 
@@ -703,8 +769,8 @@ require_npm_publish_auth() {
     return
   fi
 
-  if npm whoami >/dev/null 2>&1; then
-    release_info "  ✓ Logged in to npm as $(npm whoami)"
+  if bun pm whoami >/dev/null 2>&1; then
+    release_info "  ✓ Logged in to npm as $(bun pm whoami)"
     return
   fi
 
@@ -717,9 +783,9 @@ require_npm_publish_auth() {
 }
 
 list_public_package_info() {
-  node "$REPO_ROOT/scripts/release-package-map.mjs" list
+  bun "$REPO_ROOT/scripts/release-package-map.mjs" list
 }
 
 set_public_package_version() {
-  node "$REPO_ROOT/scripts/release-package-map.mjs" set-version "$1"
+  bun "$REPO_ROOT/scripts/release-package-map.mjs" set-version "$1"
 }

@@ -1,0 +1,73 @@
+name: Bun toolchain
+
+# Proves the Bun lockfile and the Vite+ toolchain install from a clean checkout.
+# The release pipeline still uses its pinned pnpm image flow; see
+# doc/DEVELOPING.md "Toolchain".
+on:
+  pull_request:
+    paths:
+      - .github/workflows/bun-toolchain.yml
+      - bun.lock
+      - bunfig.toml
+      - package.json
+      - "**/package.json"
+      - patches/**
+
+permissions: {}
+
+concurrency:
+  group: bun-toolchain-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    name: Frozen install and focused checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Install from the committed lockfile
+        run: bun install --frozen-lockfile
+
+      - name: Confirm the lockfile did not move
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "bun install --frozen-lockfile changed the tree:"
+            git status --porcelain
+            exit 1
+          fi
+
+      - name: Report the Vite+ toolchain
+        run: bun x --bun --no-install vp --version
+
+      - name: Build shared SDK dependencies
+        run: bun run --filter @paperclipai/plugin-sdk ensure-build-deps
+
+      - name: Run focused tests
+        run: |
+          bun x --bun --no-install vp test \
+            server/src/__tests__/network.test.ts \
+            server/src/__tests__/network-routes.test.ts \
+            packages/adapters/ompig-slim/src/server/execute.test.ts \
+            ui/src/lib/company-routes.test.ts
+
+      - name: Typecheck the durable adapter
+        run: bun run --filter @paperclipai/adapter-ompig-slim typecheck

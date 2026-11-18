@@ -44,7 +44,7 @@ describe("runner E2E report aggregation", () => {
     await writeFile(path.join(directory, "final-state.png"), "fixture-png");
     await writeFile(path.join(directory, "evidence-manifest.json"), JSON.stringify({ files: ["final-state.png"], leaks: [], missing: [] }));
     const output = path.join(root, "merged");
-    await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+    await execFileAsync(process.execPath, [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
         PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
     });
@@ -85,7 +85,7 @@ describe("runner E2E report aggregation", () => {
     await writeFile(path.join(directory, "evidence-manifest.json"), JSON.stringify({ files: ["final-state.png"], leaks: [], missing: [] }));
     const journal = path.join(root, "journal.jsonl"), output = path.join(root, "merged");
     await writeFile(journal, '{"damaged-journal":');
-    await expect(execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+    await expect(execFileAsync(process.execPath, [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output,
         PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]), PAPERCLIP_E2E_OPERATIONS_LEDGER: journal },
     })).rejects.toMatchObject({ code: 1 });
@@ -125,7 +125,7 @@ describe("runner E2E report aggregation", () => {
     await writeFile(path.join(directory, "final-state.png"), "fixture-png");
     await writeFile(path.join(directory, "evidence-manifest.json"), JSON.stringify({ files: ["final-state.png"], leaks: [], missing: [] }));
     const output = path.join(root, "merged");
-    await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+    await execFileAsync(process.execPath, [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
     });
     const normalized = JSON.parse(await readFile(path.join(output, "normalized-results.json"), "utf8"));
@@ -167,7 +167,7 @@ describe("runner E2E report aggregation", () => {
     await writeFile(path.join(directory, "final-state.png"), "fake-png");
     await writeFile(path.join(directory, "evidence-manifest.json"), JSON.stringify({ files: ["final-state.png"], leaks: [], missing: [] }));
     const output = path.join(root, "merged");
-    await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+    await execFileAsync(process.execPath, [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot,
       env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
     });
@@ -203,7 +203,7 @@ describe("runner E2E report aggregation", () => {
     await writeFile(path.join(directory, "final-state.png"), "fake-png");
     await writeFile(path.join(directory, "evidence-manifest.json"), JSON.stringify({ files: ["final-state.png"], leaks: [], missing: [] }));
     const output = path.join(root, "merged");
-    await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+    await execFileAsync(process.execPath, [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot,
       env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
     });
@@ -247,7 +247,7 @@ describe("runner E2E report aggregation", () => {
       if (validEvidence) await writeFile(path.join(directory, "evidence-manifest.json"), JSON.stringify({ files: [], leaks: [], missing: [] }));
     }
     const output = path.join(root, "merged");
-    await expect(execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+    await expect(execFileAsync(process.execPath, [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify(ids) },
     })).rejects.toBeDefined();
     const normalized = JSON.parse(await readFile(path.join(output, "normalized-results.json"), "utf8"));
@@ -372,7 +372,6 @@ describe("runner E2E report aggregation", () => {
     await execFileAsync(
       process.execPath,
       [
-        path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"),
         path.join(repositoryRoot, "tests/runner-e2e/report.ts"),
       ],
       {
@@ -594,7 +593,6 @@ describe("runner E2E report aggregation", () => {
     await execFileAsync(
       process.execPath,
       [
-        path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"),
         path.join(repositoryRoot, "tests/runner-e2e/report.ts"),
       ],
       {
@@ -676,7 +674,6 @@ describe("runner E2E report aggregation", () => {
     await execFileAsync(
       process.execPath,
       [
-        path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"),
         path.join(repositoryRoot, "tests/runner-e2e/report.ts"),
       ],
       {
@@ -715,7 +712,7 @@ describe("runner E2E report aggregation", () => {
     } satisfies RunnerE2EResult));
     await writeFile(path.join(directory, "evidence-manifest.json"), JSON.stringify({ files: [...staged, ...refused], leaks: [], missing: [] }));
     const output = path.join(root, "merged");
-    await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+    await execFileAsync(process.execPath, [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
       cwd: repositoryRoot,
       env: { ...process.env, PAPERCLIP_RUNNER_E2E_REPORT_ROOT: root, PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([executionId]) },
     }).catch(error => { throw new Error(String(error.stderr).slice(-1500)); });
@@ -763,7 +760,6 @@ describe("runner E2E report aggregation", () => {
       execFileAsync(
         process.execPath,
         [
-          path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"),
           path.join(repositoryRoot, "tests/runner-e2e/report.ts"),
         ],
         {
@@ -819,7 +815,7 @@ it("retains selector-approved successes and their spending when only failed work
         { name: executions[1]!, run_attempt: 2, started_at: "2026-10-20T01:01:00Z" }] },
   });
   const output = path.join(root, "report");
-  await execFileAsync(process.execPath, [path.join(repositoryRoot, "cli/node_modules/tsx/dist/cli.mjs"), path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
+  await execFileAsync(process.execPath, [path.join(repositoryRoot, "tests/runner-e2e/report.ts")], {
     cwd: repositoryRoot, env: { ...process.env, PAPERCLIP_E2E_CAMPAIGN_ID: "gha-12345-2", PAPERCLIP_RUNNER_E2E_REPORT_ROOT: selectedRoot,
       PAPERCLIP_RUNNER_E2E_REPORT_OUT: output, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify(executions) },
   });

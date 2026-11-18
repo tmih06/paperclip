@@ -489,7 +489,7 @@ export const workloadDefinitions: Record<WorkloadId, WorkloadDefinition> = {
       "other than a-z and 0-9 becomes a single `-`, and no leading or trailing `-`.",
       `Add \`${r1Test(nonce)}\` that uses \`node:test\` and \`node:assert/strict\`, imports \`./slug-${nonce}.ts\`,`,
       "and checks at least three cases, including `chaosSlug(\"Hello Chaos World\") === \"hello-chaos-world\"`.",
-      `Run \`node --test ${r1Test(nonce)}\` from the repository root until it passes.`,
+      `Run \`bun test ${r1Test(nonce)}\` from the repository root until it passes.`,
       "Do not install dependencies and do not change any other file. Then mark this task done.",
     ].join("\n"),
     collect: {

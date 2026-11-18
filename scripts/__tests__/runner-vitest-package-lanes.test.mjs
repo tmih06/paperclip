@@ -4,6 +4,7 @@
 // which installs dependencies first.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -14,8 +15,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const runnerRoot = path.join(repoRoot, "packages/paperclip-runner");
 const laneWrapper = path.join(runnerRoot, "scripts/run-pr-vitest-lane.mjs");
 const prepCommands = [
-  { command: "pnpm", args: ["run", "ensure:eval-build-deps"], cwd: runnerRoot },
-  { command: "pnpm", args: ["run", "build:rust"], cwd: runnerRoot },
+  { command: "bun", args: ["run", "ensure:eval-build-deps"], cwd: runnerRoot },
+  { command: "bun", args: ["run", "build:rust"], cwd: runnerRoot },
 ];
 
 function wrapperPlan(args, envOverrides = {}) {
@@ -31,7 +32,7 @@ function wrapperPlan(args, envOverrides = {}) {
 // Asks Vitest itself which files the given CLI filters select, so both the
 // inventory and the lanes' substring filters follow vitest.config.ts exactly.
 function vitestListFiles(filters = []) {
-  const listed = spawnSync(process.execPath, [path.join(runnerRoot, "node_modules/vitest/vitest.mjs"), "list", "--filesOnly", ...filters], {
+  const listed = spawnSync(process.execPath, [path.join(path.dirname(createRequire(path.join(runnerRoot, "package.json")).resolve("vitest/package.json")), "vitest.mjs"), "list", "--filesOnly", ...filters], {
     cwd: runnerRoot, encoding: "utf8", env: { ...process.env, PAPERCLIP_CI_PROFILE: "" }, maxBuffer: 16 * 1024 * 1024,
   });
   assert.equal(listed.status, 0, listed.stderr);
@@ -52,9 +53,9 @@ test("package lanes form a complete, non-overlapping, balanced cover of the Vite
     assert.deepEqual(plan.plannedCommands.slice(0, 2), prepCommands, "every package lane prepares debug fixtures");
     assert.ok(!plan.plannedCommands.some((command) => command.args.includes("general-server-native-runner")));
     assert.equal(plan.packageLane.inventory, inventory.length);
-    const vitest = plan.plannedCommands.filter((command) => command.args[0] === "exec");
+    const vitest = plan.plannedCommands.filter((command) => command.args[0] === "x");
     assert.equal(vitest.length, 1);
-    assert.deepEqual(vitest[0].args, ["exec", "vitest", "run", ...plan.packageLane.files]);
+    assert.deepEqual(vitest[0].args, ["x", "--bun", "--no-install", "vitest", "run", ...plan.packageLane.files]);
     assert.ok(plan.packageLane.files.length > 0, "an empty filter list would run the whole inventory");
     return plan.packageLane;
   });

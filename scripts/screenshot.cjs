@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Screenshot utility for Paperclip UI.
  *
@@ -6,11 +6,11 @@
  * Bearer header so Playwright can access authenticated pages.
  *
  * Usage:
- *   node scripts/screenshot.cjs <url-or-path> [output.png] [--width 1280] [--height 800] [--wait 2000]
+ *   bun scripts/screenshot.cjs <url-or-path> [output.png] [--width 1280] [--height 800] [--wait 2000]
  *
  * Examples:
- *   node scripts/screenshot.cjs /PAPA/agents/cto/instructions /tmp/shot.png
- *   node scripts/screenshot.cjs http://localhost:5173/PAPA/agents/cto/instructions
+ *   bun scripts/screenshot.cjs /PAPA/agents/cto/instructions /tmp/shot.png
+ *   bun scripts/screenshot.cjs http://localhost:5173/PAPA/agents/cto/instructions
  */
 
 const fs = require("fs");
@@ -33,7 +33,7 @@ const rawUrl = args[0];
 const outPath = args[1] || "/tmp/paperclip-screenshot.png";
 
 if (!rawUrl) {
-  console.error("Usage: node scripts/screenshot.cjs <url-or-path> [output.png]");
+  console.error("Usage: bun scripts/screenshot.cjs <url-or-path> [output.png]");
   process.exit(1);
 }
 

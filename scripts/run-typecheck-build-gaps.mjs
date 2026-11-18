@@ -1,7 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { listWorkspaceDirectories } from "./lib/workspace-packages.mjs";
 
 const repoRoot = process.cwd();
 const args = new Set(process.argv.slice(2));
@@ -109,7 +110,7 @@ function checkServerRuntimeAssets() {
       .join("\n");
 
     fail(
-      `Missing server runtime asset(s) in dist:\n${missingList}\nRun pnpm --filter @paperclipai/server build and ensure source runtime asset trees are copied into dist.`,
+      `Missing server runtime asset(s) in dist:\n${missingList}\nRun bun run --filter @paperclipai/server build and ensure source runtime asset trees are copied into dist.`,
     );
   }
 
@@ -124,20 +125,11 @@ if (args.has("--runtime-assets-only")) {
 }
 
 function listWorkspacePackages() {
-  const result = spawnSync("pnpm", ["ls", "-r", "--depth", "-1", "--json"], {
-    cwd: repoRoot,
-    encoding: "utf8",
+  return listWorkspaceDirectories({ root: repoRoot }).map((directory) => {
+    const pkg = readJson(path.join(repoRoot, directory, "package.json"));
+    if (typeof pkg.name !== "string") fail(`${directory}/package.json has no name.`);
+    return { name: pkg.name, path: path.join(repoRoot, directory) };
   });
-
-  if (result.error) {
-    fail(`Unable to spawn pnpm to list workspace packages: ${result.error.message}`);
-  }
-
-  if (result.status !== 0) {
-    fail("Unable to list pnpm workspace packages.");
-  }
-
-  return JSON.parse(result.stdout);
 }
 
 function buildSkipsTypeScript(pkg) {
@@ -181,10 +173,10 @@ console.log(
 );
 
 if (buildGapPackages.length > 0) {
-  run("pnpm", ["--filter", "@paperclipai/plugin-sdk", "ensure-build-deps"]);
+  run("bun", ["run", "--filter", "@paperclipai/plugin-sdk", "ensure-build-deps"]);
 
   for (const workspacePkg of buildGapPackages) {
-    run("pnpm", ["--filter", workspacePkg.name, "typecheck"]);
+    run("bun", ["run", "--filter", workspacePkg.name, "typecheck"]);
   }
 }
 

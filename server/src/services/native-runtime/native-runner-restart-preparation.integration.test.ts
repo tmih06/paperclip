@@ -80,8 +80,7 @@ describeEmbeddedPostgres("native runner restart recovery: preparation", () => {
       workspaceId: fixture.runId, workspaceLocalDir: sandbox, lease: lease as unknown as EnvironmentLease,
       target: { kind: "remote", transport: "sandbox", environmentId, leaseId, remoteCwd: remoteSandbox, runner: shell } });
     expect(workspaceSync).not.toBeNull();
-    const child = spawn(process.execPath, ["--import", createRequire(import.meta.url).resolve("tsx"),
-      resolve(import.meta.dirname, "../../__tests__/helpers/native-drain-controller.test-worker.ts")],
+    const child = spawn(process.execPath, [resolve(import.meta.dirname, "../../__tests__/helpers/native-drain-controller.test-worker.ts")],
       { stdio: ["ignore", "pipe", "pipe", "ipc"], env: process.env });
     const logs: string[] = [];
     child.stdout?.on("data", data => logs.push(String(data)));

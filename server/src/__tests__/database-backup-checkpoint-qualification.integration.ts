@@ -175,8 +175,7 @@ describe("real automatic backup checkpoint qualification", () => {
     await writeFile(wrapper, `#!${process.execPath}\nimport { spawnSync } from 'node:child_process';\nimport { writeFileSync } from 'node:fs';\nconst result = spawnSync(${JSON.stringify(realPgDump)}, process.argv.slice(2), { stdio: ['ignore', 'inherit', 'inherit'] });\nif (result.status !== 0) process.exit(result.status ?? 1);\nwriteFileSync(${JSON.stringify(barrier)}, 'real pg_dump exited; pipeline remains open');\nsetInterval(() => {}, 1000);\n`);
     await chmod(wrapper, 0o700);
     const worker = fileURLToPath(new URL("./fixtures/database-backup-worker.ts", import.meta.url));
-    const tsx = fileURLToPath(import.meta.resolve("tsx"));
-    const child = spawn(process.execPath, ["--import", tsx, worker], { detached: true, stdio: ["ignore", "ignore", "pipe"],
+    const child = spawn(process.execPath, [worker], { detached: true, stdio: ["ignore", "ignore", "pipe"],
       env: { ...process.env, PAPERCLIP_PG_DUMP_PATH: wrapper, PAPERCLIP_BACKUP_WORKER_DATABASE_URL: pair.sourceUrl, PAPERCLIP_BACKUP_WORKER_DIRECTORY: directory } });
     let stderr = ""; child.stderr!.on("data", chunk => { stderr += String(chunk); });
     const exited = new Promise<void>((resolve, reject) => { child.once("error", reject); child.once("exit", () => resolve()); });

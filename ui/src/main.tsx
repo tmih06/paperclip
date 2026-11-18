@@ -37,6 +37,10 @@ import { hasPendingWrites, subscribePendingWrites } from "./lib/reload-safety";
 import "@mdxeditor/editor/style.css";
 import "./index.css";
 
+const DevAgentation = import.meta.env.DEV
+  ? React.lazy(() => import("agentation").then(({ Agentation }) => ({ default: Agentation })))
+  : null;
+
 initPluginBridge(React, ReactDOM);
 
 // React 19.2 emits an unbounded stream of performance.measure() entries for its
@@ -126,6 +130,7 @@ if (!rootElement) throw new Error("Paperclip root element is missing");
 getOrCreatePaperclipReactRoot(window, rootElement).render(
   <StrictMode>
     <AppErrorBoundary>
+      {DevAgentation && <React.Suspense fallback={null}><DevAgentation /></React.Suspense>}
       <QueryClientProvider client={queryClient}>
         <SentryGate />
         <ThemeProvider>

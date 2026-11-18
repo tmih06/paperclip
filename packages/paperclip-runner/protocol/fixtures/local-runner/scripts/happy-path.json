@@ -6,7 +6,7 @@
       "kind": "event",
       "event_type": "item.started",
       "item_id": "item_local_runner_command",
-      "payload": { "kind": "command", "text": "pnpm test --filter fake" }
+      "payload": { "kind": "command", "text": "bun run test --filter fake" }
     },
     { "kind": "delay", "milliseconds": 15 },
     { "kind": "log", "stream": "stdout", "text": "prepare workspace" },

@@ -38,7 +38,7 @@ test('a completion tool does not cut off a delayed final answer', async ({ page 
       PATH: `${root}/tests/e2e/fixtures/completion-stream-bin:${process.env.PATH}` };
     delete env.DATABASE_URL;
     delete env.DATABASE_MIGRATION_URL;
-    child = spawn(process.execPath, ['cli/node_modules/tsx/dist/cli.mjs', 'cli/src/index.ts', 'test-drive',
+    child = spawn(process.execPath, ['cli/src/index.ts', 'test-drive',
       '--harness', 'codex', '--api-key-env', 'STREAM_FIXTURE_KEY', '--company-name', 'Stream completion', '--no-browser'],
     { cwd: root, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
     child.stdout!.on('data', (chunk) => { logs += chunk.toString(); });

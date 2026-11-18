@@ -35,7 +35,7 @@ jobs:
       - id: admission
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/cloud-release-admission.mjs
+        run: bun scripts/cloud-release-admission.mjs
 
   verify:
     needs: admission
@@ -86,7 +86,7 @@ jobs:
         with:
           node-version: 24
       - name: Check the source verification consumer
-        run: node --test scripts/cloud-source-verification.test.mjs
+        run: bun test scripts/cloud-source-verification.test.mjs
       - name: Record source verification
         env:
           SOURCE_SHA: ${{ github.sha }}

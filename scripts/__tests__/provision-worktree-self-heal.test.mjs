@@ -8,17 +8,62 @@ import path from "node:path";
 const script = new URL("../setup-paperclip-worktree.sh", import.meta.url).pathname;
 const runtimeScript = new URL("../provision-worktree-runtime.sh", import.meta.url).pathname;
 
-// Keep the PATH minimal so the fallback ladder is deterministic: node must be
+// Both scripts require Bun and no longer fall back to Node or pnpm. Resolve the
+// real Bun executable so a test can put a shim ahead of it on PATH without
+// losing access to the interpreter the scripts need for their inline programs.
+const realBun = spawnSync("bash", ["-lc", "command -v bun"], { encoding: "utf8" }).stdout.trim();
+assert.ok(realBun, "these tests require Bun on PATH");
+
+// Keep the PATH minimal so the launch ladder is deterministic: bun must be
 // reachable, but a globally installed `paperclipai` must not shadow the paths
-// under test.
-const testPath = [path.dirname(process.execPath), "/usr/bin", "/bin"].join(":");
+// under test. Node and pnpm stay deliberately absent.
+const testPath = [path.dirname(realBun), "/usr/bin", "/bin"].join(":");
 
 const cleanupDirs = [];
+
+/**
+ * Bun's lockfile is JSON. These fixtures answer `bun install` with a shim that
+ * never parses it, but a pnpm-era YAML string here would misrepresent what the
+ * provisioner expects to find, so write the shape Bun itself emits.
+ */
+function minimalBunLockfile() {
+  return `${JSON.stringify({
+    lockfileVersion: 3,
+    configVersion: 1,
+    workspaces: { "": { name: "workspace-root" } },
+    packages: {},
+  }, null, 2)}\n`;
+}
 
 function makeTempDir(prefix) {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
   cleanupDirs.push(dir);
   return dir;
+}
+
+/**
+ * Writes a `bun` shim ahead of the real executable on PATH. `install` calls are
+ * answered by `handleInstall`, which receives the install arguments and returns
+ * the exit code; every other invocation execs the real Bun so the scripts'
+ * inline programs and the fake CLI still run.
+ */
+function makeBunShim(tempPrefix, handleInstall) {
+  const bin = makeTempDir(tempPrefix);
+  const shimPath = path.join(bin, "bun");
+  fs.writeFileSync(
+    shimPath,
+    [
+      "#!/usr/bin/env bash",
+      `if [[ "$1" == "install" ]]; then`,
+      `  shift`,
+      `  ${handleInstall}`,
+      "fi",
+      `exec ${JSON.stringify(realBun)} "$@"`,
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  return bin;
 }
 
 /**
@@ -39,25 +84,27 @@ test.after(() => {
 });
 
 /**
- * Writes a fake base workspace whose "tsx runner" is a plain node script, so
- * the provision script's health check and init call can be steered per test.
+ * Writes a fake base workspace whose CLI entry is a Bun script, so the
+ * provision script's health check and init call can be steered per test.
  *
- * helpExit: exit code for `... index.ts --help` (the health check boot).
- * initExit: exit code for `... index.ts worktree init ...`; on 0 the fake CLI
- *           writes a marker config so tests can tell CLI init from fallback.
+ * helpExit: exit code for `bun cli/src/index.ts --help` (the health check boot).
+ * initExit: exit code for `bun cli/src/index.ts worktree init ...`; on 0 the fake
+ *           CLI writes a marker config so tests can tell CLI init from fallback.
  */
 function makeBaseWorkspace({ helpExit, initExit, ensureExit = 0 }) {
   const baseCwd = makeTempDir("paperclip-provision-base-");
-  const runnerPath = path.join(baseCwd, "cli", "node_modules", "tsx", "dist", "cli.mjs");
   const entryPath = path.join(baseCwd, "cli", "src", "index.ts");
-  fs.mkdirSync(path.dirname(runnerPath), { recursive: true });
   fs.mkdirSync(path.dirname(entryPath), { recursive: true });
-  fs.writeFileSync(entryPath, "// fake CLI entry\n");
+  // An installed base workspace always carries at least the CLI's own package
+  // tree; checkout-only provisioning mirrors those directories into the
+  // worktree as symlinks.
+  fs.mkdirSync(path.join(baseCwd, "cli", "node_modules"), { recursive: true });
   fs.writeFileSync(
-    runnerPath,
+    entryPath,
     `
 import fs from "node:fs";
-const cliArgs = process.argv.slice(3);
+// Bun executes this entry directly, so the CLI arguments start at argv[2].
+const cliArgs = process.argv.slice(2);
 fs.appendFileSync(${JSON.stringify(path.join(baseCwd, "cli-invocations.log"))}, JSON.stringify(cliArgs) + "\\n");
 if (cliArgs.includes("--help")) {
   if (${helpExit} !== 0) console.error("ERR_MODULE_NOT_FOUND: drizzle-orm");
@@ -282,19 +329,23 @@ for (const file of ["config.json", ".env", "seed-manifest.json", "seed-pending",
 for (const installExit of [0, 42]) {
   test(`plain checkout dependency provisioning preserves install exit ${installExit}`, () => {
     const baseCwd = makeBaseWorkspace({ helpExit: 0, initExit: 0 });
-    const bin = makeTempDir("paperclip-checkout-pnpm-");
-    fs.writeFileSync(path.join(bin, "pnpm"), `#!/bin/sh\nprintf '%s\\n' "$*" >> pnpm-calls\nmkdir -p node_modules cli/node_modules\nexit ${installExit}\n`, { mode: 0o700 });
+    // The fake install runs in the worktree, so it sees the same cwd the script
+    // installs into and can materialize the node_modules it would have created.
+    const bin = makeBunShim(
+      "paperclip-checkout-bun-",
+      `printf '%s\\n' "$*" >> bun-calls\nmkdir -p node_modules cli/node_modules\nexit ${installExit}`,
+    );
     const { result, worktreeCwd } = runProvision(baseCwd, {
       pathPrefix: bin,
       setupInstance: (home) => fs.rmSync(path.join(home, "instances", "default", "config.json")),
       setupWorktree(root) {
         fs.writeFileSync(path.join(root, "package.json"), "{}\n");
-        fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+        fs.writeFileSync(path.join(root, "bun.lock"), "lockfileVersion: '9.0'\n");
       },
     });
     assert.equal(result.status, installExit, result.stderr);
-    assert.match(fs.readFileSync(path.join(worktreeCwd, "pnpm-calls"), "utf8"), /^install --prod=false --frozen-lockfile/);
-    assert.equal(fs.existsSync(path.join(worktreeCwd, ".paperclip", "pnpm-install-fingerprint")), installExit === 0);
+    assert.match(fs.readFileSync(path.join(worktreeCwd, "bun-calls"), "utf8"), /^--frozen-lockfile/);
+    assert.equal(fs.existsSync(path.join(worktreeCwd, ".paperclip", "bun-install-fingerprint")), installExit === 0);
     assert.equal(fs.existsSync(path.join(worktreeCwd, ".paperclip", "config.json")), false);
     assert.equal(fs.existsSync(path.join(worktreeCwd, ".paperclip", "seed-manifest.json")), false);
     assert.deepEqual(readCliInvocations(baseCwd), []);
@@ -410,20 +461,18 @@ test("repairs an unhealthy base install under the lock and then uses the CLI", (
     return;
   }
 
-  // The CLI's health is controlled by a flag file, and a fake `pnpm install`
+  // The CLI's health is controlled by a flag file, and a fake `bun install`
   // creates that flag — modeling a forced reinstall that relinks the store.
   const baseCwd = makeTempDir("paperclip-provision-repair-base-");
   const healthFlag = path.join(baseCwd, "cli-healthy.flag");
-  const runnerPath = path.join(baseCwd, "cli", "node_modules", "tsx", "dist", "cli.mjs");
   const entryPath = path.join(baseCwd, "cli", "src", "index.ts");
-  fs.mkdirSync(path.dirname(runnerPath), { recursive: true });
   fs.mkdirSync(path.dirname(entryPath), { recursive: true });
-  fs.writeFileSync(entryPath, "// fake CLI entry\n");
   fs.writeFileSync(
-    runnerPath,
+    entryPath,
     `
 import fs from "node:fs";
-const cliArgs = process.argv.slice(3);
+// Bun runs this entry directly, so the CLI arguments start at argv[2].
+const cliArgs = process.argv.slice(2);
 if (cliArgs.includes("--help")) {
   process.exit(fs.existsSync(${JSON.stringify(healthFlag)}) ? 0 : 1);
 }
@@ -437,22 +486,13 @@ process.exit(0);
 `,
   );
   fs.writeFileSync(path.join(baseCwd, "package.json"), "{}\n");
-  fs.writeFileSync(path.join(baseCwd, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+  fs.writeFileSync(path.join(baseCwd, "bun.lock"), "lockfileVersion: '9.0'\n");
   spawnSync("git", ["init", "-q", baseCwd], { env: { PATH: testPath } });
 
-  const fakeBin = makeTempDir("paperclip-provision-fakebin-");
-  const installLog = path.join(baseCwd, "pnpm-invocations.log");
-  fs.writeFileSync(
-    path.join(fakeBin, "pnpm"),
-    `#!/usr/bin/env bash
-if [[ "$1" == "install" ]]; then
-  echo "$@" >> ${JSON.stringify(installLog)}
-  touch ${JSON.stringify(healthFlag)}
-  exit 0
-fi
-exit 1
-`,
-    { mode: 0o755 },
+  const installLog = path.join(baseCwd, "bun-invocations.log");
+  const fakeBin = makeBunShim(
+    "paperclip-provision-fakebin-",
+    `echo "$*" >> ${JSON.stringify(installLog)}\ntouch ${JSON.stringify(healthFlag)}\nexit 0`,
   );
 
   const { result, worktreeCwd } = runProvision(baseCwd, { pathPrefix: fakeBin });
@@ -536,7 +576,12 @@ test("runtime provisioning guards every optional source-config expansion for Bas
     .split("\n")
     .filter((line) => line.includes("worktree ensure-seeded --config"));
 
-  assert.equal(ensureSeededLines.length, 3);
+  // Two launch paths: the base checkout's TypeScript entry under Bun, and a
+  // globally installed `paperclipai`. The pnpm rung is gone with the rest of
+  // the Node/pnpm ladder.
+  assert.equal(ensureSeededLines.length, 2);
+  assert.ok(ensureSeededLines[0].includes('bun "$base_cli_entry_path"'));
+  assert.ok(ensureSeededLines[1].includes("paperclipai worktree ensure-seeded"));
   for (const line of ensureSeededLines) {
     assert.ok(
       line.includes('${source_config_args[@]+"${source_config_args[@]}"}'),
@@ -625,78 +670,123 @@ test("runtime provisioning does not trust a truncated verified manifest", () => 
 });
 
 /**
- * pnpm 9.15.4 calls the deprecated url.parse() once per `pnpm install`
- * (see toNerfDart in the pnpm bundle), which Node 24 reports as DEP0169.
- * Each `pnpm install` call site must silence that one warning code, and must
- * append the flag to any NODE_OPTIONS value the environment already set
- * instead of overwriting it.
+ * The pnpm-era DEP0169 suppression flag existed only because the pinned pnpm's
+ * toNerfDart called the deprecated url.parse(). Bun never touches that path, so
+ * the flag and every `--prod=false` spelling are gone. This test pins what a
+ * Bun install call site in these scripts may look like: no production flag with
+ * a value, no frozen-less first attempt, and no Node-only warning carve-outs.
  */
-test("every pnpm install call site silences DEP0169 without overwriting NODE_OPTIONS", () => {
-  const disableWarningFlag = "--disable-warning=DEP0169";
-  const appendsToExistingNodeOptions = /NODE_OPTIONS="\$\{NODE_OPTIONS:-\} --disable-warning=DEP0169"/;
-
+test("both scripts install through Bun without Node-only flags", () => {
   const provisionSource = fs.readFileSync(script, "utf8");
-  const repairCallSites = provisionSource.match(/env -u NODE_ENV CI=true NODE_OPTIONS="\$repair_node_options" "\$\{repair_cmd\[@\]\}"/g) ?? [];
-  assert.equal(repairCallSites.length, 2, "expected the repair pnpm install to carry the flag at both call sites (locked and unlocked)");
-  assert.match(provisionSource, /local repair_node_options="\$\{NODE_OPTIONS:-\} --disable-warning=DEP0169"/);
-  assert.match(provisionSource, appendsToExistingNodeOptions);
-  assert.match(provisionSource, /NODE_OPTIONS="\$\{NODE_OPTIONS:-\} --disable-warning=DEP0169" pnpm install --prod=false "\$@"/);
-
   const runtimeSource = fs.readFileSync(runtimeScript, "utf8");
-  const runtimeRepairCallSites = runtimeSource.match(/env -u NODE_ENV CI=true NODE_OPTIONS="\$repair_node_options" "\$\{repair_cmd\[@\]\}"/g) ?? [];
-  assert.equal(runtimeRepairCallSites.length, 2, "expected the repair pnpm install to carry the flag at both call sites (locked and unlocked)");
-  assert.match(runtimeSource, /local repair_node_options="\$\{NODE_OPTIONS:-\} --disable-warning=DEP0169"/);
 
-  // No other warning code is suppressed anywhere in either script.
   for (const source of [provisionSource, runtimeSource]) {
-    const disableWarningMatches = source.match(/--disable-warning=[^\s"]+/g) ?? [];
-    for (const match of disableWarningMatches) {
-      assert.equal(match, disableWarningFlag);
+    // Shell comments explain the removed ladder; only executable lines matter.
+    const executable = source.split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
+    // Bun's --prod takes no value, so the old `--prod=false` spelling is a hard
+    // error rather than a dev-dependency install.
+    assert.ok(!executable.includes("--prod="), "Bun's --prod flag takes no value");
+    assert.ok(!executable.includes("--disable-warning="), "the DEP0169 carve-out was pnpm-only");
+    assert.ok(!executable.includes("$NODE_OPTIONS"), "no Node warning configuration is forwarded");
+    // The pnpm and corepack rungs of the launch ladder are gone entirely.
+    for (const removed of ["command -v pnpm", "pnpm paperclipai", "pnpm install", "corepack"]) {
+      assert.ok(!executable.includes(removed), `expected ${removed} to be removed`);
     }
+    // Every inline program and every CLI boot is handed to Bun.
+    assert.ok(!/(?:^|\s)node\s+(?:<<|\$|["'])/.test(executable), "no inline program is run by Node");
+    assert.ok(executable.includes("command -v bun"), "both scripts refuse to run without Bun");
   }
+
+  // The unlocked retry still names its frozen counterpart, so the recovery is
+  // an explicit second attempt rather than an unpinned default.
+  assert.match(provisionSource, /run_bun_install --frozen-lockfile/);
+  assert.match(provisionSource, /run_bun_install --no-frozen-lockfile/);
+
+  // The repair path is the same at both of its call sites (locked and
+  // unlocked), and always forces a relink under a frozen lockfile.
+  const repairCallSites = provisionSource.match(/env -u NODE_ENV CI=true "\$\{repair_cmd\[@\]\}"/g) ?? [];
+  assert.equal(repairCallSites.length, 2, "expected the repair bun install at both call sites");
+  assert.match(provisionSource, /local repair_cmd=\(bun install --force --frozen-lockfile\)/);
+
+  const runtimeRepairCallSites = runtimeSource.match(/env -u NODE_ENV CI=true "\$\{repair_cmd\[@\]\}"/g) ?? [];
+  assert.equal(runtimeRepairCallSites.length, 2, "expected the repair bun install at both call sites");
+  assert.match(runtimeSource, /local repair_cmd=\(bun install --force --frozen-lockfile\)/);
 });
 
-for (const failure of ["ERR_PNPM_LOCKFILE_CONFIG_MISMATCH", "ERR_PNPM_OUTDATED_LOCKFILE", "ENOTFOUND", "retry-fails"]) {
+// Bun's frozen install refuses a lockfile that no longer matches the manifests
+// with this exact diagnostic on stderr; the provisioner retries only that case
+// without --frozen-lockfile and preserves every other failure.
+const bunFrozenLockfileDrift = "error: lockfile had changes, but lockfile is frozen";
+
+for (const failure of ["lockfile-drift", "network-failure", "integrity-failure", "retry-fails"]) {
   test(`dependency provisioning preserves failures and bounds recovery: ${failure}`, () => {
     const baseCwd = makeBaseWorkspace({ helpExit: 0, initExit: 0 });
-    const bin = makeTempDir("paperclip-fake-pnpm-");
-    fs.writeFileSync(path.join(bin, "pnpm"), `#!/bin/sh
-printf '%s\\n' "$*" >> pnpm-calls
+    const bin = makeBunShim(
+      "paperclip-fake-bun-",
+      `
+printf '%s\\n' "$*" >> bun-calls
 case "$*" in
-  *--frozen-lockfile*) echo '${failure === "retry-fails" ? "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH" : failure}' >&2; exit 42 ;;
-  *) ${failure === "retry-fails" ? "exit 43" : "mkdir -p node_modules; exit 0"} ;;
-esac
-`, { mode: 0o700 });
+  *--frozen-lockfile*)
+    case "${failure}" in
+      lockfile-drift | retry-fails)
+        # Both reach the non-frozen retry; only retry-fails breaks there.
+        echo '${bunFrozenLockfileDrift}' >&2
+        exit 1
+        ;;
+      network-failure)
+        echo 'error: GET https://registry.npmjs.org/x - ENOTFOUND' >&2
+        exit 42
+        ;;
+      integrity-failure)
+        echo 'error: Integrity check failed for "left-pad@1.3.0"' >&2
+        exit 42
+        ;;
+    esac
+    ;;
+  *)
+    if [[ "${failure}" == "retry-fails" ]]; then exit 43; fi
+    mkdir -p node_modules
+    exit 0
+    ;;
+esac`,
+    );
     const { result, worktreeCwd } = runProvision(baseCwd, {
       pathPrefix: bin,
       setupWorktree(root) {
         fs.writeFileSync(path.join(root, "package.json"), "{}\n");
-        fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+        fs.writeFileSync(path.join(root, "bun.lock"), "lockfileVersion: '9.0'\n");
       },
     });
-    const recovers = failure.startsWith("ERR_PNPM_");
-    assert.equal(result.status, recovers ? 0 : failure === "ENOTFOUND" ? 42 : 1, result.stderr);
-    assert.equal(fs.existsSync(path.join(worktreeCwd, ".paperclip/pnpm-install-fingerprint")), recovers);
-    const calls = fs.readFileSync(path.join(worktreeCwd, "pnpm-calls"), "utf8").trim().split("\n").filter((call) => call.startsWith("install "));
-    assert.equal(calls.length, failure === "ENOTFOUND" ? 1 : 2);
-    if (calls.length === 2) assert.match(calls[1], /--no-frozen-lockfile/);
+    const recovers = failure === "lockfile-drift";
+    // The provisioner keeps the failing install's own exit code; only the
+    // drift retry is allowed to succeed, and a failing retry still fails.
+    const expectedExit = recovers
+      ? 0
+      : failure === "retry-fails"
+        ? 1
+        : 42;
+    assert.equal(result.status, expectedExit, result.stderr);
+    assert.equal(fs.existsSync(path.join(worktreeCwd, ".paperclip/bun-install-fingerprint")), recovers);
+    const calls = fs.readFileSync(path.join(worktreeCwd, "bun-calls"), "utf8").trim().split("\n");
+    assert.equal(calls.length, failure === "retry-fails" || recovers ? 2 : 1);
+    assert.match(calls[0], /^--frozen-lockfile$/);
+    if (calls.length === 2) assert.match(calls[1], /^--no-frozen-lockfile$/);
   });
 }
 
 test("patch content changes invalidate an otherwise matching install fingerprint", () => {
   const baseCwd = makeBaseWorkspace({ helpExit: 0, initExit: 0 });
-  const bin = makeTempDir("paperclip-patch-pnpm-");
-  fs.writeFileSync(path.join(bin, "pnpm"), '#!/bin/sh\ncase "$1" in install) echo install >> pnpm-calls; mkdir -p node_modules cli/node_modules ;; esac\n', { mode: 0o700 });
+  const bin = makeBunShim("paperclip-patch-bun-", `echo install >> bun-calls\nmkdir -p node_modules cli/node_modules`);
   const first = runProvision(baseCwd, { pathPrefix: bin, setupWorktree(root) {
-    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ pnpm: { patchedDependencies: { "dependency@1": "patches/dependency.diff" } } }));
-    fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ patchedDependencies: { "dependency@1": "patches/dependency.diff" } }));
+    fs.writeFileSync(path.join(root, "bun.lock"), "lockfileVersion: '9.0'\n");
     fs.mkdirSync(path.join(root, "patches"));
     fs.writeFileSync(path.join(root, "patches/dependency.diff"), "first patch");
   } });
   assert.equal(first.result.status, 0, first.result.stderr);
   const options = { pathPrefix: bin, existingWorktree: first.worktreeCwd };
   assert.equal(runProvision(baseCwd, options).result.status, 0);
-  const callsPath = path.join(first.worktreeCwd, "pnpm-calls");
+  const callsPath = path.join(first.worktreeCwd, "bun-calls");
   assert.equal(fs.readFileSync(callsPath, "utf8"), "install\n");
   fs.writeFileSync(path.join(first.worktreeCwd, "unrelated.patch"), "unrelated change");
   assert.equal(runProvision(baseCwd, options).result.status, 0);

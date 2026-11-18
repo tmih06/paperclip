@@ -116,7 +116,7 @@ jobs:
           REQUEST_ID: ${{ inputs.request_id }}
           PREVIEW_MIGRATOR: ${{ inputs.preview_migrator }}
           PLAN_COMMAND: ${{ inputs.channel == 'cloud-migrator' && 'plan-migrator' || 'plan' }}
-        run: node scripts/preview-artifacts.mjs "$PLAN_COMMAND" "$SOURCE_SHA" "$REQUEST_ID" "$PREVIEW_MIGRATOR"
+        run: bun scripts/preview-artifacts.mjs "$PLAN_COMMAND" "$SOURCE_SHA" "$REQUEST_ID" "$PREVIEW_MIGRATOR"
 
   package_preview:
     name: Build preview migrator
@@ -136,20 +136,20 @@ jobs:
           ref: ${{ inputs.source_ref }}
           path: source
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
           run_install: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
       - name: Install build dependencies without lifecycle scripts
         working-directory: source
-        run: pnpm install --ignore-scripts --no-frozen-lockfile
+        run: bun install --ignore-scripts --no-frozen-lockfile
       - name: Build and pack exact-source preview packages
         env:
           SOURCE_SHA: ${{ inputs.source_ref }}
-        run: node trusted/scripts/preview-artifacts.mjs pack source packages "$SOURCE_SHA"
+        run: bun trusted/scripts/preview-artifacts.mjs pack source packages "$SOURCE_SHA"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: preview-packages
@@ -193,7 +193,7 @@ jobs:
       - name: Publish immutable preview packages without running package code
         env:
           SOURCE_SHA: ${{ inputs.source_ref }}
-        run: node scripts/preview-artifacts.mjs publish preview-packages "$SOURCE_SHA"
+        run: bun scripts/preview-artifacts.mjs publish preview-packages "$SOURCE_SHA"
 
   image_preview:
     name: Build preview cloud image
@@ -208,9 +208,9 @@ jobs:
         with:
           ref: ${{ inputs.source_ref }}
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
           run_install: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
@@ -221,7 +221,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          pnpm install --resolution-only --ignore-scripts --ignore-pnpmfile --no-frozen-lockfile
+          bun install --lockfile-only --ignore-scripts --no-frozen-lockfile
           echo "TOOLS_EPOCH=$(date -u +%G-W%V)" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
         with:
@@ -285,7 +285,7 @@ jobs:
       - name: Verify image identity and publish without executing image code
         env:
           SOURCE_SHA: ${{ inputs.source_ref }}
-        run: node scripts/preview-artifacts.mjs publish-image preview-image/preview-image.tar "$SOURCE_SHA"
+        run: bun scripts/preview-artifacts.mjs publish-image preview-image/preview-image.tar "$SOURCE_SHA"
 
   result_preview:
     name: Verify preview artifacts
@@ -309,7 +309,7 @@ jobs:
           SOURCE_SHA: ${{ inputs.source_ref }}
           REQUEST_ID: ${{ inputs.request_id }}
           PREVIEW_MIGRATOR: ${{ inputs.preview_migrator }}
-        run: node scripts/preview-artifacts.mjs result "$SOURCE_SHA" "$REQUEST_ID"
+        run: bun scripts/preview-artifacts.mjs result "$SOURCE_SHA" "$REQUEST_ID"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: stack-deploy-result
@@ -342,7 +342,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ github.sha }}
-        run: node scripts/cloud-source-verification.mjs "$SOURCE_SHA"
+        run: bun scripts/cloud-source-verification.mjs "$SOURCE_SHA"
 
   release_runner_source:
     needs: [select_nightly, select_beta, preflight_stable]
@@ -448,37 +448,44 @@ jobs:
         if: needs.release_runner_source.outputs.required == 'true'
         run: echo "PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR=$RUNNER_TEMP/release-runner-inputs" >> "$GITHUB_ENV"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
 
       - name: Validate release package manifest
-        run: node ./scripts/release-package-map.mjs check
+        run: bun ./scripts/release-package-map.mjs check
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: bun install --no-frozen-lockfile
 
       # Master can precede the separate lockfile-refresh PR. Preserve the
       # resolution used for this build before release tooling restores the
       # tracked lockfile or rewrites workspace versions.
+      - name: Bind canary lockfile to patch bytes
+        run: bun scripts/bun-lock-proof.mjs write
+
       - name: Save canary smoke lockfile
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: canary-smoke-lockfile-${{ github.sha }}
-          path: pnpm-lock.yaml
+          path: |
+            bun.lock
+            bun.lock.proof.json
           if-no-files-found: error
           overwrite: true
           retention-days: 14
 
+      - name: Remove canary lockfile proof scratch
+        run: rm bun.lock.proof.json
+
       - name: Restore tracked install-time changes
-        run: git checkout -- pnpm-lock.yaml
+        run: git checkout -- bun.lock
 
       - name: Configure git author
         run: |
@@ -520,6 +527,7 @@ jobs:
             echo "- Version: \`$version\`"
             echo "- npm confirmation, \`canary/v$version\`, the Docker build and the onboarding smoke run in Canary finalize."
           } >> "$GITHUB_STEP_SUMMARY"
+
 
   # ----- Nightly lane -----------------------------------------------------
   # Once a night (or on a forced nightly dispatch), promote the newest master
@@ -681,25 +689,24 @@ jobs:
         if: needs.release_runner_source.outputs.required == 'true'
         run: echo "PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR=$RUNNER_TEMP/release-runner-inputs" >> "$GITHUB_ENV"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
 
       - name: Validate release package manifest
-        run: node ./scripts/release-package-map.mjs check
+        run: bun ./scripts/release-package-map.mjs check
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: bun install --no-save
 
       - name: Restore tracked install-time changes
-        run: git checkout -- pnpm-lock.yaml
+        run: git checkout -- bun.lock
 
       - name: Configure git author
         run: |
@@ -970,25 +977,24 @@ jobs:
         if: needs.release_runner_source.outputs.required == 'true'
         run: echo "PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR=$RUNNER_TEMP/release-runner-inputs" >> "$GITHUB_ENV"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
 
       - name: Validate release package manifest
-        run: node ./scripts/release-package-map.mjs check
+        run: bun ./scripts/release-package-map.mjs check
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: bun install --no-save
 
       - name: Restore tracked install-time changes
-        run: git checkout -- pnpm-lock.yaml
+        run: git checkout -- bun.lock
 
       - name: Configure git author
         run: |
@@ -1244,15 +1250,15 @@ jobs:
           beta_version="${beta_tag#beta/v}"
           echo "beta_version=${beta_version}" >> "$GITHUB_OUTPUT"
           publish_time="$(npm view "paperclipai@${beta_version}" time --json 2>/dev/null \
-            | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const t=JSON.parse(d);process.stdout.write(typeof t === "string" ? t : (t[process.argv[1]] ?? ""))})' "$beta_version" || true)"
+            | bun -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const t=JSON.parse(d);process.stdout.write(typeof t === "string" ? t : (t[process.argv[1]] ?? ""))})' "$beta_version" || true)"
           if [ -z "$publish_time" ]; then
             fail_or_justify "could not determine the npm publish time of beta ${beta_version}."
             exit 0
           fi
 
-          age_seconds="$(node -e 'process.stdout.write(String(Math.floor((Date.now() - Date.parse(process.argv[1])) / 1000)))' "$publish_time")"
+          age_seconds="$(bun -e 'process.stdout.write(String(Math.floor((Date.now() - Date.parse(process.argv[1])) / 1000)))' "$publish_time")"
           min_seconds=$((3 * 24 * 60 * 60))
-          age_days="$(node -e 'process.stdout.write((Number(process.argv[1]) / 86400).toFixed(1))' "$age_seconds")"
+          age_days="$(bun -e 'process.stdout.write((Number(process.argv[1]) / 86400).toFixed(1))' "$age_seconds")"
 
           if [ "$age_seconds" -lt "$min_seconds" ]; then
             fail_or_justify "beta ${beta_version} has only soaked ${age_days} days (minimum is 3)."
@@ -1361,22 +1367,21 @@ jobs:
         if: needs.release_runner_source.outputs.required == 'true'
         run: echo "PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR=$RUNNER_TEMP/release-runner-inputs" >> "$GITHUB_ENV"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
 
       - name: Validate release package manifest
-        run: node ./scripts/release-package-map.mjs check
+        run: bun ./scripts/release-package-map.mjs check
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: bun install --no-save
 
       - name: Dry-run stable release
         env:
@@ -1429,22 +1434,21 @@ jobs:
         if: needs.release_runner_source.outputs.required == 'true'
         run: echo "PAPERCLIP_RELEASE_RUNNER_ARTIFACTS_DIR=$RUNNER_TEMP/release-runner-inputs" >> "$GITHUB_ENV"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: bun install --no-save
 
       - name: Restore tracked install-time changes
-        run: git checkout -- pnpm-lock.yaml
+        run: git checkout -- bun.lock
 
       - name: Configure git author
         run: |

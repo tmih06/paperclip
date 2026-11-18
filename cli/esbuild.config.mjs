@@ -73,7 +73,7 @@ export default {
   target: "node24",
   format: "esm",
   outfile: "dist/index.js",
-  banner: { js: "#!/usr/bin/env node" },
+  banner: { js: "#!/usr/bin/env bun" },
   external: [...externals].sort(),
   treeShaking: true,
   sourcemap: true,

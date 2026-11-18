@@ -2,7 +2,7 @@
 // (GET /api/companies/:id/issues?createdFromIssueId=…&includeRoutineExecutions=true,
 // which the UI pages with sortField=id, sortDir=asc and limit=500).
 //
-//   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-created-from-issues.ts \
+//   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-created-from-issues.ts \
 //     --baseline-ref=<pre-fix commit> [--issues=30000] [--runs=60000] [--samples=9]
 //     [--evidence-dir=<dir>]
 //

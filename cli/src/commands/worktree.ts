@@ -2711,31 +2711,11 @@ export async function worktreeMakeCommand(nameArg: string, opts: WorktreeMakeOpt
   }
 }
 
-type PnpmInstallInvocation = {
-  command: string;
-  argsPrefix: string[];
-};
-
-export function resolvePnpmInstallInvocation(
-  env: NodeJS.ProcessEnv = process.env,
-  nodeExecPath = process.execPath,
-): PnpmInstallInvocation {
-  const npmExecPath = nonEmpty(env.npm_execpath);
-  if (npmExecPath && npmExecPath.toLowerCase().includes("pnpm")) {
-    if (/\.(cjs|mjs|js)$/i.test(npmExecPath)) {
-      return { command: nodeExecPath, argsPrefix: [npmExecPath] };
-    }
-    return { command: npmExecPath, argsPrefix: [] };
-  }
-  return { command: "pnpm", argsPrefix: [] };
-}
-
 function installDependenciesBestEffort(targetPath: string): void {
   const installSpinner = p.spinner();
   installSpinner.start("Installing dependencies...");
-  const pnpm = resolvePnpmInstallInvocation();
   try {
-    execFileSync(pnpm.command, [...pnpm.argsPrefix, "install"], {
+    execFileSync("bun", ["install", "--frozen-lockfile"], {
       cwd: targetPath,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -3112,7 +3092,7 @@ async function openConfiguredDb(configPath: string): Promise<OpenDbHandle> {
           ? ` Pending migrations: ${migrationState.pendingMigrations.join(", ")}.`
           : "";
       throw new Error(
-        `Database for ${configPath} is not up to date.${pending} Run \`pnpm db:migrate\` (or start Paperclip once) before using worktree merge history.`,
+        `Database for ${configPath} is not up to date.${pending} Run \`bun run db:migrate\` (or start Paperclip once) before using worktree merge history.`,
       );
     }
     const db = createDb(connectionString) as ClosableDb;

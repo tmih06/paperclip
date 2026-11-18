@@ -418,11 +418,10 @@ databaseSuite("CLI challenge authority and transitions (real PostgreSQL)", () =>
       for (let i = 0; i < 120; i++) expect((await fetch(`${apiBase}/api/cli-auth/challenges/${f.challenge.id}?token=${f.challengeSecret}`)).status).toBe(200);
       clock = clockStart + 59_900;
       const module = new URL("../../../cli/src/client/board-auth.ts", import.meta.url).href;
-      const loader = new URL("../../node_modules/tsx/dist/loader.mjs", import.meta.url).href;
       const outcomes = [0, 1, 2].map(i => {
         const worker = path.join(folder, `client-${i}.mjs`);
         fs.writeFileSync(worker, `import { loginBoardCli } from ${JSON.stringify(module)}; await loginBoardCli(${JSON.stringify({ apiBase, requestedAccess: "board", requestedCompanyId: f.companyId, storePath: path.join(folder, `auth-${i}.json`), openBrowser: false, print: false })});`, { mode: 0o600 });
-        const child = spawn(process.execPath, ["--import", loader, worker], { cwd: folder, stdio: ["ignore", "ignore", "pipe"] }); children.push(child);
+        const child = spawn(process.execPath, [worker], { cwd: folder, stdio: ["ignore", "ignore", "pipe"] }); children.push(child);
         let errors = ""; child.stderr?.on("data", chunk => { errors += chunk.toString(); });
         return new Promise<{ code: number | null; errors: string }>(resolve => child.once("exit", code => resolve({ code, errors })));
       });

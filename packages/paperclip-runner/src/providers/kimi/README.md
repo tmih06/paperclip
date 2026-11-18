@@ -153,7 +153,7 @@ to the package contract cell:
 
 ```sh
 PAPERCLIP_KIMI_VENDOR_MAIN=/absolute/path/to/dist/main.mjs \
-  node --test packages/paperclip-runner/scripts/patch-kimi-runtime.test.mjs
+  bun test packages/paperclip-runner/scripts/patch-kimi-runtime.test.mjs
 ```
 
 This executes the actual pinned getter and ACP lifecycle/error methods with
@@ -173,7 +173,7 @@ scripted OpenAI-compatible service and MCP receiver:
 
 ```sh
 PAPERCLIP_TEST_KIMI_MODEL_PEER=1 \
-  node --test packages/paperclip-runner/scripts/patch-kimi-runtime.test.mjs
+  bun test packages/paperclip-runner/scripts/patch-kimi-runtime.test.mjs
 ```
 
 The test changes only its private native test configuration below the production
@@ -228,7 +228,7 @@ Enable the additional pending-work lifecycle checks with:
 
 ```sh
 PAPERCLIP_TEST_KIMI_MODEL_PEER=1 PAPERCLIP_TEST_KIMI_LIFECYCLE_PEER=1 \
-  node --test --test-name-pattern='simulated local model service' \
+  bun test --test-name-pattern='simulated local model service' \
   packages/paperclip-runner/scripts/patch-kimi-runtime.test.mjs
 ```
 

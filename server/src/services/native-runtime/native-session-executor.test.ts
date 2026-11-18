@@ -1450,8 +1450,8 @@ describe("remote runner launch fingerprint compatibility", () => {
       await mkdir(bin);
       for (const name of ["dirname", "mkdir", "sh"]) await symlink(execFileSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" }).trim(), join(bin, name));
       await writeFile(join(bin, "nohup"), `#!/bin/sh\nprintf detached > '${detached}'\n`, { mode: 0o755 });
-      if (runtime === "working") await symlink(process.execPath, join(bin, "node"));
-      if (runtime === "broken") await writeFile(join(bin, "node"), "#!/bin/sh\nexit 7\n", { mode: 0o755 });
+      if (runtime === "working") await symlink(process.execPath, join(bin, "bun"));
+      if (runtime === "broken") await writeFile(join(bin, "bun"), "#!/bin/sh\nexit 7\n", { mode: 0o755 });
       const handle = createRemoteRunnerProcessLauncher({
         target: { kind: "remote", transport: "sandbox", environmentId: "environment", leaseId: "lease", remoteCwd: root },
         runner: { execute } as never, remoteBinary: "/runtime/runnerd", processIdentityPath: marker,
@@ -1484,7 +1484,7 @@ describe("remote runner launch fingerprint compatibility", () => {
       // Node is part of the remote runtime contract; awk is not required.
       const bin = join(root, "bin");
       await mkdir(bin);
-      await symlink(process.execPath, join(bin, "node"));
+      await symlink(process.execPath, join(bin, "bun"));
       for (const name of ["mkdir", "chmod", "date", "mv"]) await symlink(execFileSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" }).trim(), join(bin, name));
       const marker = join(root, "identity");
       const result = execFileSync("/bin/sh", ["-c", script, "launch", marker, "nonce", "runner", join(root, "diagnostics"), "/bin/sh", "-c", "printf launched"], { env: { ...process.env, PATH: bin }, encoding: "utf8" });
@@ -1643,7 +1643,7 @@ describe.skipIf(!existsSync("/proc/self/cmdline"))("remote runner launch stale s
     const wrappers = join(root, "wrappers");
     try {
       await mkdir(wrappers);
-      await writeFile(join(wrappers, "node"), `#!/bin/sh\nprintf "%s\\n" node >> '${join(root, "node.log")}'\nexec '${process.execPath}' "$@"\n`, { mode: 0o755 });
+      await writeFile(join(wrappers, "bun"), `#!/bin/sh\nprintf "%s\\n" node >> '${join(root, "node.log")}'\nexec '${process.execPath}' "$@"\n`, { mode: 0o755 });
       const result = spawnSync("/bin/sh", ["-c", `PATH='${wrappers}':"$PATH"; export PATH; ${REMOTE_RUNNER_CHILD_LAUNCH_SCRIPT}`, "launch", join(root, "identity"), "nonce", "runner",
         join(root, "diagnostics"), join(root, "bin", "paperclip-runnerd"), "--state-dir", join(root, "state")], { encoding: "utf8" });
       expect(result.stdout).toBe("launched");
@@ -1877,7 +1877,7 @@ fs.readFileSync = function(path, ...args) {
       }
       const args = request.args?.map(arg => arg.replaceAll("/proc/", `${proc}/`)) ?? [];
       return new Promise<typeof ok>(resolve => execFile(request.command, args, {
-        env: { ...process.env, NODE_OPTIONS: `--require=${hook}` }, timeout: 8_000,
+        env: { ...process.env, BUN_OPTIONS: `--preload=${hook}` }, timeout: 8_000,
       }, (error, stdout, stderr) => resolve({ ...ok, stdout, stderr,
         exitCode: error ? typeof error.code === "number" ? error.code : -1 : 0, timedOut: !!error?.killed })));
     });
@@ -2960,11 +2960,11 @@ describe("remote provider pack manifest", () => {
     const root = await mkdtemp(join(tmpdir(), "paperclip-bundled-image-"));
     const digest = "sha256:" + "a".repeat(64);
     const artifacts = Object.fromEntries(Object.entries({
-      grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node",
-      productionLock: "pnpm-lock.yaml", opencodeCommand: "node_modules/.bin/opencode",
+      grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node", bunCommand: "node_modules/bun/bin/bun", bunExecutable: "node_modules/.bin/bun",
+      productionLock: "bun.lock", opencodeCommand: "node_modules/.bin/opencode",
       opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
       opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs",
-    }).map(([key, path]) => [key, { path, sha256: digest }])) as Record<"nodeCommand" | "opencodeCommand" | "opencodeExecutable" | "opencodeProxy", { path: string; sha256: string }>;
+    }).map(([key, path]) => [key, { path, sha256: digest }])) as Record<"nodeCommand" | "bunCommand" | "bunExecutable" | "opencodeCommand" | "opencodeExecutable" | "opencodeProxy", { path: string; sha256: string }>;
     const payload = {
       compatibility: { opencode: 1, acpx: 1 }, contractDigest: digest,
       target: { platform: "linux", architecture }, runnerSourceRevision: "a".repeat(40),
@@ -2999,7 +2999,7 @@ describe("remote provider pack manifest", () => {
     const installed = structuredClone(manifest);
     if (opencode) {
       installed.payload.runnerSourceRevision = "c".repeat(40) + (provider === "opencode-dirty" ? "-dirty" : "");
-      installed.payload.artifacts.nodeCommand.sha256 = "sha256:" + "d".repeat(64);
+      installed.payload.artifacts.bunCommand.sha256 = "sha256:" + "d".repeat(64);
       if (provider !== "opencode-diagnostics") installed.payload.artifacts.opencodeProxy.sha256 = "sha256:" + "e".repeat(64);
       installed.digest = "sha256:" + createHash("sha256").update(canonical(installed.payload)).digest("hex");
     }
@@ -3110,8 +3110,9 @@ describe("remote provider pack manifest", () => {
       expect(execute.mock.calls.some(([call]) => call.args?.[1] === "uname -s; uname -m")).toBe(false);
       expect(existsSync(join(transport.stateDirectory!, "provider-pack-authority.json"))).toBe(false);
       expect(transport).toMatchObject({ providerPackAuthorityDigest: installed.digest,
-        providerNodeCommand: firstDurable ? `${launchRoot}/${installed.payload.artifacts.nodeCommand.path}` : "/opt/paperclip-runner/provider-pack/node_modules/node/bin/node",
-        providerNodeCommandSha256: installed.payload.artifacts.nodeCommand.sha256 });
+        providerNodeCommand: firstDurable ? `${launchRoot}/${installed.payload.artifacts.bunCommand.path}`
+          : `/opt/paperclip-runner/provider-pack/${installed.payload.artifacts[opencode ? "bunCommand" : "nodeCommand"].path}`,
+        providerNodeCommandSha256: installed.payload.artifacts[opencode ? "bunCommand" : "nodeCommand"].sha256 });
       if (provider === "opencode" || firstDurable || provider.startsWith("opencode-continuation") || provider === "opencode-dirty") {
         const identity = { ...remoteExecution.binding, sessionId: remoteExecution.session.normalizedSessionId! };
         const session = { identity: () => identity } as never;
@@ -3282,7 +3283,7 @@ describe("remote provider pack manifest", () => {
           expect(providerArtifactStorage.restoreNativeProviderArtifacts).toHaveBeenCalledWith(expect.objectContaining({
             companyId: remoteExecution.binding.companyId, receipt: artifactReceipt }));
           expect(state.createTransport.mock.calls.at(-1)![0]).toMatchObject({
-            providerNodeCommand: `${launchRoot}/${installed.payload.artifacts.nodeCommand.path}`,
+            providerNodeCommand: `${launchRoot}/${installed.payload.artifacts.bunCommand.path}`,
             opencodeCommand: `${launchRoot}/${installed.payload.artifacts.opencodeExecutable.path}`,
           });
         }
@@ -3371,7 +3372,7 @@ describe("remote provider pack manifest", () => {
         const relaunched = state.createTransport.mock.calls.at(-1)![0] as RunnerTransportOptions;
         expect(relaunched.adoptExistingRunner).toBeUndefined();
         expect(relaunched).toMatchObject({ providerPackAuthorityDigest: admitted.digest, runnerArtifact: artifact,
-          providerNodeCommandSha256: admitted.payload.artifacts.nodeCommand.sha256,
+          providerNodeCommandSha256: admitted.payload.artifacts[opencode ? "bunCommand" : "nodeCommand"].sha256,
           ...(opencode
             ? { opencodeCommand: `/opt/paperclip-runner/provider-pack/${admitted.payload.artifacts.opencodeExecutable.path}`,
               opencodeCommandSha256: admitted.payload.artifacts.opencodeExecutable.sha256 }
@@ -3398,7 +3399,7 @@ describe("remote provider pack manifest", () => {
           state.createBackend.mock.calls.at(-1)![1].codexTransportFactory!();
           expect(restore).toHaveBeenCalledWith(expect.objectContaining({ receipt: artifactReceipt }));
           expect(state.createTransport.mock.calls.at(-1)![0]).toMatchObject({ providerPackAuthorityDigest: admitted.digest,
-            providerNodeCommand: `${launchRoot}/${admitted.payload.artifacts.nodeCommand.path}`,
+            providerNodeCommand: `${launchRoot}/${admitted.payload.artifacts.bunCommand.path}`,
             opencodeProxyPath: `${launchRoot}/${admitted.payload.artifacts.opencodeProxy.path}`,
             opencodeCommand: `${launchRoot}/${admitted.payload.artifacts.opencodeExecutable.path}` });
           storageMode.mockRestore();
@@ -3481,6 +3482,7 @@ describe("remote provider pack manifest", () => {
     const root = await mkdtemp(join(tmpdir(), "paperclip-provider-pack-"));
     await mkdir(join(root, "dist", "cli"), { recursive: true });
     await mkdir(join(root, "node_modules", "node", "bin"), { recursive: true });
+    await mkdir(join(root, "node_modules", "bun", "bin"), { recursive: true });
     await mkdir(join(root, "node_modules", ".bin"), { recursive: true });
     await mkdir(join(root, "node_modules", "opencode-ai", "bin"), {
       recursive: true,
@@ -3488,6 +3490,7 @@ describe("remote provider pack manifest", () => {
     const proxy = "export const proxy = true;\n";
     const sidecar = "export const sidecar = true;\n";
     const node = "provider-node\n";
+    const bunRuntime = "provider-bun\n";
     const lockfile = "lockfileVersion: '9.0'\n";
     const opencodeCommand = "#!/bin/sh\n";
     const opencodeExecutable = "opencode-binary\n";
@@ -3503,7 +3506,9 @@ describe("remote provider pack manifest", () => {
       sidecar,
     );
     await writeFile(join(root, "node_modules", "node", "bin", "node"), node);
-    await writeFile(join(root, "pnpm-lock.yaml"), lockfile);
+    await writeFile(join(root, "node_modules", "bun", "bin", "bun"), bunRuntime);
+    await writeFile(join(root, "node_modules", ".bin", "bun"), bunRuntime);
+    await writeFile(join(root, "bun.lock"), lockfile);
     await writeFile(
       join(root, "node_modules", ".bin", "opencode"),
       opencodeCommand,
@@ -3543,7 +3548,9 @@ describe("remote provider pack manifest", () => {
           path: "node_modules/node/bin/node",
           sha256: digest(node),
         },
-        productionLock: { path: "pnpm-lock.yaml", sha256: digest(lockfile) },
+        bunCommand: { path: "node_modules/bun/bin/bun", sha256: digest(bunRuntime) },
+        bunExecutable: { path: "node_modules/.bin/bun", sha256: digest(bunRuntime) },
+        productionLock: { path: "bun.lock", sha256: digest(lockfile) },
         opencodeCommand: {
           path: "node_modules/.bin/opencode",
           sha256: digest(opencodeCommand),
@@ -5118,7 +5125,7 @@ describe("remote provider checkpoint snapshots", () => {
         }),
       ).rejects.toThrow("runner_remote_checkpoint_archive_unsafe_entry");
       await expect(
-        access(join(targetPath, "preserved.txt")),
+        access(join(targetPath, "preserved.txt")).then(() => undefined),
       ).resolves.toBeUndefined();
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -5309,7 +5316,7 @@ describe("remote provider checkpoint restores", () => {
           const stagedPath = operations[0]!.files[0]!.sourcePath;
           expect(stagedPath).not.toBe(sourcePath);
           await expect(
-            access(join(stagedPath, "sessions", "thread.jsonl")),
+            access(join(stagedPath, "sessions", "thread.jsonl")).then(() => undefined),
           ).resolves.toBeUndefined();
           await expect(
             access(join(stagedPath, ".tmp", "scratch.bin")),
@@ -7729,7 +7736,7 @@ describe("explicit failed native retry physical evidence", () => {
       expect(await readdir(stateBase)).toEqual(before);
       if (!bootstrap)
         expect(
-          await access(join(root, "control-plane", "control-plane-state.json")),
+          await access(join(root, "control-plane", "control-plane-state.json")).then(() => undefined),
         ).toBeUndefined();
     } finally {
       if (previous === undefined) delete process.env.PAPERCLIP_RUNNER_STATE_DIR;
@@ -8422,8 +8429,8 @@ describe("native startup cancellation fence", () => {
     const daemon = Buffer.alloc(64); daemon.set([0x7f, 0x45, 0x4c, 0x46, 2, 1]); daemon.writeUInt16LE(62, 18);
     await writeFile(daemonPath, daemon);
     const sha = "sha256:" + "a".repeat(64);
-    const artifacts = Object.fromEntries(Object.entries({ grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node",
-      productionLock: "pnpm-lock.yaml", opencodeCommand: "node_modules/.bin/opencode", opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
+    const artifacts = Object.fromEntries(Object.entries({ grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node", bunCommand: "node_modules/bun/bin/bun", bunExecutable: "node_modules/.bin/bun",
+      productionLock: "bun.lock", opencodeCommand: "node_modules/.bin/opencode", opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
       opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs" }).map(([name, path]) => [name, { path, sha256: sha }]));
     const payload = { compatibility: { opencode: 1, acpx: 1 }, contractDigest: sha, target: { platform: "linux", architecture: "x64" }, runnerSourceRevision: "a".repeat(40),
       pins: { nodeMinimum: "24.11.0", codex: QUALIFIED_ACPX_PROFILES.codex.agentRuntimeVersion, opencode: "1.18.34", acpx: "0.22.0",
@@ -18718,8 +18725,8 @@ describe("runnerd provider runtime wiring", () => {
         : value && typeof value === "object" ? `{${Object.keys(value).sort().map(key =>
           `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(",")}}` : JSON.stringify(value);
       const artifacts = Object.fromEntries(Object.entries({
-        grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node",
-        productionLock: "pnpm-lock.yaml", opencodeCommand: "node_modules/.bin/opencode",
+        grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node", bunCommand: "node_modules/bun/bin/bun", bunExecutable: "node_modules/.bin/bun",
+        productionLock: "bun.lock", opencodeCommand: "node_modules/.bin/opencode",
         opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
         opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs",
       }).map(([key, path]) => [key, { path, sha256: digest }]));
@@ -18833,8 +18840,8 @@ describe("runnerd provider runtime wiring", () => {
         : value && typeof value === "object" ? `{${Object.keys(value).sort().map(key =>
           `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(",")}}` : JSON.stringify(value);
       const artifacts = Object.fromEntries(Object.entries({
-        grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node",
-        productionLock: "pnpm-lock.yaml", opencodeCommand: "node_modules/.bin/opencode",
+        grokLauncher: "dist/providers/grok/launcher.cjs", nodeCommand: "node_modules/node/bin/node", bunCommand: "node_modules/bun/bin/bun", bunExecutable: "node_modules/.bin/bun",
+        productionLock: "bun.lock", opencodeCommand: "node_modules/.bin/opencode",
         opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
         opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs",
       }).map(([key, path]) => [key, { path, sha256: digest }]));
@@ -20251,7 +20258,7 @@ describe("runnerd provider runtime wiring", () => {
     expect(migratedRoot).not.toBe(legacyRoot);
     await expect(access(legacyRoot)).rejects.toThrow();
     await expect(
-      access(join(migratedRoot, "control-plane", "control-plane-state.json")),
+      access(join(migratedRoot, "control-plane", "control-plane-state.json")).then(() => undefined),
     ).resolves.toBeUndefined();
     expect(state.createTransport.mock.calls[0]![0].prpIdentity).toEqual(
       expect.objectContaining({
@@ -20319,7 +20326,7 @@ describe("runnerd provider runtime wiring", () => {
     expect(migratedRoot).not.toBe(legacyRoot);
     await expect(access(legacyRoot)).rejects.toThrow();
     await expect(
-      access(join(migratedRoot, "control-plane", "control-plane-state.json")),
+      access(join(migratedRoot, "control-plane", "control-plane-state.json")).then(() => undefined),
     ).resolves.toBeUndefined();
   });
 
@@ -20692,7 +20699,7 @@ describe("runnerd provider runtime wiring", () => {
         runnerInstanceId: "runner-after-running-prior-scope",
       }),
     ).rejects.toThrow("runner_state_identity_mismatch: prior_owner_active");
-    await expect(access(scopedRoot)).resolves.toBeUndefined();
+    await expect(access(scopedRoot).then(() => undefined)).resolves.toBeUndefined();
     await expect(access(join(stateBase, "quarantine"))).rejects.toThrow();
     expect(state.createBackend).not.toHaveBeenCalled();
     expect(state.createTransport).not.toHaveBeenCalled();
@@ -21371,12 +21378,12 @@ describe("runnerd provider runtime wiring", () => {
     await expect(
       access(
         join(quarantinedRoot, "codex-home", "sessions", "rollout.jsonl"),
-      ),
+      ).then(() => undefined),
     ).resolves.toBeUndefined();
     await expect(
       access(
         join(quarantinedRoot, "control-plane", "control-plane-state.json"),
-      ),
+      ).then(() => undefined),
     ).resolves.toBeUndefined();
     expect(state.createBackend).not.toHaveBeenCalled();
     expect(state.createTransport).not.toHaveBeenCalled();
@@ -21775,13 +21782,13 @@ describe("runnerd provider runtime wiring", () => {
         "control-plane",
       );
       await expect(
-        access(quarantinedControlPlaneRoot),
+        access(quarantinedControlPlaneRoot).then(() => undefined),
       ).resolves.toBeUndefined();
       if (caseName !== "missing") {
         await expect(
           access(
             join(quarantinedControlPlaneRoot, "control-plane-state.json"),
-          ),
+          ).then(() => undefined),
         ).resolves.toBeUndefined();
       }
       expect(state.createBackend).not.toHaveBeenCalled();
@@ -21809,9 +21816,9 @@ describe("runnerd provider runtime wiring", () => {
         runnerInstanceId: "runner-symlink-retry",
       }),
     ).rejects.toThrow("runner_state_directory_unsafe");
-    await expect(access(scopedRoot)).resolves.toBeUndefined();
+    await expect(access(scopedRoot).then(() => undefined)).resolves.toBeUndefined();
     await expect(
-      access(join(symlinkTarget, "must-remain")),
+      access(join(symlinkTarget, "must-remain")).then(() => undefined),
     ).resolves.toBeUndefined();
     await expect(access(join(stateBase, "quarantine"))).rejects.toThrow();
     expect(state.createBackend).not.toHaveBeenCalled();
@@ -21879,7 +21886,7 @@ describe("runnerd provider runtime wiring", () => {
         runnerInstanceId: "runner-current-prior-mismatch",
       }),
     ).rejects.toThrow("runner_state_identity_mismatch");
-    await expect(access(legacyRoot)).resolves.toBeUndefined();
+    await expect(access(legacyRoot).then(() => undefined)).resolves.toBeUndefined();
     await expect(access(join(stateBase, "quarantine"))).rejects.toThrow();
   });
 
@@ -21931,7 +21938,7 @@ describe("runnerd provider runtime wiring", () => {
         runnerInstanceId: "runner-current-scope",
       }),
     ).rejects.toThrow("runner_state_identity_mismatch");
-    await expect(access(legacyRoot)).resolves.toBeUndefined();
+    await expect(access(legacyRoot).then(() => undefined)).resolves.toBeUndefined();
   });
 
   it("isolates durable state and tool authority for equal session ids in different companies", async () => {

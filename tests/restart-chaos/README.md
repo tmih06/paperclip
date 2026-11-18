@@ -15,14 +15,14 @@ output. Each workload and fault scenario, with its command and oracle, is in
 ## Run
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm --filter @paperclipai/paperclip-runner run build:runner-binaries   # native runner (debug)
+bun install --frozen-lockfile
+bun run --filter @paperclipai/paperclip-runner run build:runner-binaries   # native runner (debug)
 set -a; source ~/.secrets; set +a                                   # provider keys, process env only
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env local \
+bun tests/restart-chaos/main.ts --env local \
   --adapters codex,claude,opencode --concurrency 4 --tasks 8 --faults K1,K2,K4 --seed 42
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --replay w-20261106T101112-s42/t03
-pnpm exec vitest run --config tests/restart-chaos/vitest.config.ts  # credential-free unit tests
-node scripts/typecheck-test-projects.mjs tests/restart-chaos        # typecheck
+bun tests/restart-chaos/main.ts --replay w-20261106T101112-s42/t03
+bun x vitest run --config tests/restart-chaos/vitest.config.ts  # credential-free unit tests
+bun scripts/typecheck-test-projects.mjs tests/restart-chaos        # typecheck
 ```
 
 Options: `--triggers time,comment,retry,queued,tool,result` (fault timing, below),
@@ -86,7 +86,7 @@ immutable runner image. No Docker is needed.
 
 ```sh
 set -a; source ~/.secrets; set +a        # DAYTONA_API_KEY plus provider keys, process env only
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --env daytona \
+bun tests/restart-chaos/main.ts --env daytona \
   --daytona-image ghcr.io/paperclipai/paperclip-daytona-runner@sha256:<digest> \
   --adapters codex,claude --tasks 3 --concurrency 2 --faults K1 --seed 11
 ```
@@ -128,7 +128,7 @@ is cached in `tests/restart-chaos/results/daytona-images/<digest>/` (or
 `$RESTART_CHAOS_IMAGE_CACHE`), shared by every wave and crash-point run, so it
 runs once per image. A copy that fails part-way, or stalls past its 20-minute bound
 (`RESTART_CHAOS_SKOPEO_ATTEMPT_TIMEOUT_MS`), retries from an empty directory.
-Run it alone with `node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/daytona-image.ts <image>`.
+Run it alone with `bun tests/restart-chaos/daytona-image.ts <image>`.
 
 **Provider-pack mismatch.** Because the controller takes its pack from the
 same image the sandboxes start from, the preinstalled pack always verifies and
@@ -144,7 +144,7 @@ task finishes with no Retry and no run ends with
 `daytona_pack_mismatch`.
 
 Before starting, the harness compares the image's `io.paperclip.runner.content-id`
-label with the content ID of this checkout (`pnpm test:e2e:runner:image-id`,
+label with the content ID of this checkout (`bun run test:e2e:runner:image-id`,
 which hashes every runner input) and refuses to run on a mismatch. For a local
 test of a branch that changes only controller-side TypeScript, set
 `PAPERCLIP_CHAOS_TEST_ACCEPT_IMAGE_CONTENT_ID` to the image's exact content ID
@@ -214,15 +214,15 @@ under `sandboxCaptures`. The result is in `<wave>/warm-shutdown.json` and in the
 set -a; source ~/.secrets; set +a
 H=<name>.staging.paperclip.app
 # Read-only: watch one release of the instance (GET /api/health every 2 s) and report its shape. No writes.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H --hosted-observe-only
+bun tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H --hosted-observe-only
 # Smoke: 2 tasks, no release wait, 1-minute settle, then cleanup.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H \
+bun tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H \
   --hosted-releases 0 --hosted-tasks 2 --hosted-turn-minutes 3 --hosted-label rc-hosted-smoke1
 # A run across 3 real releases at 5 concurrent (default), then the same at 15.
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H --hosted-releases 3 --hosted-label rc-hosted-r3c5
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H --hosted-releases 3 --hosted-concurrency 15 --hosted-label rc-hosted-r3c15
+bun tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H --hosted-releases 3 --hosted-label rc-hosted-r3c5
+bun tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H --hosted-releases 3 --hosted-concurrency 15 --hosted-label rc-hosted-r3c15
 # Remove everything one run created (also run automatically at the end of every run unless --hosted-keep).
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H --hosted-cleanup-only --hosted-label rc-hosted-r3c5
+bun tests/restart-chaos/hosted.ts --hosted-base-url https://$H --hosted-allow $H --hosted-cleanup-only --hosted-label rc-hosted-r3c5
 ```
 
 Hosted mode runs the release-swap proof against a real hosted instance that takes automatic releases, instead of
@@ -355,7 +355,7 @@ The rules and bounds come from an audit of the saved evidence of 79 waves (1,620
 them passing R1–R6 and T; 30 waves where every task passed), run with:
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/universal-audit.ts <results dir> [...]
+bun tests/restart-chaos/universal-audit.ts <results dir> [...]
 ```
 
 | Rule | Flagged tasks | On passing tasks | On all-pass waves |
@@ -489,9 +489,9 @@ crash-point suite kills the control plane at each named window on purpose.
 
 ```sh
 set -a; source ~/.secrets; set +a           # provider keys, process env only
-node scripts/crash-points.mjs --list                                   # selected points, kinds, invariants
-node scripts/crash-points.mjs --points 'runner.*,native.*' --adapters codex --workloads A1
-node scripts/crash-points.mjs --kinds wake_request_claimed --nth 2
+bun scripts/crash-points.mjs --list                                   # selected points, kinds, invariants
+bun scripts/crash-points.mjs --points 'runner.*,native.*' --adapters codex --workloads A1
+bun scripts/crash-points.mjs --kinds wake_request_claimed --nth 2
 ```
 
 Options: `--points <glob,...>` (`*`, `?`), `--kinds <ownable kind id,...>`
@@ -549,7 +549,7 @@ sandbox left after cleanup), `not_reached` (the chosen workloads never crossed t
 workload or `--nth` that does) and `harness_error`. Exit code 0, 1, 3 and 2.
 
 **Daytona points.** Six points are reachable only with `--env daytona`
-(`node scripts/crash-points.mjs --list --env daytona`). The run needs
+(`bun scripts/crash-points.mjs --list --env daytona`). The run needs
 `DAYTONA_API_KEY` and an image matching this checkout (`--daytona-image` or
 `PAPERCLIP_E2E_DAYTONA_IMAGE`; see "Daytona" above), and refuses to start
 without them. A plain codex task reaches both `sandbox.create.*` points and
@@ -584,7 +584,7 @@ and grades only (no server logs).
    commits.
 3. `server/src/__tests__/crash-point-call-sites.test.ts` fails until every
    registered point has a call site and every kind id exists.
-4. Run the point: `node scripts/crash-points.mjs --points <name>`. A
+4. Run the point: `bun scripts/crash-points.mjs --points <name>`. A
    `not_reached` result means the workload never crosses it.
 
 **Fail mode.** A control-file line may end in `fail` (`<token> <name>:<nth> fail`): the nth hit then

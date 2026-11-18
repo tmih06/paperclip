@@ -34,8 +34,8 @@ tunnel's origin. The E2E wrapper exposes only POST `/mcp/native-runs/:runId`
 through this listener; it rejects the UI and `/api/` paths. Public ingress is
 checked before fixtures or provider work. Never tunnel the local operator app.
 
-Discover with `pnpm test:e2e:runner -- --list --suite cursor-cloud`. The smallest
-paid cell is `pnpm test:e2e:runner -- --id cursor-cloud.runner-cursor-cloud.local.task-artifact`.
+Discover with `bun run test:e2e:runner -- --list --suite cursor-cloud`. The smallest
+paid cell is `bun run test:e2e:runner -- --id cursor-cloud.runner-cursor-cloud.local.task-artifact`.
 Select `cloud-followup`, `active-run-stop`, or `plan-revise-accept` explicitly for
 the other cells. The Plan cell reuses the production planning flow: publish a
 two-step Plan, request and review a three-step revision, then approve that exact
@@ -46,7 +46,7 @@ Draft and revision share one owned Cloud session. Approval must carry the exact
 revised interaction's fresh-session receipt and start a new owned Agent/session;
 all three turns require distinct Cloud runs. The follow-up cell keeps its
 separate same-Agent/session continuity requirement.
-The complete bounded checkpoint is `pnpm test:e2e:runner -- --suite cursor-cloud`.
+The complete bounded checkpoint is `bun run test:e2e:runner -- --suite cursor-cloud`.
 Each cell permits one attempt. Missing prerequisites setup-block before provider
 work. Teardown cancels observed active runs and deletes only agents named by
 run-owned persisted notices.
@@ -178,7 +178,7 @@ grader calibration do not establish a live pass.
 ```sh
 PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_BUCKET=<owned-disposable-bucket> \
 PAPERCLIP_RUNNER_E2E_WORKSPACE_STORAGE_REGION=us-east-1 \
-pnpm test:e2e:runner -- --id remote-workspace-storage.runner-codex.daytona.recover-controller --max-automatic-retries 0
+bun run test:e2e:runner -- --id remote-workspace-storage.runner-codex.daytona.recover-controller --max-automatic-retries 0
 ```
 
 The separate explicit-only `rolling-web-deployment` suite uses the same synthetic
@@ -196,7 +196,7 @@ disposable encryption key. It repeats replacement after completion before the re
 follow-up. The five-minute outage suites are unchanged.
 
 ```sh
-pnpm test:e2e:runner -- --id rolling-web-deployment.runner-codex.daytona.recover-controller --max-automatic-retries 0
+bun run test:e2e:runner -- --id rolling-web-deployment.runner-codex.daytona.recover-controller --max-automatic-retries 0
 ```
 
 This source lane requires a complete server/UI build and disposable S3 and
@@ -336,8 +336,8 @@ reuse, Slack delivery, or the complete dependable-work matrix. Run one exact
 ID for a bounded check:
 
 ```sh
-pnpm test:e2e:runner -- --id legacy-conversion.runner-codex.local.convert-and-deliver --max-automatic-retries 0
-pnpm test:e2e:runner -- --id automatic-repository-configured-models.runner-codex.local.automatic-repository-resume --max-automatic-retries 0
+bun run test:e2e:runner -- --id legacy-conversion.runner-codex.local.convert-and-deliver --max-automatic-retries 0
+bun run test:e2e:runner -- --id automatic-repository-configured-models.runner-codex.local.automatic-repository-resume --max-automatic-retries 0
 ```
 
 ## Stop and task resumption
@@ -354,8 +354,8 @@ Missing an active boundary fails the attempt. These API-key development cells
 do not qualify staging subscription authentication, warm reuse, or Slack.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite followup-stop-resume
-pnpm test:e2e:runner -- --id followup-stop-resume.runner-codex.local.followup-stop-resume --max-automatic-retries 0
+bun run test:e2e:runner -- --list --suite followup-stop-resume
+bun run test:e2e:runner -- --id followup-stop-resume.runner-codex.local.followup-stop-resume --max-automatic-retries 0
 ```
 
 Before native selection, the observer verifies the existing task and context
@@ -398,8 +398,8 @@ attempt has 1,000-cent company and agent hard stops; the binary is retained in
 the fixture workspace, not uploaded as a deliverable.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite finalization-recovery
-pnpm test:e2e:runner -- --id finalization-recovery.runner-codex.daytona.preserve-result-on-restart --max-automatic-retries 0
+bun run test:e2e:runner -- --list --suite finalization-recovery
+bun run test:e2e:runner -- --id finalization-recovery.runner-codex.daytona.preserve-result-on-restart --max-automatic-retries 0
 ```
 
 ## Necessary free-text question
@@ -422,8 +422,8 @@ per-turn lifecycle remain explicit development differences. It does not qualify
 Slack, staging subscription credentials, warm reuse, or the complete checkpoint.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite necessary-question
-pnpm test:e2e:runner -- --id necessary-question.runner-codex.local.necessary-free-text --max-automatic-retries 0
+bun run test:e2e:runner -- --list --suite necessary-question
+bun run test:e2e:runner -- --id necessary-question.runner-codex.local.necessary-free-text --max-automatic-retries 0
 ```
 
 ## Latency observation bounds
@@ -517,7 +517,7 @@ scheduled execution gets
 a fresh Paperclip home, embedded Postgres database, instance configuration,
 port, workspace, company, encrypted secrets, environment, and agent.
 
-`pnpm test:e2e:runner:unit` runs the native-completion source gates with
+`bun run test:e2e:runner:unit` runs the native-completion source gates with
 Node's test runner, then the Product support tests with Vitest. A Node test
 file must not be collected as an empty Vitest suite.
 
@@ -610,7 +610,7 @@ or workflow configuration is needed, including for Daytona cells.
 
 `--suite pi-controls` selects four candidate Pi cells: pending-permission Stop
 and browser same-turn steering, each local and Daytona. Discover without
-credentials using `pnpm test:e2e:runner -- --list --suite pi-controls`. For an
+credentials using `bun run test:e2e:runner -- --list --suite pi-controls`. For an
 authorized bounded attempt select, for example,
 `--id pi-controls.runner-acpx-pi.local.pending-permission-stop
 --max-automatic-retries 0 --max-parallel 1`.
@@ -627,7 +627,7 @@ remains pending; catalog presence is not live qualification.
 
 ## Provider-free browser bootstrap regression
 
-`pnpm test:e2e:runner:browser-support` includes a wide development-module graph
+`bun run test:e2e:runner:browser-support` includes a wide development-module graph
 loaded before and after the production service worker takes control. It keeps
 full traces and checks that Vite module loads do not create worker fetches or
 leave the page empty. This isolates browser loading; it does not create a
@@ -674,8 +674,8 @@ from `--all`; it does not qualify governed tool approvals, human-only policies,
 question-form extraction, or remote execution.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite confirmation-replies
-pnpm test:e2e:runner -- --suite confirmation-replies
+bun run test:e2e:runner -- --list --suite confirmation-replies
+bun run test:e2e:runner -- --suite confirmation-replies
 ```
 
 ## Completion-update probes (explicit only)
@@ -727,7 +727,7 @@ When `OPENAI_API_KEY` is configured, the suite automatically uses the pinned sem
 To judge an older retained probe separately:
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/completion-judge.ts --evidence /path/to/completion-update.json --max-dollars 0.50 --approve-external-judge yes
+bun tests/runner-e2e/completion-judge.ts --evidence /path/to/completion-update.json --max-dollars 0.50 --approve-external-judge yes
 ```
 
 The multi-task fixture records the other explicitly delegated task and its saved output as related ground truth, so a joint reply is checked against both real results. Company boundaries and document ownership are validated; unrelated tasks are never added to the judge input.
@@ -746,8 +746,8 @@ worker is a behavior failure; a failure before that boundary is not proof of
 the communication defect. Use the standard dashboard to compare the ten cells.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite completion-updates
-pnpm test:e2e:runner -- --suite completion-updates
+bun run test:e2e:runner -- --list --suite completion-updates
+bun run test:e2e:runner -- --suite completion-updates
 ```
 
 ## Verified API artifact transfer
@@ -836,7 +836,7 @@ a warning while full and clear it after cleanup. Rejected bytes must not replace
 the saved file. This adds at most one 256 MiB saved fixture per isolated agent.
 The deadline is twenty minutes per cell, with six expected provider runs;
 normal instance/Daytona cleanup, screenshots, evidence, and billing apply. Run with
-`pnpm test:e2e:runner -- --suite instruction-persistence`. Managed directories in per-turn sessions collect after provider stop. The separate
+`bun run test:e2e:runner -- --suite instruction-persistence`. Managed directories in per-turn sessions collect after provider stop. The separate
 `daytona-warm-continuity` suite covers incremental saves while retaining a live native process.
 
 `daytona-warm-continuity` (**Daytona Warm Continuity**) is exactly two paid
@@ -876,7 +876,7 @@ three-run, screenshot, timeout, billing, and cleanup assertions remain required;
 
 `daytona-git-streaming` is an explicit-only native Codex Daytona cell for
 large Git filename snapshots. Run
-`pnpm test:e2e:runner -- --id daytona-git-streaming.runner-codex.daytona.large-path-three-turn`.
+`bun run test:e2e:runner -- --id daytona-git-streaming.runner-codex.daytona.large-path-three-turn`.
 This heavy-file cell explicitly configures the environment's 20-minute native
 idle timeout and a 25-minute Daytona auto-stop interval. It checks the admitted
 runtime policy before each continuation; the environment policy takes precedence
@@ -988,8 +988,8 @@ one-run minimum only for these two interruption cases. Exactly one reply may
 consume the follow-up marker, and it must be attributed to the final provider run.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite agent-chat-hardening
-pnpm test:e2e:runner -- --id agent-chat-hardening.runner-codex.local.stop-startup-new-resume
+bun run test:e2e:runner -- --list --suite agent-chat-hardening
+bun run test:e2e:runner -- --id agent-chat-hardening.runner-codex.local.stop-startup-new-resume
 ```
 
 The independent, explicit-only `native-completion` suite qualifies native finish/block descriptions on unchanged master defaults. It preserves the original assigned-skill document journey and pairs it with whole-task blocking across three native profiles, with enforced single attempts. See [NATIVE-COMPLETION.md](NATIVE-COMPLETION.md) for admission, provenance and limits.
@@ -1014,14 +1014,14 @@ before task creation and records both limits in its evidence. Unknown provider
 billing or a budget incident is not admitted as a pass.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite context-integrity
-pnpm test:e2e:runner -- --id context-integrity.runner-codex.local.ordered-comment-continuation
+bun run test:e2e:runner -- --list --suite context-integrity
+bun run test:e2e:runner -- --id context-integrity.runner-codex.local.ordered-comment-continuation
 ```
 
 `stock-harness` reuses ordered continuation, assigned-skill invocation, and chat
 restart journeys with production-default hires instead of the custom QA manual.
 Its 24 explicit local cells cover eight legacy/native profiles and are excluded
-from `--all`. Run `pnpm test:e2e:runner:stock-harness` for the credential-free
+from `--all`. Run `bun run test:e2e:runner:stock-harness` for the credential-free
 instruction-layering, hire, and shared-prompt prerequisites. The
 [suite contract](STOCK-HARNESS.md) maps each change to its graders, budgets,
 evidence, and remaining qualification limits.
@@ -1033,9 +1033,9 @@ line, managed credentials, and real task execution; chat claims cannot pass it.
 
 ```bash
 # Run these after deterministic checks, with the required provider keys set.
-pnpm test:e2e:runner -- --id agent-chat.legacy-codex.local.continuity-restart
-pnpm test:e2e:runner -- --id agent-chat.legacy-claude.local.continuity-restart
-pnpm test:e2e:runner -- --suite agent-chat
+bun run test:e2e:runner -- --id agent-chat.legacy-codex.local.continuity-restart
+bun run test:e2e:runner -- --id agent-chat.legacy-claude.local.continuity-restart
+bun run test:e2e:runner -- --suite agent-chat
 ```
 
 ## Planning guidance utility
@@ -1063,8 +1063,8 @@ claim that it renamed the task cannot pass. These cells require the dedicated
 native tool; they do not qualify legacy/API-fallback naming or planning mode.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite task-titles
-pnpm test:e2e:runner -- --id task-titles.runner-codex-mini.local.prompt-title-standard --max-automatic-retries 0
+bun run test:e2e:runner -- --list --suite task-titles
+bun run test:e2e:runner -- --id task-titles.runner-codex-mini.local.prompt-title-standard --max-automatic-retries 0
 ```
 
 Only `OPENAI_API_KEY` is required; no Docker artifact oracle or Daytona is used.
@@ -1130,8 +1130,8 @@ The case permits one attempt and is excluded from `--all`. Run it explicitly whe
 qualifying changes to onboarding or approval semantics:
 
 ```sh
-pnpm test:e2e:runner -- --list --suite onboarding-approval-history
-pnpm test:e2e:runner -- --id onboarding-approval-history.runner-codex.local.interview-hire-execute
+bun run test:e2e:runner -- --list --suite onboarding-approval-history
+bun run test:e2e:runner -- --id onboarding-approval-history.runner-codex.local.interview-hire-execute
 ```
 
 The deterministic PostgreSQL contract in
@@ -1142,7 +1142,7 @@ native creation, both REST creation routes, decomposition, context, and replay.
 Journey discovery and grader calibration do not establish a live provider pass.
 
 `first-task` is a suite in the main Runner E2E catalog. A full
-`pnpm test:e2e:runner -- --all` run (or an unfiltered full GitHub Actions campaign)
+`bun run test:e2e:runner -- --all` run (or an unfiltered full GitHub Actions campaign)
 includes its 56 executions alongside the other suites in one shared dashboard,
 campaign result bundle, and history entry. Suite/profile selectors narrow that
 same harness; they do not invoke a separate onboarding reporting program.
@@ -1241,13 +1241,13 @@ suite checks persisted Paperclip effects; it does not claim to prove the absence
 of arbitrary external side effects from a provider process.
 
 ```bash
-pnpm test:e2e:runner:unit
-pnpm test:e2e:runner:typecheck
+bun run test:e2e:runner:unit
+bun run test:e2e:runner:typecheck
 # Two paid smoke cases, after keys are available:
-pnpm test:e2e:runner -- --suite first-task --profile legacy-codex --case clear-task-first-response
-pnpm test:e2e:runner -- --suite first-task --profile legacy-claude --case clear-task-first-response
+bun run test:e2e:runner -- --suite first-task --profile legacy-codex --case clear-task-first-response
+bun run test:e2e:runner -- --suite first-task --profile legacy-claude --case clear-task-first-response
 # Expand after reviewing the smoke evidence:
-pnpm test:e2e:runner -- --suite first-task
+bun run test:e2e:runner -- --suite first-task
 ```
 
 Default concurrency is one. Each case has a fifteen-minute attempt budget;
@@ -1277,7 +1277,7 @@ Run judging on each **upload-directory `result.json` before normalization and
 publication**, with `OPENAI_API_KEY` in the shell:
 
 ```bash
-pnpm test:e2e:runner:judge-first-task -- --result tests/runner-e2e/results/CAMPAIGN/EXECUTION/attempt-1/result.json --max-dollars 0.50
+bun run test:e2e:runner:judge-first-task -- --result tests/runner-e2e/results/CAMPAIGN/EXECUTION/attempt-1/result.json --max-dollars 0.50
 ```
 
 Use the actual upload path printed by the launcher. The judge uses the pinned
@@ -1332,7 +1332,7 @@ scope revision preserving approval, untrusted handoff text read through a real
 tool, and completed child-task reuse across a server restart.
 
 ```sh
-pnpm test:e2e:runner -- --suite continuation --profile runner-acpx-claude
+bun run test:e2e:runner -- --suite continuation --profile runner-acpx-claude
 ```
 
 User requests and replies are fixed; the driver submits them through the task UI.
@@ -1420,9 +1420,9 @@ conversation before capture. A loading screen or wrong task fails capture.
 Browser-only regressions exercise delayed rendering without provider calls:
 
 ```sh
-pnpm test:e2e:runner:browser-support
+bun run test:e2e:runner:browser-support
 # To use an installed Chrome instead of Playwright's Chromium:
-PAPERCLIP_PLAYWRIGHT_CHANNEL=chrome pnpm test:e2e:runner:browser-support
+PAPERCLIP_PLAYWRIGHT_CHANNEL=chrome bun run test:e2e:runner:browser-support
 ```
 
 ### Native provider continuity
@@ -1513,7 +1513,7 @@ The native `agent-chat.create-backlog` case saves a plan and assigned backlog ta
 `agent-chat-qualification` is an explicit-only, local suite with six cells:
 `active-reassignment`, `worker-crash-retry`, and `grounded-answer-quality`, each
 on native Codex and native Claude. Run with
-`pnpm test:e2e:runner -- --suite agent-chat-qualification`.
+`bun run test:e2e:runner -- --suite agent-chat-qualification`.
 
 Active reassignment waits for a real worker to save a draft and enter a bounded
 file wait. The lead then transfers the same task through Agent Chat. The oracle
@@ -1587,7 +1587,7 @@ manual retry. Late successful startup removes the notice. It never reloads
 automatically, and the notice lives outside `#root`, so it cannot satisfy an
 app-readiness assertion. The saved-task regression interrupts the built bundle,
 clicks retry, and verifies the original task, persisted comment, and composer.
-`pnpm test:e2e:runner:browser-support` also tests failed and stalled imports,
+`bun run test:e2e:runner:browser-support` also tests failed and stalled imports,
 evaluation errors, service-worker-controlled retry, repeated offline retries, and
 cleanup after startup. The worker returns a static, uncached HTML retry screen
 when a navigation fails offline; it never embeds or caches task content.
@@ -1657,8 +1657,8 @@ reset and fresh native continuation remain required; a cancelled legacy row
 alone cannot qualify. Other chat suites keep their existing accounting.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite kimi-qualification
-pnpm test:e2e:runner -- --id kimi-qualification.runner-acpx-kimi.local.message-marker --max-automatic-retries 0
+bun run test:e2e:runner -- --list --suite kimi-qualification
+bun run test:e2e:runner -- --id kimi-qualification.runner-acpx-kimi.local.message-marker --max-automatic-retries 0
 ```
 
 ### Grok branch qualification on EC2
@@ -1719,8 +1719,8 @@ provider-specific questions, plan decisions, restrictive permissions and steerin
 need their separate conformance/qualification evidence.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite extended-harnesses
-pnpm test:e2e:runner -- --id extended-harnesses.runner-acpx-pi.local.hello-complete
+bun run test:e2e:runner -- --list --suite extended-harnesses
+bun run test:e2e:runner -- --id extended-harnesses.runner-acpx-pi.local.hello-complete
 ```
 
 The suite is excluded from `--all`, and candidate cells never automatically
@@ -1788,8 +1788,8 @@ This adds one cell to the pending Pi Product matrix (26: 13 local, 13 Daytona);
 no qualification or live success is implied by discovery or oracle tests.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite pi-native
-pnpm test:e2e:runner -- --id pi-native.runner-acpx-pi.local.native-questions
+bun run test:e2e:runner -- --list --suite pi-native
+bun run test:e2e:runner -- --id pi-native.runner-acpx-pi.local.native-questions
 ```
 
 Native questions exercise the runner-owned `paperclip_native_question` tool and
@@ -1812,7 +1812,7 @@ See [the fixture contract](FIXTURES.md#pi-native-boundaries) for the exact oracl
 and the limits of reconnect evidence.
 
 The manual `copilot-protection` suite selects two Copilot candidate cases on
-each of local and Daytona (four cells). Discover them with `pnpm test:e2e:runner -- --list --suite copilot-protection`.
+each of local and Daytona (four cells). Discover them with `bun run test:e2e:runner -- --list --suite copilot-protection`.
 The denial case keeps provider-turn settlement separate from controller run Stop.
 A normal provider completion observed by API before Stop dispatch is not active-turn
 cancellation coverage; denial, no-effects, run cancellation and retirement remain
@@ -1841,7 +1841,7 @@ The explicit-only `cursor-native` suite has eight local/Daytona cells exercising
 the native Cursor
 question callback, plan rejection/revision/acceptance, plan cancellation, and
 permission denial across browser reload. List it with
-`pnpm test:e2e:runner -- --list --suite cursor-native`. The fixture configures
+`bun run test:e2e:runner -- --list --suite cursor-native`. The fixture configures
 `acpxSessionMode` before the run: Plan for question/plan callbacks, Agent for
 write denial. Native request origin, exact decision bytes and post-write
 response delivery are required; semantic-tool interactions do not satisfy these
@@ -2123,9 +2123,9 @@ Agent-requester scope routing, legitimate capability-based delegation, real
 connection setup, and issue-dependency resolution remain outside these cells.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite blocker-guidance
-pnpm test:e2e:runner -- --id blocker-guidance.legacy-codex.local.human-authority
-pnpm test:e2e:runner -- --suite blocker-guidance --max-parallel 2
+bun run test:e2e:runner -- --list --suite blocker-guidance
+bun run test:e2e:runner -- --id blocker-guidance.legacy-codex.local.human-authority
+bun run test:e2e:runner -- --suite blocker-guidance --max-parallel 2
 ```
 
 Each cell expects two provider turns, permits at most four recorded runs, and
@@ -2323,10 +2323,10 @@ adapter event changes are part of this suite. Unit calibration and discovery do
 not qualify either live provider cell.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite hiring-templates
+bun run test:e2e:runner -- --list --suite hiring-templates
 # Only after separate approval for the bounded live run:
-pnpm test:e2e:runner -- --id hiring-templates.runner-codex.local.hire-coder-template-reuse --max-automatic-retries 0
-pnpm test:e2e:runner -- --id hiring-templates.runner-acpx-claude.local.hire-coder-template-reuse --max-automatic-retries 0
+bun run test:e2e:runner -- --id hiring-templates.runner-codex.local.hire-coder-template-reuse --max-automatic-retries 0
+bun run test:e2e:runner -- --id hiring-templates.runner-acpx-claude.local.hire-coder-template-reuse --max-automatic-retries 0
 ```
 
 The existing `first-task` suite uses the actual onboarding wizard and captures
@@ -2428,10 +2428,10 @@ configured acceptance cells; registration and fixture calibration do not establi
 live qualification.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite task-workspaces
-pnpm test:e2e:runner -- --id task-workspaces.legacy-opencode.local.task-directory-repository-resume --max-automatic-retries 0
-pnpm test:e2e:runner -- --id task-workspaces.runner-opencode.local.task-directory-repository-resume --max-automatic-retries 0
-pnpm test:e2e:runner -- --id task-workspaces.runner-opencode.daytona.task-directory-repository-resume --max-automatic-retries 0
+bun run test:e2e:runner -- --list --suite task-workspaces
+bun run test:e2e:runner -- --id task-workspaces.legacy-opencode.local.task-directory-repository-resume --max-automatic-retries 0
+bun run test:e2e:runner -- --id task-workspaces.runner-opencode.local.task-directory-repository-resume --max-automatic-retries 0
+bun run test:e2e:runner -- --id task-workspaces.runner-opencode.daytona.task-directory-repository-resume --max-automatic-retries 0
 ```
 
 Each cell creates a task through the browser without a project or configured
@@ -2481,8 +2481,8 @@ These tests send the selected private skill instructions to OpenAI and deliver
 the package to the selected runtime.
 
 ```sh
-pnpm test:e2e:runner -- --id repository-skills.runner-codex.local.poteto-package
-pnpm test:e2e:runner -- --id repository-skills.runner-codex.daytona.poteto-package
+bun run test:e2e:runner -- --id repository-skills.runner-codex.local.poteto-package
+bun run test:e2e:runner -- --id repository-skills.runner-codex.daytona.poteto-package
 ```
 
 Each case has one provider run and no automatic retries. While the agent pauses
@@ -2506,7 +2506,7 @@ suite. It seeds passive records and linked-task document revisions through produ
 creates no agents, and checks the shipped UI against a fresh server/database:
 
 ```sh
-env -u DATABASE_URL -u DATABASE_MIGRATION_URL pnpm exec playwright test --config tests/e2e/playwright.config.ts tests/e2e/cases-read-only.spec.ts --project chromium
+env -u DATABASE_URL -u DATABASE_MIGRATION_URL bun x playwright test --config tests/e2e/playwright.config.ts tests/e2e/cases-read-only.spec.ts --project chromium
 ```
 
 This covers record browsing, not agent execution. Use the cells below for the
@@ -2576,10 +2576,10 @@ removed during ordinary harness cleanup. Usage coverage remains explicit for
 subscription runs; unavailable dollar accounting does not mean zero cost.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite case-handoffs
-pnpm test:e2e:runner -- --id case-handoffs.runner-codex.local.receipt-smoke --max-automatic-retries 0
-pnpm test:e2e:runner -- --id case-handoffs.runner-codex-subscription.local.receipt-smoke
-pnpm test:e2e:runner -- --id case-handoffs.runner-codex-subscription.local.same-task-roundtrip
+bun run test:e2e:runner -- --list --suite case-handoffs
+bun run test:e2e:runner -- --id case-handoffs.runner-codex.local.receipt-smoke --max-automatic-retries 0
+bun run test:e2e:runner -- --id case-handoffs.runner-codex-subscription.local.receipt-smoke
+bun run test:e2e:runner -- --id case-handoffs.runner-codex-subscription.local.same-task-roundtrip
 ```
 
 The suite is excluded from `--all`. Its presence is not live qualification;
@@ -2635,7 +2635,7 @@ not evidence of zero feedback.
 Create a private review template from the merged `normalized-results.json`:
 
 ```sh
-pnpm exec tsx tests/runner-e2e/feedback-dispositions.ts /private/report/normalized-results.json /private/feedback-review.json
+bun x tsx tests/runner-e2e/feedback-dispositions.ts /private/report/normalized-results.json /private/feedback-review.json
 ```
 
 Inspect the full bodies in the retained attempt snapshots. Set `reviewedAt` to
@@ -2650,7 +2650,7 @@ same campaign via `duplicateOf`. Optional `issueNumber` links a public
 Import a completed review into an existing bundle without rerunning agents:
 
 ```sh
-pnpm test:e2e:runner:dashboard -- /private/report --feedback-review /private/feedback-review.json
+bun run test:e2e:runner:dashboard -- /private/report --feedback-review /private/feedback-review.json
 ```
 
 Alternatively, rebuild the same campaign and selection with
@@ -2793,9 +2793,9 @@ This case proves explicit submission and persistence, not spontaneous feedback
 quality or survival after an abrupt worker kill.
 
 ```sh
-pnpm test:e2e:runner -- --list --suite feedback-persistence
-pnpm test:e2e:runner -- --list --suite feedback-persistence --environment daytona
-pnpm test:e2e:runner -- --id feedback-persistence.runner-acpx-claude.local.complaint-and-suggestion --max-automatic-retries 0 --max-parallel 1
+bun run test:e2e:runner -- --list --suite feedback-persistence
+bun run test:e2e:runner -- --list --suite feedback-persistence --environment daytona
+bun run test:e2e:runner -- --id feedback-persistence.runner-acpx-claude.local.complaint-and-suggestion --max-automatic-retries 0 --max-parallel 1
 ```
 
 ### Optional owned Docker PostgreSQL lane
@@ -2897,7 +2897,7 @@ The existing dashboard renderer can show a display-only overview without creatin
 result rows or discovering historical evidence:
 
 ```sh
-pnpm test:e2e:runner:dashboard -- --catalog-overview <display-metadata.json> --output <new-private-directory>
+bun run test:e2e:runner:dashboard -- --catalog-overview <display-metadata.json> --output <new-private-directory>
 ```
 
 The input must match `CatalogOverview` in `catalog-overview.ts`, contain exactly

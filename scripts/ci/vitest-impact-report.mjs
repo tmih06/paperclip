@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { execFileSync } from "node:child_process";
 import { realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -81,7 +81,7 @@ async function main() {
     output: { type: "string" },
   } });
   if (!values.project?.length || (!!values.base === !!values.file?.length)) {
-    throw new Error("Usage: node scripts/ci/vitest-impact-report.mjs --project NAME [--project NAME] (--file PATH [--file PATH] | --base REF) [--output FILE]");
+    throw new Error("Usage: bun scripts/ci/vitest-impact-report.mjs --project NAME [--project NAME] (--file PATH [--file PATH] | --base REF) [--output FILE]");
   }
   const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const head = git("rev-parse", "--verify", "HEAD^{commit}").trim();

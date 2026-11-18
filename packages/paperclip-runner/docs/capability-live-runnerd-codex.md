@@ -107,13 +107,13 @@ its next response.
 Run the deterministic contract suite:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner test:scenarios
+bun run --filter @paperclipai/paperclip-runner test:scenarios
 ```
 
 Run a real runnerd and Codex app-server smoke:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner trace:live-runner -- --json
+bun run --filter @paperclipai/paperclip-runner trace:live-runner -- --json
 ```
 
 The smoke requires an authenticated local Codex installation. It checks a real

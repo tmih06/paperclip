@@ -13,10 +13,10 @@
     "ui": "./dist/ui/"
   },
   "scripts": {
-    "prebuild": "pnpm --filter @paperclipai/plugin-sdk ensure-build-deps",
-    "build": "tsc",
+    "prebuild": "bun run --filter @paperclipai/plugin-sdk ensure-build-deps",
+    "build": "bun x --bun --no-install tsc",
     "clean": "rm -rf dist",
-    "typecheck": "pnpm --filter @paperclipai/plugin-sdk ensure-build-deps && tsc --noEmit"
+    "typecheck": "bun run --filter @paperclipai/plugin-sdk ensure-build-deps && bun x --bun --no-install tsc --noEmit"
   },
   "dependencies": {
     "@paperclipai/plugin-sdk": "workspace:*"

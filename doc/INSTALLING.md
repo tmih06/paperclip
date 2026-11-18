@@ -281,15 +281,16 @@ paperclipai service status
 ```
 
 `doctor` checks the managed install store, manifest, `current` link, shim,
-`PATH`, Node.js version, and service state. Service diagnostics cover unit-file
+`PATH`, Bun version, and service state. Service diagnostics cover unit-file
 presence and drift, running state, configured port ownership, and the running
 server version.
 
-The CLI and server also print a non-blocking startup warning when Node.js is
-below the supported minimum. Upgrade Node.js with a version manager or follow
-the downloaded `install.sh` workflow under **Recommended Install**. Do not use
-the piped form for this repair because it requires a supported Node.js runtime
-before it starts.
+The CLI and server also print a non-blocking startup warning when they are not
+running on a supported Bun. The warning reports the Bun that is actually
+running, not the Node.js API level Bun implements. Upgrade with `bun upgrade`,
+or follow the downloaded `install.sh` workflow under **Recommended Install**;
+the piped form runs under Bun too, so use it only when a supported Bun is
+already on `PATH`.
 
 ## Uninstall
 

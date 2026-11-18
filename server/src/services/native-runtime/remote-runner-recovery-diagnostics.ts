@@ -183,7 +183,7 @@ export const REMOTE_RECOVERY_PROCESS_CHECK_SCRIPT = [
   'test -f "$identity_path" || exit 41',
   '{ IFS= read -r nonce; IFS= read -r pid; IFS= read -r started_at; IFS= read -r runner_id; } < "$identity_path" || exit 43',
   'test "$nonce" = "$expected_nonce" && test "$runner_id" = "$expected_runner_id" && test "$pid" = "$expected_pid" && test -n "$started_at" || exit 44',
-  String.raw`node -e '
+  String.raw`bun -e '
 const fs = require("node:fs");
 const [pid, runnerId, expectedGeneration] = process.argv.slice(1);
 if (!/^[1-9][0-9]*$/.test(pid) || !Number.isSafeInteger(Number(pid))) process.exit(44);

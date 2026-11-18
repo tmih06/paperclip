@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { spawn, spawnSync } from "node:child_process";
 import { availableParallelism, setPriority } from "node:os";
@@ -17,58 +17,58 @@ const lowMemory = { [LOW_MEMORY_VARIABLE]: "1" };
 export function planLane({ buildGapPackages, testLayers, projects = PROJECTS }) {
   const typecheckPackage = (name, background) => ({
     name: `typecheck ${name}`,
-    command: "pnpm",
-    args: ["--filter", name, "typecheck"],
+    command: "bun",
+    args: ["run", "--filter", name, "typecheck"],
     env: lowMemory,
     background,
   });
   const prepare = [
-    { name: "link workspace packages", command: "pnpm", args: ["run", "preflight:workspace-links"] },
-    { name: "build plugin SDK", command: "pnpm", args: ["--filter", "@paperclipai/plugin-sdk", "ensure-build-deps"] },
+    { name: "link workspace packages", command: "bun", args: ["run", "preflight:workspace-links"] },
+    { name: "build plugin SDK", command: "bun", args: ["run", "--filter", "@paperclipai/plugin-sdk", "ensure-build-deps"] },
     {
       name: "build server without type checks",
-      command: "pnpm",
-      args: ["--filter", "@paperclipai/server", "build"],
+      command: "bun",
+      args: ["run", "--filter", "@paperclipai/server", "build"],
       env: { [EMIT_ONLY_VARIABLE]: "1" },
     },
     {
       name: "check server runtime assets",
-      command: "node",
+      command: "bun",
       args: ["scripts/run-typecheck-build-gaps.mjs", "--runtime-assets-only"],
     },
-    { name: "install test program dependencies", command: "node", args: ["scripts/typecheck-test-programs.mjs", "--prepare-only"] },
+    { name: "install test program dependencies", command: "bun", args: ["scripts/typecheck-test-programs.mjs", "--prepare-only"] },
     ...buildGapPackages.filter((name) => SERIAL_BUILD_GAPS.includes(name)).map((name) => typecheckPackage(name, false)),
     {
       name: CLI_GUIDANCE_SAFETY,
-      command: "pnpm",
-      args: ["exec", "vitest", "run", "--project", "@paperclipai/server", "server/src/__tests__/cli-invocation-safety.test.ts"],
+      command: "bun",
+      args: ["x", "--bun", "--no-install", "vitest", "run", "--project", "@paperclipai/server", "server/src/__tests__/cli-invocation-safety.test.ts"],
     },
   ];
   const needsDeclarations = [SERVER_DECLARATIONS];
   const tasks = [
     {
       name: SERVER_DECLARATIONS,
-      command: "node",
+      command: "bun",
       args: ["server/scripts/typecheck-layers.mjs", "--declarations-only"],
       env: lowMemory,
     },
-    { name: "release registry tests", command: "pnpm", args: ["run", "test:release-registry"] },
+    { name: "release registry tests", command: "bun", args: ["run", "test:release-registry"] },
     {
       name: "typecheck test programs",
-      command: "node",
+      command: "bun",
       args: ["scripts/typecheck-test-programs.mjs", "--low-memory", "--skip-prepare"],
       background: true,
     },
     ...testLayers.map((layer) => ({
       name: `server layer ${layer}`,
-      command: "node",
+      command: "bun",
       args: ["server/scripts/typecheck-layers.mjs", "--layer", layer],
       env: lowMemory,
       needs: needsDeclarations,
     })),
     ...projects.map((project) => ({
       name: `test project ${project}`,
-      command: "node",
+      command: "bun",
       args: ["scripts/typecheck-test-projects.mjs", "--low-memory", "--reuse-declarations", project],
       needs: needsDeclarations,
     })),
@@ -247,10 +247,12 @@ export async function runLane({
 }
 
 function listBuildGapPackages(root) {
-  const result = spawnSync(process.execPath, ["scripts/run-typecheck-build-gaps.mjs", "--list-packages"], {
+  const result = spawnSync("bun", ["scripts/run-typecheck-build-gaps.mjs", "--list-packages"], {
     cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
+    // A bare `bun` on Windows is bun.exe, which needs the shell to resolve.
+    shell: process.platform === "win32",
   });
   if (result.error) throw result.error;
   if (result.status !== 0) return null;
@@ -263,7 +265,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const concurrency = concurrencyIndex === -1 ? availableParallelism() : Number(args[concurrencyIndex + 1]);
   const extra = args.filter((_, index) => concurrencyIndex === -1 || (index !== concurrencyIndex && index !== concurrencyIndex + 1));
   if (!Number.isInteger(concurrency) || concurrency < 1 || extra.length > 0) {
-    console.error("Usage: node scripts/ci-typecheck-lane.mjs [--concurrency <n>]");
+    console.error("Usage: bun scripts/ci-typecheck-lane.mjs [--concurrency <n>]");
     process.exitCode = 2;
   } else {
     const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

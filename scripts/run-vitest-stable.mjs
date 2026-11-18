@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -13,6 +13,8 @@ import { loadSelection, selectedShard } from "./ci/test-selection-manifest.mjs";
 
 const repoRoot = process.cwd();
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
+// Run the installed Vitest entrypoint with the current Bun runtime.
+const vitestBin = path.join(repoRoot, "node_modules", "vitest", "vitest.mjs");
 const generalServerShardDurations = loadShardDurations(
   path.join(scriptsDir, "general-server-shard-durations.json"),
 );
@@ -39,6 +41,7 @@ const nonServerProjects = [
   "@paperclipai/adapter-kimi-local",
   "@paperclipai/adapter-openclaw-gateway",
   "@paperclipai/adapter-opencode-local",
+  "@paperclipai/adapter-ompig-slim",
   "@paperclipai/adapter-pi-local",
   "@paperclipai/plugin-daytona",
   "@paperclipai/plugin-sdk",
@@ -442,7 +445,7 @@ function isolatedTestEnv() {
 async function collectVitestList(filters, { testRoot, env }, name) {
   const output = path.join(testRoot, `${name}.json`);
   await new Promise((resolve, reject) => {
-    const child = spawn("pnpm", ["exec", "vitest", "list", ...sourceOnlyVitestArgs,
+    const child = spawn(process.execPath, [vitestBin, "list", ...sourceOnlyVitestArgs,
       ...filters, "--allowOnly=false", "--includeTaskLocation", `--json=${output}`], {
       cwd: repoRoot, env, stdio: "inherit",
     });
@@ -486,8 +489,10 @@ async function runVitest(args, label, testShard = null, exactFiles = false) {
     args = [...args.filter((arg) => arg !== chatSuite), ...runFilters, "--allowOnly=false"];
   }
   await new Promise((resolve, reject) => {
-    const command = exactFiles ? process.execPath : "pnpm";
-    const prefix = exactFiles ? [path.join(scriptsDir, "ci/run-selected-vitest.mjs")] : ["exec", "vitest", "run"];
+    const command = process.execPath;
+    const prefix = exactFiles
+      ? [path.join(scriptsDir, "ci/run-selected-vitest.mjs")]
+      : [vitestBin, "run"];
     // `vitest list` collection above never retries; only the run does.
     const child = spawn(command, [...prefix, ...sourceOnlyVitestArgs, ...vitestRetryArgs(), ...args], {
       cwd: repoRoot,

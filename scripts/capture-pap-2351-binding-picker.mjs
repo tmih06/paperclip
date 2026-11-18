@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Captures the BindingPicker storybook screenshot for PAP-2351 re-review.
 // Boots a tiny static server over `ui/storybook-static` and screenshots the
 // happy-path picker grid in dark mode at 1440x900 (matches the original

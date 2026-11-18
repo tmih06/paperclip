@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,7 @@ const devPackageJsonPath = join(packageDir, "package.dev.json");
 function findRepoRoot(startDir) {
   let current = startDir;
   while (current !== dirname(current)) {
-    if (existsSync(join(current, "pnpm-workspace.yaml"))) {
+    if (existsSync(join(current, "bunfig.toml"))) {
       return current;
     }
     current = dirname(current);

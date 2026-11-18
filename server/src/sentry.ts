@@ -532,7 +532,7 @@ async function bootstrapSentry(dsn: string): Promise<void> {
   if (!versionCheck.ok) {
     // eslint-disable-next-line no-console
     console.warn(
-      "[paperclip] The backend Sentry DSN is set, but the @sentry/node " +
+      "[paperclip] The backend Sentry DSN is set, but the @sentry/bun " +
         "package is not installed, or is installed at an unsupported " +
         "version. Install the declared version of @sentry/node to enable " +
         "server error monitoring. Continuing without it.",

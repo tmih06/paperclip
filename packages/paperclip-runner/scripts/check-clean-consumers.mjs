@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   chmod,
+  cp,
   copyFile,
   mkdir,
   mkdtemp,
@@ -12,13 +13,18 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { withInstalledPackagePackInput } from "./lib/installed-package-pack.mjs";
-import { collectRunnerRuntimeDependencyRoots } from "./lib/runner-runtime-dependency-roots.mjs";
+import { resolveInstalledPackageRoot } from "./lib/runner-runtime-dependency-roots.mjs";
+import { deriveConsumerInputs, enumerateRuntimeClosure } from "./lib/runtime-closure.mjs";
 
 const runnerRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// The workspace install owns the dependency bytes. Under Bun's hoisted linker
+// the Runner has no node_modules of its own, so every package resolves through
+// the workspace root install instead of a package-local tree.
+const workspaceRoot = await realpath(resolve(runnerRoot, "../.."));
 const scratchParent = process.env.PAPERCLIP_RUN_SCRATCH_DIR
   ?? process.env.PAPERCLIP_SCRATCH_DIR
   ?? tmpdir();
@@ -28,11 +34,10 @@ const artifactsRoot = resolve(scratchRoot, "artifacts");
 const publicationRoot = process.env.PAPERCLIP_CLEAN_CONSUMER_OUTPUT_DIR === undefined
   ? undefined
   : resolve(process.env.PAPERCLIP_CLEAN_CONSUMER_OUTPUT_DIR);
-const pnpmInvocation = resolvePnpmInvocation();
 await mkdir(artifactsRoot, { recursive: true });
 
 try {
-  run("pnpm", ["run", "build:typescript"], runnerRoot);
+  run("bun", ["run", "build:typescript"], runnerRoot);
   run("cargo", [
     "build",
     "--release",
@@ -44,9 +49,8 @@ try {
     "--bin",
     "paperclip-runnerd",
   ], runnerRoot);
-  run(process.execPath, ["scripts/stage-runner-binary.mjs"], runnerRoot);
-  const runnerTarball = await pack(runnerRoot, artifactsRoot, { runner: true });
-  const runtimeDependencyTarballs = await packRunnerRuntimeDependencies(artifactsRoot);
+  run("bun", ["scripts/stage-runner-binary.mjs"], runnerRoot);
+  const closure = await packRunnerRuntimeClosure(artifactsRoot);
   const runnerdArtifact = await stageRunnerdArtifact(artifactsRoot);
   const conformanceRecord = resolve(artifactsRoot, "paperclip-runner-consumer-conformance.json");
   const sourceCommit = (
@@ -59,15 +63,14 @@ try {
 
   await verifyRunnerConsumer({
     consumerRoot: resolve(scratchRoot, "runner-consumer"),
-    runnerTarball,
-    runtimeDependencyTarballs,
+    ...closure,
     runnerdArtifact,
     conformanceRecord,
     sourceCommit,
   });
 
   if (publicationRoot !== undefined) {
-    await publishArtifacts({ publicationRoot, runnerTarball, runnerdArtifact, conformanceRecord });
+    await publishArtifacts({ publicationRoot, runnerTarball: closure.runnerTarball, runnerdArtifact, conformanceRecord });
     process.stdout.write(`Published clean-consumer artifacts at ${publicationRoot}\n`);
   }
   process.stdout.write("Clean-consumer pack/install checks passed for the runner root, evals, and testing exports.\n");
@@ -79,19 +82,23 @@ try {
   }
 }
 
-async function pack(packageRoot, destination, { runner = false } = {}) {
+/**
+ * Pack one package with Bun's packer. `--cwd` packs `packageRoot` without
+ * changing into it, so the same command packs the Runner root and every
+ * installed dependency; `--ignore-scripts` keeps a publisher lifecycle script
+ * from running. Bun's packer applies `files`, `.npmignore`, and
+ * `publishConfig.executableFiles` the way npm does, which is what makes the
+ * packed runnerd executable in the consumer.
+ */
+async function pack(packageRoot, destination) {
   const before = new Set(await readdir(destination));
-  // These installed dependencies are pack inputs, not our development cwd.
-  // Keep their publisher devEngines intact without adopting their toolchain;
-  // normal tarball contents and clean-consumer runtime engine checks still apply.
-  if (runner) {
-    // Exercise the pinned release packer, including executableFiles normalization.
-    run("pnpm", ["pack", "--pack-destination", destination], packageRoot, {
-      quiet: true, env: { npm_config_ignore_scripts: "true" },
-    });
-  } else {
-    run("npm", ["pack", resolve(packageRoot), "--ignore-scripts", "--pack-destination", destination], destination, { quiet: true });
-  }
+  run("bun", [
+    "pm", "pack",
+    "--cwd", resolve(packageRoot),
+    "--ignore-scripts",
+    "--quiet",
+    "--destination", destination,
+  ], packageRoot, { quiet: true });
   const created = (await readdir(destination))
     .filter((entry) => entry.endsWith(".tgz") && !before.has(entry))
     .sort();
@@ -101,70 +108,37 @@ async function pack(packageRoot, destination, { runner = false } = {}) {
   return resolve(destination, created[0]);
 }
 
-async function packRunnerRuntimeDependencies(destination) {
-  const overrides = {};
+/**
+ * Pack the Runner and every package its runtime graph reaches, then describe
+ * the graph as Bun `overrides` and root peer dependencies.
+ */
+async function packRunnerRuntimeClosure(destination) {
+  const { nodes, edges } = await enumerateRuntimeClosure({
+    packageRoot: runnerRoot,
+    resolveInstalled: (fromDirectory, dependencyName) =>
+      resolveInstalledPackageRoot(fromDirectory, dependencyName, { stopAt: workspaceRoot }),
+  });
   const packed = new Map();
-  const queued = new Set();
-  const queue = [];
-
-  const enqueue = async (packageRoot, overrideKey) => {
-    const concreteRoot = await realpath(packageRoot);
-    const manifest = JSON.parse(await readFile(resolve(concreteRoot, "package.json"), "utf8"));
-    if (typeof manifest.name !== "string" || typeof manifest.version !== "string") {
-      throw new Error(`Runtime dependency at ${concreteRoot} has no exact package identity`);
-    }
-    const identity = `${manifest.name}@${manifest.version}`;
-    let tarball = packed.get(identity);
-    if (tarball === undefined) {
-      tarball = await withInstalledPackagePackInput(concreteRoot, scratchRoot,
-        input => pack(input, destination));
-      packed.set(identity, tarball);
-    }
-    overrides[overrideKey] = tarball;
-    if (!queued.has(identity)) {
-      queued.add(identity);
-      queue.push({ root: concreteRoot, manifest });
-    }
-  };
-
-  for (const { packageRoot, dependencyName } of await collectRunnerRuntimeDependencyRoots(runnerRoot)) {
-    await enqueue(packageRoot, dependencyName);
+  for (const [identity, { packageRoot }] of nodes) {
+    packed.set(identity, await withInstalledPackagePackInput(packageRoot, scratchRoot, input => pack(input, destination)));
   }
-  while (queue.length > 0) {
-    const current = queue.shift();
-    const required = current.manifest.dependencies ?? {};
-    const optional = current.manifest.optionalDependencies ?? {};
-    const peers = current.manifest.peerDependencies ?? {};
-    const optionalPeers = current.manifest.peerDependenciesMeta ?? {};
-    for (const dependencyName of Object.keys({ ...required, ...optional, ...peers }).sort()) {
-      const dependencyRoot = await resolveInstalledDependencyRoot(current.root, dependencyName);
-      if (dependencyRoot === null) {
-        if (dependencyName in optional || optionalPeers[dependencyName]?.optional === true) continue;
-        throw new Error(`${current.manifest.name}@${current.manifest.version} dependency ${dependencyName} is not installed`);
-      }
-      await enqueue(
-        dependencyRoot,
-        `${current.manifest.name}@${current.manifest.version}>${dependencyName}`,
-      );
-    }
-  }
-  return overrides;
+  // The Runner root is packed last from its real tree, so `files`,
+  // `.npmignore`, and `publishConfig.executableFiles` decide its contents.
+  const runnerTarball = await pack(runnerRoot, destination);
+  const { overrides, peerDependencies } = deriveConsumerInputs({
+    nodes,
+    edges,
+    tarballFor: identity => packed.get(identity),
+    semver: Bun.semver,
+  });
+  return { runnerTarball, overrides, peerDependencies, packages: nodes.size, edges: edges.length };
 }
 
-async function resolveInstalledDependencyRoot(packageRoot, dependencyName) {
-  let cursor = packageRoot;
-  while (true) {
-    const candidate = resolve(cursor, "node_modules", dependencyName);
-    try {
-      return await realpath(candidate);
-    } catch {
-      const parent = dirname(cursor);
-      if (parent === cursor) return null;
-      cursor = parent;
-    }
-  }
-}
-
+/**
+ * Copy the built runnerd beside the package tarball under a platform-named file
+ * and describe it. The consumer resolves this artifact explicitly, so the
+ * bundled default daemon and the release artifact stay separate proofs.
+ */
 async function stageRunnerdArtifact(destination) {
   const suffix = process.platform === "win32" ? ".exe" : "";
   const source = resolve(runnerRoot, `dist/bin/paperclip-runnerd${suffix}`);
@@ -180,31 +154,47 @@ async function stageRunnerdArtifact(destination) {
   };
 }
 
-function localOverrides(tarballs) {
-  return Object.fromEntries(
-    Object.entries(tarballs).map(([selector, tarball]) => [selector, `file:${tarball}`]),
-  );
+/**
+ * The consumer's install inputs. Every runtime edge is a tarball rule, so the
+ * install needs no registry metadata: `bun install --offline` resolves entirely
+ * from the packed artifacts. `peer = false` stops Bun from reaching outside the
+ * closure for a peer range the packed graph already satisfies, and the hoisted
+ * linker is pinned so this proves the same layout the workspace uses rather
+ * than inheriting whichever default Bun ships.
+ */
+async function writeConsumerInputs({ consumerRoot, runnerTarball, overrides, peerDependencies }) {
+  await writeFile(resolve(consumerRoot, "package.json"), `${JSON.stringify({
+    name: "paperclip-runner-clean-consumer",
+    private: true,
+    type: "module",
+    packageManager: `bun@${process.versions.bun}`,
+    dependencies: {
+      "@paperclipai/paperclip-runner": `file:${runnerTarball}`,
+      ...peerDependencies,
+    },
+    overrides,
+  }, null, 2)}\n`);
+  await writeFile(resolve(consumerRoot, "bunfig.toml"), [
+    "[install]",
+    'linker = "hoisted"',
+    "peer = false",
+    "",
+  ].join("\n"));
 }
 
 async function verifyRunnerConsumer({
   consumerRoot,
   runnerTarball,
-  runtimeDependencyTarballs,
+  overrides,
+  peerDependencies,
+  packages: closurePackageCount,
+  edges: closureEdgeCount,
   runnerdArtifact,
   conformanceRecord,
   sourceCommit,
 }) {
   await mkdir(consumerRoot, { recursive: true });
-  await writeFile(resolve(consumerRoot, "package.json"), `${JSON.stringify({
-    name: "paperclip-runner-clean-consumer",
-    private: true,
-    type: "module",
-    packageManager: "pnpm@9.15.4",
-    dependencies: {
-      "@paperclipai/paperclip-runner": `file:${runnerTarball}`,
-    },
-    pnpm: { overrides: localOverrides(runtimeDependencyTarballs) },
-  }, null, 2)}\n`);
+  await writeConsumerInputs({ consumerRoot, runnerTarball, overrides, peerDependencies });
   await writeFile(resolve(consumerRoot, "verify-default-runnerd.mjs"), `
 import { execFileSync } from "node:child_process";
 import { constants } from "node:fs";
@@ -242,7 +232,8 @@ await writeFile("bundled-runnerd-proof.json", JSON.stringify({ executable: true,
   await writeFile(resolve(consumerRoot, "verify.mjs"), `
 import { createHash } from "node:crypto";
 import { readFile, stat, writeFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import * as runtime from "@paperclipai/paperclip-runner";
 import * as evals from "@paperclipai/paperclip-runner/evals";
@@ -282,6 +273,23 @@ const driverConformance = await testing.runHarnessDriverConformance({
 });
 if (!driverConformance.checks.transcriptCompleteness || driverConformance.semanticToolCallCount !== 1) {
   throw new Error("packed harness-driver conformance did not cover transcript/tools");
+}
+
+// Nothing may resolve back into the source checkout: this consumer is a real
+// installed package, and a path into the repo would mean the proof read source
+// files instead of the packed artifact.
+const sourceTree = process.env.PAPERCLIP_SOURCE_TREE;
+const resolvedExports = [
+  import.meta.resolve("@paperclipai/paperclip-runner"),
+  import.meta.resolve("@paperclipai/paperclip-runner/evals"),
+  import.meta.resolve("@paperclipai/paperclip-runner/testing"),
+];
+if (sourceTree !== undefined) {
+  for (const resolved of resolvedExports) {
+    if (fileURLToPath(resolved).startsWith(sourceTree + sep)) {
+      throw new Error("consumer export resolved into the source checkout: " + resolved);
+    }
+  }
 }
 
 const runnerd = await evals.resolvePaperclipRunnerdArtifact({
@@ -372,13 +380,23 @@ await writeFile(process.env.PAPERCLIP_CONFORMANCE_RECORD, JSON.stringify({
   },
   consumer: {
     installMode: "offline-packed-artifact",
+    installFlags: ["--offline", "--no-cache", "--ignore-scripts", "--no-save"],
+    linker: "hoisted",
     imports: [
       "@paperclipai/paperclip-runner",
       "@paperclipai/paperclip-runner/evals",
       "@paperclipai/paperclip-runner/testing",
     ],
+    resolvedImports: resolvedExports,
+    runtimes: (process.env.PAPERCLIP_CONSUMER_RUNTIME ?? "").split(",").filter(Boolean),
     appSourceTreeImports: false,
     providerCalls: 0,
+    closure: {
+      packages: Number(process.env.PAPERCLIP_CLOSURE_PACKAGES),
+      edges: Number(process.env.PAPERCLIP_CLOSURE_EDGES),
+      overrideRules: Object.keys(JSON.parse(await readFile("package.json", "utf8")).overrides ?? {}).length,
+      peerRootDependencies: Object.keys(JSON.parse(await readFile("package.json", "utf8")).dependencies ?? {}).length - 1,
+    },
   },
   checks: {
     packageExportsResolved: true,
@@ -391,6 +409,7 @@ await writeFile(process.env.PAPERCLIP_CONFORMANCE_RECORD, JSON.stringify({
     mockControlPlaneConformance: report,
     harnessDriverConformance: driverConformance,
     runnerdDigest: true,
+    closureRelocated: process.env.PAPERCLIP_RELOCATED_CONSUMER === "1",
     bundledDefaultRunnerd: JSON.parse(await readFile("bundled-runnerd-proof.json", "utf8")),
     semanticConformance: {
       schema: semanticConformance.schema,
@@ -407,6 +426,23 @@ await writeFile(process.env.PAPERCLIP_CONFORMANCE_RECORD, JSON.stringify({
     PAPERCLIP_RUNNER_PACKAGE_ARTIFACT: runnerTarball,
     PAPERCLIP_CONFORMANCE_RECORD: conformanceRecord,
     PAPERCLIP_SOURCE_COMMIT: sourceCommit,
+    PAPERCLIP_SOURCE_TREE: workspaceRoot,
+    PAPERCLIP_CLOSURE_PACKAGES: String(closurePackageCount),
+    PAPERCLIP_CLOSURE_EDGES: String(closureEdgeCount),
+    PAPERCLIP_CONSUMER_RUNTIME: "node,bun",
+  });
+  await verifyRelocatedConsumer({
+    consumerRoot,
+    extraEnv: {
+      PAPERCLIP_RUNNERD_ARTIFACT: runnerdArtifact.executablePath,
+      PAPERCLIP_RUNNERD_SHA256: runnerdArtifact.sha256,
+      PAPERCLIP_RUNNERD_BUILD_PROFILE: runnerdArtifact.buildProfile,
+      PAPERCLIP_RUNNER_PACKAGE_ARTIFACT: runnerTarball,
+      PAPERCLIP_CONFORMANCE_RECORD: resolve(scratchRoot, "relocated-conformance.json"),
+      PAPERCLIP_SOURCE_COMMIT: sourceCommit,
+      PAPERCLIP_SOURCE_TREE: workspaceRoot,
+      PAPERCLIP_RELOCATED_CONSUMER: "1",
+    },
   });
 }
 
@@ -426,33 +462,68 @@ async function publishArtifacts({ publicationRoot, runnerTarball, runnerdArtifac
 }
 
 function installAndRun(consumerRoot, extraEnv = {}) {
-  run("pnpm", [
+  // A clean install of the packed artifacts only. `--offline --no-cache` proves
+  // no registry manifest or previously cached metadata is needed, `--no-save`
+  // keeps the check from writing a lockfile back into the scratch consumer, and
+  // `--ignore-scripts` keeps a packed lifecycle script from running arbitrary
+  // code during the gate. The cache directory is inside the scratch root so a
+  // developer's Bun cache cannot supply a manifest either.
+  run("bun", [
     "install",
     "--offline",
+    "--no-cache",
     "--ignore-scripts",
-    "--lockfile=false",
-    "--store-dir",
-    resolve(consumerRoot, ".pnpm-store"),
-    "--config.auto-install-peers=false",
-    "--reporter=append-only",
+    "--no-save",
+    "--cache-dir",
+    resolve(consumerRoot, ".bun-install-cache"),
   ], consumerRoot, { env: { NODE_ENV: "development" } });
-  run(process.execPath, ["verify-default-runnerd.mjs"], consumerRoot, {
-    inheritEnv: false,
-    env: { PATH: process.env.PATH, HOME: consumerRoot, EXPECTED_RUNNERD_SHA256: extraEnv.PAPERCLIP_RUNNERD_SHA256 },
+  // Verify under every runtime the published package supports. The consumer is
+  // a real installed package, so this exercises the resolution a user gets
+  // rather than the workspace's; Bun installs it, and both Bun and the Node
+  // runtime in `engines.node` must then import and run it.
+  const runtimes = ["node", "bun"];
+  for (const runtime of runtimes) {
+    run(runtime, ["verify-default-runnerd.mjs"], consumerRoot, {
+      inheritEnv: false,
+      env: { PATH: process.env.PATH, HOME: consumerRoot, EXPECTED_RUNNERD_SHA256: extraEnv.PAPERCLIP_RUNNERD_SHA256 },
+    });
+    run(runtime, ["verify.mjs"], consumerRoot, {
+      env: { ...extraEnv, PAPERCLIP_CONSUMER_RUNTIME: runtime },
+    });
+  }
+}
+
+/**
+ * The packed tree must survive being moved. Copy the installed consumer to a new
+ * prefix and re-run the same export proof there, so a packed path that points
+ * back at the original install (an absolute symlink, a build-directory
+ * reference) fails instead of passing from where it happened to be unpacked.
+ */
+async function verifyRelocatedConsumer({ consumerRoot, extraEnv }) {
+  const relocatedRoot = resolve(scratchRoot, "relocated-consumer");
+  await rm(relocatedRoot, { recursive: true, force: true });
+  await cp(consumerRoot, relocatedRoot, {
+    recursive: true,
+    verbatimSymlinks: true,
+    filter: source => !source.split(sep).includes(".bun-install-cache"),
   });
-  run(process.execPath, ["verify.mjs"], consumerRoot, { env: extraEnv });
+  for (const runtime of ["node", "bun"]) {
+    run(runtime, ["verify.mjs"], relocatedRoot, { env: { ...extraEnv, PAPERCLIP_CONSUMER_RUNTIME: runtime } });
+  }
 }
 
 function run(command, args, cwd, { quiet = false, env = {}, inheritEnv = true } = {}) {
-  const usesPnpm = command === "pnpm";
-  const executable = usesPnpm ? pnpmInvocation.executable : command;
-  const effectiveArgs = usesPnpm ? [...pnpmInvocation.prefixArgs, ...args] : args;
-  const result = spawnSync(executable, effectiveArgs, {
+  const executable = process.platform === "win32" && (command === "bun" || command === "node")
+    ? `${command}.exe`
+    : command;
+  const result = spawnSync(executable, args, {
     cwd,
     encoding: "utf8",
     env: { ...(inheritEnv ? process.env : {}), CI: "true", ...env },
     stdio: quiet ? ["ignore", "pipe", "pipe"] : ["ignore", "inherit", "inherit"],
     ...(quiet ? { maxBuffer: 32 * 1024 * 1024 } : {}),
+    // A bare executable name on Windows needs the shell to resolve it.
+    shell: process.platform === "win32",
   });
   if (result.status !== 0) {
     if (quiet) {
@@ -463,26 +534,6 @@ function run(command, args, cwd, { quiet = false, env = {}, inheritEnv = true } 
     if (result.signal !== null) process.stderr.write(`Terminated by signal ${result.signal}\n`);
     throw new Error(`${command} ${args.join(" ")} failed in ${cwd}`);
   }
-}
-
-function resolvePnpmInvocation() {
-  const corepack = process.platform === "win32" ? "corepack.cmd" : "corepack";
-  const corepackProbe = spawnSync(corepack, ["pnpm@9.15.4", "--version"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  if (corepackProbe.status === 0 && corepackProbe.stdout.trim() === "9.15.4") {
-    return { executable: corepack, prefixArgs: ["pnpm@9.15.4"] };
-  }
-  const direct = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-  const directProbe = spawnSync(direct, ["--version"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  if (directProbe.status === 0 && directProbe.stdout.trim() === "9.15.4") {
-    return { executable: direct, prefixArgs: [] };
-  }
-  throw new Error("Clean-consumer verification requires pnpm 9.15.4 via corepack or PATH");
 }
 
 function capture(command, args, cwd) {

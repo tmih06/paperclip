@@ -1,13 +1,14 @@
-import { registerHooks } from 'node:module';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { plugin } from 'bun';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-const root = fileURLToPath(new URL("../../..", import.meta.url));
-registerHooks({ resolve(specifier, context, next) {
-  for (const [name, dir] of [['@paperclipai/db', 'packages/db'], ['@paperclipai/shared', 'packages/shared']]) {
-    if (specifier === name || specifier.startsWith(name + '/')) {
-      const file = specifier === name ? 'index' : specifier.slice(name.length + 1);
-      return next(pathToFileURL(path.join(root, dir, 'dist', `${file}.js`)).href, context);
-    }
-  }
-  return next(specifier, context);
-} });
+const root = fileURLToPath(new URL('../../..', import.meta.url));
+plugin({
+  name: 'profile-built-workspaces',
+  setup(build) {
+    build.onLoad({ filter: /\/packages\/(?:db|shared)\/src\/.*\.ts$/ }, ({ path: source }) => {
+      const relative = path.relative(root, source).replace('/src/', '/dist/').replace(/\.ts$/, '.js');
+      const built = pathToFileURL(path.join(root, relative)).href;
+      return { contents: `export * from ${JSON.stringify(built)};`, loader: 'js' };
+    });
+  },
+});

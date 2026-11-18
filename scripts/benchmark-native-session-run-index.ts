@@ -9,7 +9,7 @@
  * same rows and the same service result. Then times the migration through the
  * normal migration runner, including a rerun.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-native-session-run-index.ts
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-native-session-run-index.ts
  *
  * Optional sizes: RUNS (default 50000 runs of the measured agent), OTHER_RUNS
  * (50000 runs of a second agent), RUNS_PER_SESSION (4), PROFILE_KIB (4).

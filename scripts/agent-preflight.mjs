@@ -1,16 +1,16 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // One-command preflight for an agent worktree: install, the plugin SDK build,
 // the Runner build and the Runner's debug binaries, skipping work whose inputs are unchanged and
 // reusing other worktrees' results through the content-addressed cache in
 // scripts/agent-build-cache.mjs.
 //
 // It replaces this sequence, with the same results:
-//   pnpm install --frozen-lockfile
-//   pnpm --filter @paperclipai/plugin-sdk ensure-build-deps
-//   pnpm --filter @paperclipai/paperclip-runner run ensure:eval-build-deps
-//   pnpm --filter @paperclipai/paperclip-runner run build:rust
-//   pnpm --filter @paperclipai/paperclip-runner build
-//   pnpm --filter @paperclipai/paperclip-runner run build:runner-binaries
+//   bun install --frozen-lockfile
+//   bun run --filter @paperclipai/plugin-sdk ensure-build-deps
+//   bun run --filter @paperclipai/paperclip-runner run ensure:eval-build-deps
+//   bun run --filter @paperclipai/paperclip-runner run build:rust
+//   bun run --filter @paperclipai/paperclip-runner build
+//   bun run --filter @paperclipai/paperclip-runner run build:runner-binaries
 //
 // Steps:
 //   install       skipped when the lockfile, manifests, patches and toolchain
@@ -26,9 +26,9 @@
 //
 // A restored Runner build skips the build's lint checks (protocol coverage,
 // traceability and similar). They depend only on the same inputs, and CI runs
-// them; run `pnpm --filter @paperclipai/paperclip-runner build` for them locally.
+// them; run `bun run --filter @paperclipai/paperclip-runner build` for them locally.
 //
-// Usage: node scripts/agent-preflight.mjs [--no-cache] [--force-install] [--skip-rust-debug] [--explain]
+// Usage: bun scripts/agent-preflight.mjs [--no-cache] [--force-install] [--skip-rust-debug] [--explain]
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -78,25 +78,26 @@ function stateDirectory(root) {
 
 export function installKey(root, toolchain) {
   // Untracked, non-ignored manifests count too: a new workspace package needs an install.
-  const tracked = spawnSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc",
+  const tracked = spawnSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "bun.lock", "bunfig.toml", ".npmrc",
     ":(glob)**/package.json", "patches"], { cwd: root, encoding: "utf8" });
   if (tracked.status !== 0) return null;
   const files = tracked.stdout.split("\0").filter(Boolean);
-  const pnpm = spawnSync("pnpm", ["--version"], { cwd: root, encoding: "utf8" }).stdout?.trim();
+  const bun = spawnSync("bun", ["--version"], { cwd: root, encoding: "utf8" }).stdout?.trim();
   return hashFiles(root, files).update(JSON.stringify({ node: toolchain.node, platform: toolchain.platform,
-    arch: toolchain.arch, pnpm })).digest("hex");
+    arch: toolchain.arch, bun })).digest("hex");
 }
 
 function installStep(root, options, toolchain) {
   const stampFile = path.join(stateDirectory(root), "install.json");
   const key = installKey(root, toolchain);
-  const modules = path.join(root, "node_modules", ".modules.yaml");
+  // Bun writes its install marker next to the isolated package store.
+  const modules = path.join(root, "node_modules", ".bun");
   const stamp = readJson(stampFile);
   if (!options.forceInstall && key && existsSync(modules) && stamp?.key === key
     && stamp.modulesMtimeMs === statSync(modules).mtimeMs) {
     return { step: "install", action: "skipped", reason: "lockfile, manifests and toolchain unchanged" };
   }
-  const seconds = exec("pnpm", ["install", "--frozen-lockfile", "--prefer-offline"], root);
+  const seconds = exec("bun", ["install", "--frozen-lockfile"], root);
   if (key) writeJson(stampFile, { key, modulesMtimeMs: statSync(modules).mtimeMs });
   return { step: "install", action: "ran", seconds };
 }
@@ -238,7 +239,7 @@ function runnerBuildStep(root, cache, toolchain) {
     for (const tree of DIST_TREES) removeTree(path.join(root, tree));
     log("cached Runner build did not match; building");
   }
-  const seconds = exec("pnpm", ["--filter", "@paperclipai/paperclip-runner", "build"], root);
+  const seconds = exec("bun", ["run", "--filter", "@paperclipai/paperclip-runner", "build"], root);
   const after = assessRunnerBuild({ repoRoot: root, packageRoot });
   if (!after.current || after.stamp.digest !== inputs.digest) return { step: "runner-build", action: "built", seconds };
   writeJson(keyFile, { key, recordedAt: after.stamp.recordedAt });

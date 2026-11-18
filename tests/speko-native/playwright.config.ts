@@ -8,7 +8,7 @@ export default defineConfig({
   outputDir: "./test-results", reporter: [["list"], ["html", { outputFolder: "./playwright-report", open: "never" }]],
   use: { serviceWorkers: "block", baseURL: `http://127.0.0.1:${port}`, viewport: { width: 1200, height: 900 }, trace: "retain-on-failure" },
   webServer: {
-    command: "server/node_modules/.bin/tsx tests/speko-native/server.ts", cwd: root,
+    command: "bun tests/speko-native/server.ts", cwd: root,
     env: { ...process.env, SPEKO_NATIVE_WATCH: "0", SPEKO_NATIVE_STUB: "1", SPEKO_NATIVE_PORT: String(port), SPEKO_NATIVE_STUB_PORT: String(port + 1), SPEKO_NATIVE_CALLBACK_ORIGIN: "https://speko-fixture.invalid", SPEKO_NATIVE_INSTANCE_FILE: resolve(root, "tests/speko-native/.instance.json") },
     url: `http://127.0.0.1:${port}/api/health`, reuseExistingServer: false, timeout: 120_000,
     gracefulShutdown: { signal: "SIGTERM", timeout: 15_000 },

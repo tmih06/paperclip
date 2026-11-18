@@ -59,7 +59,7 @@ it("configures each control with the CLI against the assembled app and enforces 
     const base = `http://127.0.0.1:${address.port}`;
     const repo = fileURLToPath(new URL("../../../", import.meta.url));
     const cli = async (agentId: string, patch?: Record<string, boolean | null>) => {
-      const result = await execute(process.execPath, ["--import", `${repo}cli/node_modules/tsx/dist/loader.mjs`, `${repo}cli/src/index.ts`,
+      const result = await execute(process.execPath, [`${repo}cli/src/index.ts`,
         "agent", patch ? "interaction-permissions:update" : "interaction-permissions", agentId, "--api-base", base,
         "--api-key", boardKey, "--json", ...(patch ? ["--payload-json", JSON.stringify(patch)] : [])], {
         cwd: repo, env: { ...process.env, PAPERCLIP_TELEMETRY_DISABLED: "1" }, timeout: 60000,

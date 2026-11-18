@@ -141,7 +141,7 @@ describe("individual agent interaction permissions", () => {
     if (!address || typeof address === "string") throw new Error("HTTP fixture unavailable");
     const repo = fileURLToPath(new URL("../../../", import.meta.url));
     const cli = async (command: string, payload?: Record<string, boolean | null>) => {
-      const result = await execute(process.execPath, ["--import", `${repo}cli/node_modules/tsx/dist/loader.mjs`, `${repo}cli/src/index.ts`,
+      const result = await execute(process.execPath, [`${repo}cli/src/index.ts`,
         "agent", command, f.agentId, "--api-base", `http://127.0.0.1:${address.port}`, "--api-key", "fixture-board-token", "--json",
         ...(payload ? ["--payload-json", JSON.stringify(payload)] : [])], {
         cwd: repo, env: { ...process.env, PAPERCLIP_TELEMETRY_DISABLED: "1" }, timeout: 60000,

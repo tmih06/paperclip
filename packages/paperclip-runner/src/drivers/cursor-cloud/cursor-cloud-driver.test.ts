@@ -1191,7 +1191,7 @@ describe("Cursor Cloud native driver", () => {
     const f = await fixture(); const snapshot = await f.session.snapshot(); await f.session.close({ reason: "initial_idle" }); await f.pump;
     const { client: _client, dynamicToolHandler: _handler, ...childOptions } = f.options;
     const script = `import {CursorCloudDriver} from ${JSON.stringify(new URL("./cursor-cloud-driver.ts", import.meta.url).href)}; process.umask(0o022); const driver=new CursorCloudDriver({...JSON.parse(process.argv[1]),dynamicToolHandler:async()=>{throw new Error('Unexpected tool call')}}); await driver.recoverSession(JSON.parse(process.argv[2])); process.stdout.write('ready\\n');`;
-    const child = spawn(process.execPath, ["--import", new URL("../../../node_modules/tsx/dist/loader.mjs", import.meta.url).pathname, "--input-type=module", "-e", script, JSON.stringify(childOptions), JSON.stringify(snapshot)], { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, ["--input-type=module", "-e", script, JSON.stringify(childOptions), JSON.stringify(snapshot)], { stdio: ["ignore", "pipe", "pipe"] });
     let errors = ""; child.stderr!.on("data", chunk => { errors += chunk; });
     try {
       await Promise.race([once(child.stdout!, "data"), once(child, "exit").then(() => { throw new Error(`Controlled driver child exited before readiness: ${errors}`); })]);

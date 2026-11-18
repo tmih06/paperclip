@@ -47,7 +47,7 @@ wait_for_npm_package_versions "${NPM_PUBLISH_VERIFY_ATTEMPTS:-12}" "${NPM_PUBLIS
   || release_fail "npm did not expose every package at ${version}"
 
 release_info "==> Checking npm provenance..."
-node "$REPO_ROOT/scripts/verify-canary-provenance.mjs" "$version" "$source_sha" "${PACKAGE_NAMES[@]}" \
+bun "$REPO_ROOT/scripts/verify-canary-provenance.mjs" "$version" "$source_sha" "${PACKAGE_NAMES[@]}" \
   || release_fail "npm provenance does not tie ${version} to the master release workflow at ${source_sha}"
 
 release_info "==> Checking dist-tags and internal dependencies..."

@@ -2,7 +2,7 @@
 // partial index from migration 0454. This is an index-only change: both sides
 // run the same SQL that the service generates.
 // Usage (from the repository root):
-//   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-exhausted-run-attention.ts \
+//   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-exhausted-run-attention.ts \
 //     [--runs=30000] [--events-per-run=100] [--samples=9] [--plans]
 // The script starts a disposable embedded PostgreSQL and loads a synthetic
 // company plus a decoy company. It times the query without the index, times the

@@ -43,8 +43,7 @@ current_target() { readlink "$STORE/current" 2>/dev/null || echo "<missing>"; }
 
 note "0. Preflight — this machine"
 uname -a
-node --version && npm --version && curl --version | head -1
-command -v corepack >/dev/null || npm install -g corepack
+bun --version && curl --version | head -1
 [ -e "$SHIM" ] && { echo "shim already exists at $SHIM — not a clean machine"; exit 2; }
 [ -d "$STORE" ] && { echo "store already exists at $STORE — not a clean machine"; exit 2; }
 echo "repo=$E2E_REPO ref=$E2E_REF home=$HOME"
@@ -63,10 +62,10 @@ else
   fail_ "1a bootstrap tarball download"; exit 1
 fi
 cd "$BOOT"
-if corepack pnpm install --frozen-lockfile > "$HOME/e2e-bootstrap-install.log" 2>&1; then
-  pass "1b bootstrap pnpm install"
+if corepack bun install --frozen-lockfile > "$HOME/e2e-bootstrap-install.log" 2>&1; then
+  pass "1b bootstrap bun install"
 else
-  tail -40 "$HOME/e2e-bootstrap-install.log"; fail_ "1b bootstrap pnpm install"; exit 1
+  tail -40 "$HOME/e2e-bootstrap-install.log"; fail_ "1b bootstrap bun install"; exit 1
 fi
 if PAPERCLIP_README_ASSET_REF="$E2E_REF" \
     bash scripts/build-npm.sh --skip-checks --skip-typecheck > "$HOME/e2e-bootstrap-build.log" 2>&1; then
@@ -84,12 +83,12 @@ else
   tail -40 "$HOME/e2e-bootstrap-npm.log"; fail_ "1d bootstrap CLI npm install"; exit 1
 fi
 BOOTSTRAP_CLI="$HOME/e2e-bootstrap-cli/node_modules/paperclipai/dist/index.js"
-node "$BOOTSTRAP_CLI" --version >/dev/null || { fail_ "1e bootstrap CLI smoke"; exit 1; }
+bun "$BOOTSTRAP_CLI" --version >/dev/null || { fail_ "1e bootstrap CLI smoke"; exit 1; }
 cd "$HOME"
 
 if [ "${E2E_SKIP_NPM:-0}" != "1" ]; then
   note "2. install (published npm latest channel; proves the npm install mechanism)"
-  if node "$BOOTSTRAP_CLI" install --yes; then
+  if bun "$BOOTSTRAP_CLI" install --yes; then
     pass "2a install (latest) exits 0"
   else
     fail_ "2a install (latest) exits 0"
@@ -107,7 +106,7 @@ else
 fi
 
 note "3. install --ref $E2E_REF (real build-from-GitHub-source into the managed store)"
-if node "$BOOTSTRAP_CLI" install --repo "$E2E_REPO" --ref "$E2E_REF" --yes; then
+if bun "$BOOTSTRAP_CLI" install --repo "$E2E_REPO" --ref "$E2E_REF" --yes; then
   pass "3a install --ref exits 0"
 else
   fail_ "3a install --ref exits 0"
@@ -146,7 +145,7 @@ if [ "${E2E_SKIP_NPM:-0}" != "1" ]; then
 
   note "6. reinstall the git ref (payload retained -> reused, no rebuild)"
   REINSTALL_START=$(date +%s)
-  if node "$BOOTSTRAP_CLI" install --repo "$E2E_REPO" --ref "$E2E_REF" --yes; then
+  if bun "$BOOTSTRAP_CLI" install --repo "$E2E_REPO" --ref "$E2E_REF" --yes; then
     REINSTALL_SECS=$(( $(date +%s) - REINSTALL_START ))
     pass "6a reinstall exits 0 (${REINSTALL_SECS}s — reused payload should be fast)"
   else
@@ -162,7 +161,7 @@ fi
 
 note "7. failure hygiene: install --ref <nonexistent> must fail cleanly"
 BEFORE_DIRS="$(ls "$STORE/installs/git" 2>/dev/null | sort)"
-if node "$BOOTSTRAP_CLI" install --ref e2e-definitely-not-a-ref-xyz --yes 2>&1; then
+if bun "$BOOTSTRAP_CLI" install --ref e2e-definitely-not-a-ref-xyz --yes 2>&1; then
   fail_ "7a bad ref rejected (command unexpectedly succeeded)"
 else
   pass "7a bad ref rejected with nonzero exit"

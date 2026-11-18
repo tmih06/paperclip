@@ -188,7 +188,7 @@ for (const version of ["0.22.0"]) {
 
 test("published packages preserve the patched ACPX runtime", () => {
   assert.equal(
-    rootPackage.pnpm.patchedDependencies["acpx@0.22.0"],
+    rootPackage.patchedDependencies["acpx@0.22.0"],
     "patches/acpx@0.22.0.patch",
   );
   assert.equal(adapterUtilsPackage.dependencies.acpx, "0.22.0");
@@ -227,7 +227,7 @@ test("published Codex bridge uses its qualified producer closure without consume
   assert.equal(published.overrides, undefined);
   assert.equal(installManifest.overrides.rollup, undefined);
   const bad = structuredClone(rootPackage);
-  bad.pnpm.overrides["@agentclientprotocol/codex-acp@1.6.2>@openai/codex"] = "0.156.1";
+  bad.overrides["@agentclientprotocol/codex-acp@1.6.2>@openai/codex"] = "0.156.1";
   assert.throws(() => configureBundledProviderOverrides(installManifest, serverPackage.bundleDependencies, bad, profileData), /runtime override must match/);
   const unpinned = createBundledInstallManifest(published, serverPackage.bundleDependencies);
   unpinned.dependencies["@agentclientprotocol/codex-acp"] = "^1.6.2";
@@ -247,7 +247,7 @@ test("Linux-produced Claude bundles retain the SDK and install native packages f
   assert.equal(readFileSync(join(bridge, "package.json"), "utf8"), bridgeBefore);
   assert.deepEqual(stageBundledProviderOptionalDependencies(directory, staged, profiles), staged);
   writeFileSync(join(directory, "package.json"), JSON.stringify(staged));
-  const packs = JSON.parse(execFileSync("npm", ["pack", "--ignore-scripts", "--offline", "--json"], {
+  const packs = JSON.parse(execFileSync(process.execPath, ["x", "--yes", "npm@10.9.7", "pack", "--ignore-scripts", "--offline", "--json"], {
     cwd: directory, encoding: "utf8", timeout: 30_000,
     env: { ...process.env, HOME: directory, npm_config_cache: join(directory, "cache"), npm_config_update_notifier: "false" },
   }));
@@ -307,7 +307,7 @@ test("Codex bundles retain pinned JavaScript and delegate official consumer plat
   assert.equal(readFileSync(join(runtime, "bin/codex.js"), "utf8"), "// official JavaScript fixture, never executed\n");
   assert.deepEqual(stageBundledProviderOptionalDependencies(directory, staged, profiles), staged);
   writeFileSync(join(directory, "package.json"), JSON.stringify(staged));
-  const packs = JSON.parse(execFileSync("npm", ["pack", "--ignore-scripts", "--offline", "--json"], {
+  const packs = JSON.parse(execFileSync(process.execPath, ["x", "--yes", "npm@10.9.7", "pack", "--ignore-scripts", "--offline", "--json"], {
     cwd: directory, encoding: "utf8", timeout: 30_000,
     env: { ...process.env, HOME: directory, npm_config_cache: join(directory, "cache"), npm_config_update_notifier: "false" },
   }));
@@ -368,7 +368,10 @@ test("Linux-produced esbuild bundles publish exact consumer platform dependencie
       name: `@esbuild/${target}`, version: staged.optionalDependencies[`@esbuild/${target}`], os: ["darwin"], cpu: [target.slice(7)],
     });
     mkdirSync(join(artifact, "bin")); writeFileSync(join(artifact, "bin/esbuild"), "consumer-selected fixture; never executed");
-    assert.equal(issuer.resolve(`@esbuild/${target}/bin/esbuild`), join(artifact, "bin/esbuild"));
+    const resolved = execFileSync(process.execPath, ["-e",
+      'import { createRequire } from "node:module"; console.log(createRequire(process.argv[1]).resolve(process.argv[2]));',
+      join(esbuild, "package.json"), `@esbuild/${target}/bin/esbuild`], { encoding: "utf8" }).trim();
+    assert.equal(resolved, join(artifact, "bin/esbuild"));
   }
 });
 
@@ -408,9 +411,9 @@ test("bundled esbuild cannot follow a platform payload or package namespace outs
 });
 
 test("Paperclip Runner pins the qualified ACPX host callbacks", () => {
-  assert.equal(rootPackage.pnpm.patchedDependencies["acpx@0.22.0"], "patches/acpx@0.22.0.patch");
+  assert.equal(rootPackage.patchedDependencies["acpx@0.22.0"], "patches/acpx@0.22.0.patch");
   assert.equal(
-    rootPackage.pnpm.patchedDependencies["@agentclientprotocol/claude-agent-acp@0.73.0"],
+    rootPackage.patchedDependencies["@agentclientprotocol/claude-agent-acp@0.73.0"],
     "patches/@agentclientprotocol__claude-agent-acp@0.73.0.patch",
   );
   assert.equal(runnerPackage.dependencies.acpx, "0.22.0");
@@ -430,7 +433,7 @@ test("Paperclip Runner pins the qualified ACPX host callbacks", () => {
 
 test("published packages preserve the patched embedded-postgres runtime", () => {
   assert.equal(
-    rootPackage.pnpm.patchedDependencies["embedded-postgres@18.1.0-beta.16"],
+    rootPackage.patchedDependencies["embedded-postgres@18.1.0-beta.16"],
     "patches/embedded-postgres@18.1.0-beta.16.patch",
   );
   assert.deepEqual(dbPackage.bundleDependencies, ["embedded-postgres"]);
@@ -597,7 +600,7 @@ test("server package staging applies every bundled runtime patch and preserves t
   writeFileSync(join(fixtureSourceRoot, "package.json"), JSON.stringify(rootPackage));
   writeFileSync(join(fixtureSourceRoot, "packages/paperclip-runner/acpx-profiles.json"), JSON.stringify(profileData));
   mkdirSync(join(fixtureSourceRoot, "patches"));
-  for (const patchPath of Object.values(rootPackage.pnpm.patchedDependencies)) {
+  for (const patchPath of Object.values(rootPackage.patchedDependencies)) {
     writeFileSync(join(fixtureSourceRoot, patchPath), readFileSync(new URL(`../${patchPath}`, import.meta.url)));
   }
   t.after(() => rmSync(fixtureDir, { recursive: true, force: true }));
@@ -700,7 +703,7 @@ printf 'patched requestExtension runtime\\n' > "$target/dist/runtime.js"
     readFileSync(callLog, "utf8"),
     /patch -p1 --forward -d .*node_modules\/acpx/,
   );
-  const patchedBundledDependencies = serverPackage.bundleDependencies.filter(name => rootPackage.pnpm.patchedDependencies[`${name}@${serverPackage.dependencies[name]}`]);
+  const patchedBundledDependencies = serverPackage.bundleDependencies.filter(name => rootPackage.patchedDependencies[`${name}@${serverPackage.dependencies[name]}`]);
   assert.equal(
     readFileSync(callLog, "utf8")
       .split("\n")
@@ -709,7 +712,7 @@ printf 'patched requestExtension runtime\\n' > "$target/dist/runtime.js"
   );
   for (const name of patchedBundledDependencies) {
     const specifier = `${name}@${serverPackage.dependencies[name]}`;
-    const patchPath = rootPackage.pnpm.patchedDependencies[specifier];
+    const patchPath = rootPackage.patchedDependencies[specifier];
     assert.equal(
       readFileSync(
         join(destinationDir, "node_modules", name, "applied.patch"),
@@ -722,25 +725,25 @@ printf 'patched requestExtension runtime\\n' > "$target/dist/runtime.js"
 });
 
 test("bundled package dry runs preview without querying published versions", () => {
-  assert.match(releaseScript, /run_bundled_npm_pack pack --pack-destination "\$publish_dir"/);
+  assert.match(releaseScript, /bun pm pack --dry-run --ignore-scripts/);
   assert.match(releaseLib, /BUNDLED_NPM_PACK_VERSION="10\.9\.7"/);
   assert.match(releaseLib, /BUNDLED_NPM_PUBLISH_VERSION="11\.18\.0"/);
   assert.match(
     releaseLib,
-    /npx --yes "npm@\$BUNDLED_NPM_PACK_VERSION" "\$@" --ignore-scripts/,
+    /bun x --yes "npm@\$BUNDLED_NPM_PACK_VERSION" "\$@" --ignore-scripts/,
   );
   assert.match(
     releaseLib,
-    /npx --yes "npm@\$BUNDLED_NPM_PUBLISH_VERSION" "\$@" --ignore-scripts/,
+    /bun x --yes "npm@\$BUNDLED_NPM_PUBLISH_VERSION" "\$@" --ignore-scripts/,
   );
   assert.match(releaseLib, /"\$@" --ignore-scripts --loglevel verbose/);
   assert.match(releaseLib, /run_bundled_npm_publish publish --tag "\$dist_tag"/);
   assert.doesNotMatch(releaseLib, /run_bundled_npm_publish publish "\.\/\$tarball"/);
 });
 
-test("npm builds use corepack instead of requiring a global pnpm", () => {
-  assert.match(buildNpmScript, /corepack pnpm -r typecheck/);
-  assert.doesNotMatch(buildNpmScript, /^\s*pnpm -r typecheck/m);
+test("npm builds use Bun without Corepack or a global pnpm", () => {
+  assert.match(buildNpmScript, /bun run --workspaces --if-present typecheck/);
+  assert.doesNotMatch(buildNpmScript, /corepack|pnpm/);
 });
 
 

@@ -16,7 +16,7 @@ export async function createLegacyClaudeLauncher(prefix: string) {
   const wrapper = path.join(prefix, "node_modules", "@anthropic-ai", "claude-code", "cli-wrapper.cjs");
   await mkdir(bin, { recursive: true });
   // The package ships this launcher specifically for --ignore-scripts installs.
-  await writeFile(path.join(bin, "claude"), `#!/usr/bin/env node\nrequire(${JSON.stringify(wrapper)});\n`, { mode: 0o755 });
+  await writeFile(path.join(bin, "claude"), `#!/usr/bin/env bun\nrequire(${JSON.stringify(wrapper)});\n`, { mode: 0o755 });
   return bin;
 }
 

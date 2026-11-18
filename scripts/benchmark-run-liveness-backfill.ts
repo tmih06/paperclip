@@ -1,5 +1,5 @@
 // Local SQL benchmark for the run liveness backfill candidate lookup.
-// Usage: pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-run-liveness-backfill.ts --baseline-ref=<pre-fix sha>
+// Usage: bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-run-liveness-backfill.ts --baseline-ref=<pre-fix sha>
 // The baseline query is the pre-fix builder from activity.ts, copied verbatim.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";

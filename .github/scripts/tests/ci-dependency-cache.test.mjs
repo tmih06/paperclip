@@ -4,12 +4,12 @@ import { readFileSync } from "node:fs";
 import { cachePlan } from "../../../scripts/ci-dependency-cache.mjs";
 
 const entries = {
-  "package.json": '{"scripts":{"postinstall":"node scripts/link-plugin-dev-sdk.mjs"}}',
+  "package.json": '{"scripts":{"postinstall":"bun scripts/link-plugin-dev-sdk.mjs"}}',
   "server/package.json": '{"dependencies":{"external":"1.0.0"}}',
   "packages/shared/package.json": '{}',
   "packages/plugins/sdk/package.json": '{}',
-  "pnpm-lock.yaml": 'lockfile',
-  "pnpm-workspace.yaml": 'workspace',
+  "bun.lock": 'lockfile',
+  "bunfig.toml": 'workspace',
   ".npmrc": 'auto-install-peers=false',
   "patches/external.patch": 'patch',
   "scripts/link-plugin-dev-sdk.mjs": 'postinstall',
@@ -20,7 +20,7 @@ const entries = {
   "packages/plugins/sdk/src/index.ts": 'SDK API',
   "server/src/server.ts": 'server',
 };
-const scope = { node: 'v24.19.0', root: '/work/paperclip', arch: 'x64', libc: '2.39', pnpm: '9.15.4', store: '/store' };
+const scope = { node: 'v24.19.0', root: '/work/paperclip', arch: 'x64', libc: '2.39', bun: '1.4.4', cache: '/store' };
 const plan = (files = entries, runtime = scope) => cachePlan({
   files: Object.keys(files), read: (file) => files[file] === null ? null : Buffer.from(files[file]), scope: runtime,
   packageDirs: ['.', 'packages/plugins/sdk', 'packages/shared', 'server'],
@@ -29,7 +29,7 @@ const plan = (files = entries, runtime = scope) => cachePlan({
 test('dependency identity includes manifests, resolution, patches, installer and runtime boundaries', () => {
   const original = plan();
   for (const file of Object.keys(entries).filter((file) =>
-    /package\.json$/.test(file) || /^(pnpm-|\.npmrc|patches\/|scripts\/(link-plugin-dev-sdk|ci-dependency-cache))/.test(file))) {
+    /package\.json$/.test(file) || /^(bun\.|\.npmrc|patches\/|scripts\/(link-plugin-dev-sdk|ci-dependency-cache))/.test(file))) {
     for (const value of [file.endsWith('package.json') ? '{"changed":true}' : 'changed', null]) {
       const changed = plan({ ...entries, [file]: value });
       assert.notEqual(changed.dependencyKey, original.dependencyKey, file);
@@ -52,7 +52,7 @@ test('shared and SDK source changes invalidate dependent builds without reinstal
   }
   assert.deepEqual(plan({ ...entries, 'server/src/server.ts': 'different' }), original);
   assert.deepEqual(plan(Object.fromEntries(Object.entries(entries).reverse())), original);
-  assert.deepEqual(original.dependencyPaths, ['node_modules', 'packages/plugins/sdk/node_modules',
+  assert.deepEqual(original.dependencyPaths, ['node_modules', 'node_modules/.bun', 'packages/plugins/sdk/node_modules',
     'packages/shared/node_modules', 'server/node_modules']);
   assert.deepEqual(plan({ ...entries, 'tests/fixtures/app/package.json': '{}' }).dependencyPaths, original.dependencyPaths);
   for (const directory of ['/outside', '../outside', 'server/../../outside']) {
@@ -66,15 +66,15 @@ test('unmodelled workspace lifecycle scripts disable materialized reuse', () => 
     assert.equal(plan({ ...entries, 'server/package.json': JSON.stringify({ scripts: { [hook]: 'node custom.mjs' } }) }).cacheable, false);
   }
   assert.equal(plan({ ...entries, 'package.json': '{"scripts":{"postinstall":"node other.mjs"}}' }).cacheable, false);
-  for (const file of ['scripts/ensure-plugin-build-deps.mjs', 'scripts/new-install-helper.mjs', '.pnpmfile.cjs']) {
+  for (const file of ['scripts/ensure-plugin-build-deps.mjs', 'scripts/new-install-helper.mjs', 'bunfig.toml']) {
     assert.notEqual(plan({ ...entries, [file]: 'changed' }).dependencyKey, plan().dependencyKey);
   }
 });
 
 test('known Copilot hooks permit caching, track their helpers, and still run on restore', () => {
   const files = { ...entries,
-    'server/package.json': JSON.stringify({ scripts: { postinstall: 'node scripts/install-copilot-assets.mjs' } }),
-    'packages/paperclip-runner/package.json': JSON.stringify({ scripts: { postinstall: 'node scripts/install-copilot-assets.mjs' } }),
+    'server/package.json': JSON.stringify({ scripts: { postinstall: 'bun scripts/install-copilot-assets.mjs' } }),
+    'packages/paperclip-runner/package.json': JSON.stringify({ scripts: { postinstall: 'bun scripts/install-copilot-assets.mjs' } }),
     'server/scripts/install-copilot-assets.mjs': 'server bootstrap',
     'packages/paperclip-runner/scripts/install-copilot-assets.mjs': 'runner bootstrap',
     'packages/paperclip-runner/scripts/materialize-copilot-binary.mjs': 'native materializer',
@@ -97,13 +97,13 @@ test('known Copilot hooks permit caching, track their helpers, and still run on 
   const action = readFileSync(new URL('../../actions/setup-ci-dependencies/action.yml', import.meta.url), 'utf8');
   const replay = action.split('    - name: Replay workspace install hooks after restore')[1].split('    - name:')[0];
   assert.match(replay, /if: steps\.installed\.outputs\.cache-hit == 'true'/);
-  assert.match(replay, /pnpm -r --if-present run postinstall\s+pnpm run postinstall/);
+  assert.match(replay, /bun run --workspaces --if-present postinstall\s+bun run postinstall/);
   assert.ok(action.indexOf('Replay workspace install hooks') < action.indexOf('Validate workspace links'));
 });
 
 test('cache restores are exact and only a frozen canonical master push can publish entries', () => {
   const action = readFileSync(new URL('../../actions/setup-ci-dependencies/action.yml', import.meta.url), 'utf8');
-  const installed = action.slice(action.indexOf('    - name: Restore installed'), action.indexOf('    - name: Locate pnpm'));
+  const installed = action.slice(action.indexOf('    - name: Restore installed'), action.indexOf('    - name: Locate Bun'));
   const builds = action.slice(action.indexOf('    - name: Restore certified'), action.indexOf('    - name: Validate workspace'));
   for (const restore of [installed, builds]) assert.doesNotMatch(restore, /restore-keys:/);
   for (const step of action.split('    - name: Save ').slice(1)) {
@@ -137,5 +137,5 @@ test('paired test timings remain available when lifecycle hooks disable material
     'server/src/__tests__/setup-supertest.ts', 'server/src/__tests__/workspace-runtime.test.ts',
     'server/src/services/workspace-git-snapshot-streaming.test.ts']) assert.ok(scope.includes(file));
   assert.doesNotMatch(scope, /scripts\/ci-dependency-cache|\.github\/actions\/setup-ci-dependencies/);
-  assert.match(step('Exercise restored dependencies for cache-only changes'), /pnpm exec vitest run --project @paperclipai\/shared/);
+  assert.match(step('Exercise restored dependencies for cache-only changes'), /bun x --bun --no-install vitest run --project @paperclipai\/shared/);
 });

@@ -68,7 +68,7 @@ export async function findRunnerExternalPackages(entryPoints) {
     if (!existsSync(entryPoint)) {
       throw new Error(
         `paperclip-runner vendor check: expected build output at ${entryPoint}. ` +
-          `Run "pnpm --filter @paperclipai/paperclip-runner build" first.`,
+          `Run "bun run --filter @paperclipai/paperclip-runner build" first.`,
       );
     }
   }
@@ -154,7 +154,7 @@ async function main() {
   }
 }
 
-// Only run when invoked directly (`node scripts/verify-runner-vendor-dependencies.mjs`),
+// Only run when invoked directly (`bun scripts/verify-runner-vendor-dependencies.mjs`),
 // not when the vitest suite imports findMissingVendorDependencies for a unit test.
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) await main();

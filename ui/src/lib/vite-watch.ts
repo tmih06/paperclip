@@ -21,6 +21,8 @@ export function shouldIgnoreUiDevWatchPath(watchedPath: string): boolean {
 export function createUiDevWatchOptions(currentWorkingDirectory: string) {
   return {
     ignored: shouldIgnoreUiDevWatchPath,
+    // Settle writes instead of dropping a rapid edit-and-restore in the change throttle.
+    awaitWriteFinish: { stabilityThreshold: 50, pollInterval: 10 },
     // WSL2 /mnt/ drives don't support inotify — fall back to polling so HMR works.
     ...(currentWorkingDirectory.startsWith("/mnt/")
       ? { usePolling: true, interval: 1000 }

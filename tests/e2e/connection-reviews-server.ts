@@ -10,8 +10,6 @@ function launch(first: boolean) {
   const launched = spawn(
     process.execPath,
     [
-      "--import",
-      "./cli/node_modules/tsx/dist/loader.mjs",
       "cli/src/index.ts",
       ...(first ? ["onboard", "--yes", "--run"] : ["run"]),
     ],
@@ -26,8 +24,9 @@ function launch(first: boolean) {
 async function stopChild() {
   const pid = child.pid;
   if (!pid) return;
-  // tsx may exit before its server child. Track the owned process group, not
-  // only the launcher, so restarts and Playwright teardown cannot leak servers.
+  // The child is the server itself, but it may spawn its own process group, so
+  // track the owned group to keep restarts and Playwright teardown from
+  // leaking servers.
   try {
     process.kill(-pid, "SIGTERM");
   } catch {

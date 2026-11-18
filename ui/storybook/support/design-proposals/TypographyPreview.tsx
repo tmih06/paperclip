@@ -55,7 +55,7 @@ const markdown = `# First-level heading
 This is rendered agent prose with **strong emphasis**, *italic emphasis*, and a [text link](#usage).
 
 - A list uses the same body rhythm.
-- Inline code: \`pnpm typecheck\`.
+- Inline code: \`bun run typecheck\`.
 
 > A quoted note keeps the prose hierarchy.
 

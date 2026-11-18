@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { lstat } from "node:fs/promises";
 import { cursorProvisionerDestination } from "./cursor-provisioner-layout.mjs";
 import { cursorDistribution, materializePinnedCursorDistribution, verifyCursorDistribution } from "./materialize-cursor-distribution.mjs";

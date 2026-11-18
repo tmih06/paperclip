@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { executableDigestCache, type ExecutableFileIdentity } from "../../executable-digest-cache.js";
 import {
   spawn as spawnChildProcess,
+  spawnSync,
   type ChildProcess,
   type SpawnOptionsWithoutStdio,
 } from "node:child_process";
@@ -36,6 +37,27 @@ import {
   VERIFIED_RUNTIME_EXECUTABLE_ENV,
   verifiedRuntimeExecutableHandoff,
 } from "./verified-runtime-executable.js";
+
+function providerSnapshotNode(): string {
+  if (!process.versions.bun) return process.execPath;
+  const candidates: string[] = [];
+  try { candidates.push(createRequire(import.meta.url).resolve("node/bin/node")); } catch {}
+  for (const directory of (process.env.PATH ?? "").split(process.platform === "win32" ? ";" : ":")) {
+    if (isAbsolute(directory)) candidates.push(resolve(directory, process.platform === "win32" ? "node.exe" : "node"));
+  }
+  for (const command of new Set(candidates)) {
+    const probe = spawnSync(command, ["-p", "JSON.stringify({path:process.execPath,bun:process.versions.bun,version:process.versions.node,hooks:typeof require('node:module').registerHooks})"], {
+      encoding: "utf8", timeout: 10_000, env: sanitizedNodeEnvironment(process.env),
+    });
+    if (probe.status !== 0) continue;
+    let runtime;
+    try { runtime = JSON.parse(probe.stdout); } catch { continue; }
+    const [major, minor] = String(runtime.version).split(".").map(Number);
+    if (!runtime.bun && runtime.hooks === "function" && typeof runtime.path === "string" && isAbsolute(runtime.path)
+      && (major > 24 || major === 24 && minor >= 11)) return runtime.path;
+  }
+  throw new Error("ACPX provider snapshots require Node >=24.11.0 with synchronous module hooks");
+}
 
 const MAX_PACKAGE_JSON_BYTES = 256 * 1024;
 const MAX_AGENT_COMMAND_BYTES = 16 * 1024 * 1024;
@@ -451,10 +473,16 @@ function resolvePackageJsonFromIssuer(
   try {
     return issuerRequire.resolve(`${packageName}/package.json`);
   } catch (error) {
-    if (
-      (error as NodeJS.ErrnoException).code !== "ERR_PACKAGE_PATH_NOT_EXPORTED"
-    )
-      throw error;
+    const bunMissing = process.versions.bun && (error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND";
+    if (bunMissing && /^(?:@[a-zA-Z0-9._-]+\/)?[a-zA-Z0-9._-]+$/.test(packageName)) {
+      // Bun caches missing resolutions even when a package is installed later.
+      // These candidates still pass the canonical-root checks in the caller.
+      for (const directory of issuerRequire.resolve.paths(packageName) ?? []) {
+        const candidate = resolve(directory, packageName, "package.json");
+        if (existsSync(candidate) && readResolverPackageJson(candidate).name === packageName) return candidate;
+      }
+    }
+    if ((error as NodeJS.ErrnoException).code !== "ERR_PACKAGE_PATH_NOT_EXPORTED" && !bunMissing) throw error;
   }
 
   const packageSegments = packageName.split("/");
@@ -1584,8 +1612,12 @@ function commandLease(
           : DEPENDENCY_ANCESTOR_FD_START +
             dependencyAncestors.length +
             providerRuntimeExecutableCount;
-        const runtimeHandoff =
-          verifiedRuntimeExecutableHandoff(runtimeTargetFd);
+        // External provider snapshots require Node's synchronous resolve/load hooks.
+        // Prefer the locked distribution and verify any development PATH fallback.
+        const runtimeHandoff = verifiedRuntimeExecutableHandoff(
+          runtimeTargetFd, process.env, process.platform, process.pid,
+          process.env[VERIFIED_RUNTIME_EXECUTABLE_ENV] ? process.execPath : providerSnapshotNode(),
+        );
         const environment = sanitizedNodeEnvironment(options.env);
         delete environment[ACPX_PRIVATE_SNAPSHOT_ENV];
         if (privateSnapshot) environment[ACPX_PRIVATE_SNAPSHOT_ENV] = JSON.stringify(privateSnapshot.handoff);

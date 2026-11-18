@@ -21,10 +21,9 @@ describe("stable live agent directory observation", () => {
   function productionPrograms(): { probe: string; cleanup: string } {
     // Product/dev starts the server with tsx. Vitest's own transform does not
     // reproduce the lexical helpers injected into function.toString() there.
-    const loader = createRequire(import.meta.url).resolve("tsx");
     const source = new URL("../services/agent-directory-probe.ts", import.meta.url).href;
     const program = `import { agentDirectoryProbeProgram, agentDirectoryTransferCleanupProgram } from ${JSON.stringify(source)}; process.stdout.write(JSON.stringify({probe:agentDirectoryProbeProgram,cleanup:agentDirectoryTransferCleanupProgram}));`;
-    return JSON.parse(execFileSync(process.execPath, ["--import", loader, "--input-type=module", "--eval", program], {
+    return JSON.parse(execFileSync(process.execPath, ["--input-type=module", "--eval", program], {
       cwd: root, env: { TSX_DISABLE_CACHE: "1", HOME: root, TMPDIR: root }, encoding: "utf8", timeout: 10_000, maxBuffer: 64 * 1024,
     }));
   }

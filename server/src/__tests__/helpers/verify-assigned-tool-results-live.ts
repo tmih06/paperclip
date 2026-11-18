@@ -1,5 +1,5 @@
 /** Opt-in paid smoke:
- * PAPERCLIP_LIVE_TOOL_RESULTS=true pnpm --filter @paperclipai/server exec vitest run src/services/native-runtime/runner-tool-results.live.test.ts
+ * PAPERCLIP_LIVE_TOOL_RESULTS=true bun run --filter @paperclipai/server exec vitest run src/services/native-runtime/runner-tool-results.live.test.ts
  * Requires a built native runner and an existing Codex login. Uses disposable
  * database/storage and a private credential copy. The app response is synthetic;
  * Codex, Runner, PRP, persistence and authenticated asset reads are real.

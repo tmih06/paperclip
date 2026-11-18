@@ -134,7 +134,7 @@ test("resolveConcurrency never returns more than the package count", () => {
 
 test("a package with a current lockfile installs it frozen once", async () => {
   const calls = [];
-  await installStandalonePackage({ hasLockfile: true, lockfile: "pkg/pnpm-lock.yaml", log: () => {}, run: async (args) => { calls.push(args); } });
+  await installStandalonePackage({ hasLockfile: true, lockfile: "pkg/bun.lock", log: () => {}, run: async (args) => { calls.push(args); } });
   assert.deepEqual(calls, [["install", "--ignore-workspace", "--frozen-lockfile"]]);
 });
 
@@ -143,11 +143,11 @@ test("a stale committed lockfile is resolved in place, then installed frozen", a
   const logs = [];
   await installStandalonePackage({
     hasLockfile: true,
-    lockfile: "pkg/pnpm-lock.yaml",
+    lockfile: "pkg/bun.lock",
     log: (line) => logs.push(line),
     run: async (args) => {
       calls.push(args);
-      if (calls.length === 1) throw new Error("ERR_PNPM_OUTDATED_LOCKFILE");
+      if (calls.length === 1) throw new Error("error: lockfile had changes, but lockfile is frozen");
     },
   });
   assert.deepEqual(calls, [
@@ -155,12 +155,13 @@ test("a stale committed lockfile is resolved in place, then installed frozen", a
     RESOLVE_LOCKFILE_ARGS,
     ["install", "--ignore-workspace", "--frozen-lockfile"],
   ]);
-  assert.ok(RESOLVE_LOCKFILE_ARGS.includes("--resolution-only") && RESOLVE_LOCKFILE_ARGS.includes("--ignore-scripts"));
-  assert.match(logs[0], /pkg\/pnpm-lock\.yaml/);
+  assert.ok(RESOLVE_LOCKFILE_ARGS.includes("--lockfile-only") && RESOLVE_LOCKFILE_ARGS.includes("--ignore-scripts"));
+  assert.match(logs[0], /pkg\/bun\.lock/);
 });
 
 test("a package without a lockfile installs without writing one", async () => {
   const calls = [];
-  await installStandalonePackage({ hasLockfile: false, lockfile: "pkg/pnpm-lock.yaml", log: () => {}, run: async (args) => { calls.push(args); } });
-  assert.deepEqual(calls, [["install", "--ignore-workspace", "--no-lockfile"]]);
+  await installStandalonePackage({ hasLockfile: false, lockfile: "pkg/bun.lock", log: () => {}, run: async (args) => { calls.push(args); } });
+  // Bun's `--no-save` is the flag that leaves the lockfile alone; `--no-lockfile` still writes bun.lock.
+  assert.deepEqual(calls, [["install", "--ignore-workspace", "--no-save"]]);
 });

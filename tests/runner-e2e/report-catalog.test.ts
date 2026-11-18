@@ -292,7 +292,6 @@ describe("trusted report catalog discovery", () => {
     await promisify(execFile)(
       process.execPath,
       [
-        path.join(repo, "cli/node_modules/tsx/dist/cli.mjs"),
         path.join(repo, "tests/runner-e2e/report.ts"),
       ],
       {

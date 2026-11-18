@@ -16,7 +16,7 @@ describe("acquisition diagnostics through the built worker and real host client"
         entrypoints: { worker: "fixture.mjs" } },
       config: {}, instanceInfo: { instanceId: "instance-fixture", hostVersion: "1.0.0" }, apiVersion: 1,
       hostHandlers: {}, rpcTimeoutMs: 5_000,
-      execArgv: ["--import", createRequire(import.meta.url).resolve("tsx")],
+      execArgv: [],
     });
     try {
       await handle.start();

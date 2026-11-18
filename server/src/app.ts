@@ -137,6 +137,7 @@ import { createSavedWorkspaceLoader } from "./services/remote-workspaces.js";
 import { createSavedWorkspaceArchiveOpener } from "./services/saved-workspace-archive.js";
 import { routineRoutes } from "./routes/routines.js";
 import { environmentRoutes } from "./routes/environments.js";
+import { networkRoutes } from "./routes/network.js";
 import { tailscaleConnectionRoutes } from "./routes/tailscale-connections.js";
 import { executionWorkspaceRoutes } from "./routes/execution-workspaces.js";
 import { goalRoutes } from "./routes/goals.js";
@@ -841,6 +842,7 @@ export async function createApp(
   }) }));
   api.use(routineRoutes(db, { pluginWorkerManager: workerManager }));
   api.use(tailscaleConnectionRoutes(db));
+  api.use(networkRoutes(db));
   api.use(
     environmentRoutes(db, {
       pluginWorkerManager: workerManager,
@@ -1211,7 +1213,7 @@ export async function createApp(
       res.writeHead(426, { "Content-Type": "text/plain" });
       res.end("Upgrade Required");
     });
-    const { createServer: createViteServer } = await import("vite");
+    const { createServer: createViteServer } = await import("vite-plus");
     const configuredViteCacheDir = process.env.PAPERCLIP_VITE_CACHE_DIR?.trim();
     const vite = await createViteServer({
       root: uiRoot,

@@ -55,7 +55,7 @@ export const DEVICE_LOGIN_AUTH_READ_ERROR =
 
 /**
  * The fixed helper program. The server reads the helper from its own script file
- * and runs it in the sandbox as `node -e <script> <sessionHome> <maxBytes>
+ * and runs it in the sandbox as `bun -e <script> <sessionHome> <maxBytes>
  * [<expectedUid>]`. The sandbox already runs node for the Paperclip bridge, so the
  * helper needs no extra runtime. The helper source lives in
  * `scripts/adapter-auth-read.cjs`, so no large script stays as a string literal in
@@ -126,7 +126,7 @@ export async function runDescriptorBoundAuthRead(
     result = await deps.environmentRuntime.execute({
       environment: deps.environment,
       lease: deps.lease,
-      command: "node",
+      command: "bun",
       args: ["-e", DEVICE_LOGIN_AUTH_READ_SCRIPT, deps.sessionHome, String(MAX_AUTH_JSON_BYTES)],
       timeoutMs: deps.timeoutMs,
       // The read is one fixed, non-session operation. It must not open or reuse

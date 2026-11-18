@@ -11,7 +11,7 @@
  * The pre-fix modules are loaded from --baseline-ref. The script fails unless
  * both versions return the same waits.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-bound-authorization.ts --baseline-ref=<pre-fix commit>
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-bound-authorization.ts --baseline-ref=<pre-fix commit>
  *
  * Optional sizes: WAITS (default 20), PEOPLE (5), NOISE_DELIVERIES (50000),
  * EVENT_KIB (6), POOL (10), PAIRS (15), CONCURRENT_PAGES (8).

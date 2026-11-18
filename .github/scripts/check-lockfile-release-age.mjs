@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-lockfile-release-age.mjs
  * Decides whether the lockfile bot may merge refreshed pnpm lockfiles without review.
@@ -20,35 +20,27 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-// Every 2-space-indented line in `packages:` is an entry key. Keys can contain
-// colons (URL and git dependencies), so match up to the final colon.
-const PACKAGE_KEY = /^ {2}(\S.*):\s*$/;
-const RESOLUTION = /^ {4}resolution: (.+?)\s*$/;
 // A registry tarball is locked by integrity alone. A tarball URL, git repo or
 // directory resolution names its own source and needs a human.
 const REGISTRY_RESOLUTION = /^\{integrity: [^,{}]+\}$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Maps each key of the lockfile's top-level `packages:` section to its resolution. */
+/** Reads resolved package identities and integrities from Bun's JSONC lockfile. */
 export function parseLockfilePackages(text) {
+  const lock = Bun.JSONC.parse(text);
+  if (!lock || typeof lock.packages !== 'object' || lock.packages === null || Array.isArray(lock.packages)) {
+    throw new Error('Bun lockfile has no package resolution table');
+  }
   const packages = new Map();
-  let inPackages = false;
-  let key = null;
-  for (const line of text.split('\n')) {
-    if (/^\S/.test(line)) {
-      inPackages = line.trimEnd() === 'packages:';
-      key = null;
-      continue;
-    }
-    if (!inPackages) continue;
-    const keyMatch = PACKAGE_KEY.exec(line);
-    if (keyMatch) {
-      key = keyMatch[1].replace(/^'(.*)'$/, '$1').replace(/\(.*$/, '');
-      packages.set(key, '');
-      continue;
-    }
-    const resolutionMatch = key && RESOLUTION.exec(line);
-    if (resolutionMatch) packages.set(key, resolutionMatch[1]);
+  for (const entry of Object.values(lock.packages)) {
+    if (!Array.isArray(entry) || typeof entry[0] !== 'string') throw new Error('Invalid Bun lock package entry');
+    const [key, source, , integrity] = entry;
+    const resolution = source === '' && typeof integrity === 'string' && /^sha(?:256|384|512)-[A-Za-z0-9+/=]+$/.test(integrity)
+      ? `{integrity: ${integrity}}`
+      : typeof source === 'string' && source ? source : JSON.stringify(entry);
+    const previous = packages.get(key);
+    if (previous !== undefined && previous !== resolution) throw new Error(`Conflicting resolutions for ${key}`);
+    packages.set(key, resolution);
   }
   return packages;
 }

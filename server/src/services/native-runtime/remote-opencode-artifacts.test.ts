@@ -42,7 +42,7 @@ async function fixture() {
   await mkdir(accountHome, { mode: 0o700 });
   await mkdir(sourceRoot);
   const values = {
-    nodeCommand: "\u007fELForiginal qualified Node",
+    bunCommand: "\u007fELForiginal qualified Node",
     opencodeProxy: "original qualified proxy",
     opencodeExecutable: "\u007fELForiginal qualified OpenCode",
   };

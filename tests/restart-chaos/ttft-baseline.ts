@@ -11,9 +11,9 @@
  * comes from the run log, never from Telemetry (rules/data-paths.mdc).
  *
  *   set -a; source ~/.secrets; set +a
- *   node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/ttft-baseline.ts \
+ *   bun tests/restart-chaos/ttft-baseline.ts \
  *     --adapters codex,claude,opencode --samples 5 --restarts 2
- *   node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/ttft-baseline.ts --report <out>/baseline-data.json
+ *   bun tests/restart-chaos/ttft-baseline.ts --report <out>/baseline-data.json
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";

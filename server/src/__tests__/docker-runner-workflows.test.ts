@@ -165,8 +165,8 @@ describe("the Runner image an application image build copies in docker.yml", () 
   it("builds the committed lockfile when it copies the published Runner, and refreshes it for every other build", () => {
     const refresh = named(legs, "Refresh lockfile for Docker build context");
     expect(condition(refresh, 8)).toBe("needs.runner_image.outputs.mode != 'published'");
-    expect(legs.match(/pnpm install/g)).toHaveLength(1);
-    expect(refresh).toContain("pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile");
+    expect(legs.match(/bun install/g)).toHaveLength(1);
+    expect(refresh).toContain("bun install --no-save");
     const order = ["Refresh lockfile for Docker build context", "Build and push by digest"].map((name) => steps(legs).indexOf(named(legs, name)));
     expect(order[0]).toBeLessThan(order[1]);
   });

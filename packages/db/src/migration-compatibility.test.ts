@@ -364,7 +364,7 @@ describe("the shipped migrations", () => {
   });
 
   it("classifies the files named on the command line, after the migrations that precede them", () => {
-    const run = (...args: string[]) => execFileSync(process.execPath, ["--import", "tsx", "scripts/migration-compatibility.ts", ...args], { cwd: dbDir, encoding: "utf8" });
+    const run = (...args: string[]) => execFileSync(process.execPath, ["scripts/migration-compatibility.ts", ...args], { cwd: dbDir, encoding: "utf8" });
     const one = run("src/migrations/0224_unified_adapter_auth_sessions.sql");
     expect(one).toMatch(/^0224_unified_adapter_auth_sessions\.sql: requires_staging\n/);
     expect(one).toContain("add_not_null_column_without_default");

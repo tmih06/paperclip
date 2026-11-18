@@ -12,7 +12,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      "pnpm exec vite preview --config vite.config.ts --host 127.0.0.1 --port 4179",
+      "bun x --bun --no-install vite preview --config vite.config.ts --host 127.0.0.1 --port 4179",
     env: {
       // Keep streamed chunks slow enough that interrupt races are reachable
       // from a test, and fast enough that the suite stays quick.

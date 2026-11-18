@@ -26,7 +26,7 @@ async function writePack(root: string, revision: string, large: Buffer, distSuff
     "node_modules/acpx/package.json": JSON.stringify({ version: QUALIFIED_ACPX_VERSION }),
     "node_modules/@agentclientprotocol/claude-agent-acp/package.json": JSON.stringify({ version: QUALIFIED_ACPX_PROFILES.claude.agentServerVersion }),
     "node_modules/@agentclientprotocol/codex-acp/package.json": JSON.stringify({ version: QUALIFIED_ACPX_PROFILES.codex.agentServerVersion }),
-    "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",
+    "bun.lock": "lockfileVersion: '9.0'\n",
     "dist/cli/opencode-app-server-proxy.cjs": `module.exports = "proxy${distSuffix}";\n`,
     "dist/cli/acpx-runtime-sidecar.cjs": "module.exports = 'sidecar';\n",
     "dist/providers/grok/launcher.cjs": "module.exports = 'grok';\n",
@@ -52,7 +52,7 @@ async function writePack(root: string, revision: string, large: Buffer, distSuff
       codex: QUALIFIED_ACPX_PROFILES.codex.commandDigest },
     artifacts: {
       grokLauncher: artifact("dist/providers/grok/launcher.cjs"), nodeCommand: artifact("node_modules/node/bin/node"),
-      productionLock: artifact("pnpm-lock.yaml"), opencodeCommand: artifact("node_modules/.bin/opencode"),
+      productionLock: artifact("bun.lock"), opencodeCommand: artifact("node_modules/.bin/opencode"),
       opencodeExecutable: artifact("node_modules/opencode-ai/bin/opencode.exe"), opencodeProxy: proxy, acpxSidecar: sidecar,
     },
   };

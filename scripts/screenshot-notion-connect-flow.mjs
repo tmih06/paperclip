@@ -1,6 +1,6 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Capture the PAP-16650 Notion connection-flow Storybook stories.
-// Usage: node scripts/screenshot-notion-connect-flow.mjs <storybook-static-dir> <output-dir>
+// Usage: bun scripts/screenshot-notion-connect-flow.mjs <storybook-static-dir> <output-dir>
 
 import http from "node:http";
 import path from "node:path";
@@ -11,7 +11,7 @@ async function main() {
   const [, , staticDir, outDir] = process.argv;
   if (!staticDir || !outDir) {
     console.error(
-      "usage: node scripts/screenshot-notion-connect-flow.mjs <storybook-static-dir> <output-dir>",
+      "usage: bun scripts/screenshot-notion-connect-flow.mjs <storybook-static-dir> <output-dir>",
     );
     process.exit(1);
   }

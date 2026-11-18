@@ -64,7 +64,7 @@ export function isCatalogManifestUnavailableError(error: unknown): error is Cata
 }
 
 function manifestUnavailableMessage(manifestPath: string) {
-  return `Skills catalog manifest not found at ${manifestPath}. Run pnpm --filter @paperclipai/skills-catalog build:manifest.`;
+  return `Skills catalog manifest not found at ${manifestPath}. Run bun run --filter @paperclipai/skills-catalog build:manifest.`;
 }
 
 function packageResolutionFailureMessage() {

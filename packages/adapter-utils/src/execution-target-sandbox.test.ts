@@ -29,6 +29,7 @@ import {
   adapterExecutionTargetToRemoteSpec,
   adapterExecutionTargetUsesPaperclipBridge,
   ensureAdapterExecutionTargetCommandResolvable,
+  ensureAdapterExecutionTargetCommandsResolvable,
   formatAdapterExecutionTimeoutErrorMessage,
   formatAdapterExecutionTimeoutStartLogLine,
   parseAdapterExecutionTarget,
@@ -1922,7 +1923,7 @@ describe("sandbox adapter execution targets", () => {
         expect(sessionExecs).toHaveLength(1);
         expect(sessionExecs[0]!.bypassSession).not.toBe(true);
         expect(sessionExecs[0]!.timeoutMs).toBe(4 * 60 * 60 * 1000);
-        expect(sessionExecs[0]!.script).toContain("node ");
+        expect(sessionExecs[0]!.script).toContain("paperclip-process-session-remote-stream.mjs");
 
         // Every other exec is bridge control-plane plumbing. Each must force
         // itself off the persistent session so it never queues behind the agent
@@ -2121,6 +2122,22 @@ describe("sandbox adapter execution targets", () => {
     ).toBe(
       "Adapter execution timeout: none (explicitly disabled via adapterConfig.timeoutSec; set it to a positive value to add one).",
     );
+  });
+
+  it("checks both required commands in one exec and names a missing command", async () => {
+    const execute = vi.fn(async ({ command, args }: { command: string; args?: string[] }) => {
+      const result = await execFileAsync(command, args ?? []).then(
+        output => ({ ...output, exitCode: 0 }),
+        error => ({ stdout: String(error.stdout ?? ""), stderr: String(error.stderr ?? ""), exitCode: Number(error.code) }),
+      );
+      return { ...result, signal: null, timedOut: false, pid: null, startedAt: new Date().toISOString() };
+    });
+    const target: AdapterSandboxExecutionTarget = { kind: "remote", transport: "sandbox", remoteCwd: "/workspace", runner: { execute } };
+    await ensureAdapterExecutionTargetCommandsResolvable(["sh", "printf"], target, "/workspace", {});
+    expect(execute).toHaveBeenCalledTimes(1);
+    await expect(ensureAdapterExecutionTargetCommandsResolvable(["sh", "paperclip-absent'fixture"], target, "/workspace", {}))
+      .rejects.toThrow('Command "paperclip-absent\'fixture" is not installed');
+    expect(execute).toHaveBeenCalledTimes(2);
   });
 
   it("uses the caller timeout override when installing a missing sandbox command", async () => {

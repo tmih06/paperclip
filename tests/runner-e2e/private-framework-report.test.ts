@@ -131,8 +131,7 @@ it("keeps the unchanged 256MiB packaging/archive caps with one canonical large a
   }
   expect(await readFile(path.join(restored, "sealed-results/result-evidence-inventory.json"))).toEqual(sealedInventory);
   const report = path.join(f.root, "normalized"), repository = path.resolve(import.meta.dirname, "../..");
-  const cli = createRequire(path.join(repository, "cli/package.json")).resolve("tsx/cli");
-  const reportProcess = await promisify(execFile)(process.execPath, ["--import", path.join(path.dirname(cli), "loader.mjs"), path.join(repository, "tests/runner-e2e/report.ts")], { cwd: repository, timeout: 30000, env: { PATH: process.env.PATH, CI: "1", NODE_OPTIONS: "", NODE_PATH: "",
+  const reportProcess = await promisify(execFile)(process.execPath, [path.join(repository, "tests/runner-e2e/report.ts")], { cwd: repository, timeout: 30000, env: { PATH: process.env.PATH, CI: "1", NODE_OPTIONS: "", NODE_PATH: "",
     PAPERCLIP_RUNNER_E2E_REPORT_ROOT: selected, PAPERCLIP_RUNNER_E2E_REPORT_OUT: report, PAPERCLIP_RUNNER_E2E_EXPECTED_IDS: JSON.stringify([id]),
     PAPERCLIP_E2E_CAMPAIGN_ID: "gha-123-1", PAPERCLIP_RUNNER_E2E_SOURCE_SHA: catalogTargetSha, PAPERCLIP_RUNNER_E2E_SOURCE_REF: "refs/heads/master" } }).then(() => 0, error => error.code);
   expect(reportProcess).toBe(1);

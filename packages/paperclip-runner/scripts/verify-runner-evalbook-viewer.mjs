@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Execute the built viewer against actual generated pages, without a runner API.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";

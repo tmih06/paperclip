@@ -1,4 +1,4 @@
-import { configDefaults, defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vite-plus/test/config";
 import { retryReporterEnabled } from "./scripts/ci/vitest-retry.mjs";
 import { stalledFileReporterEnabled } from "./scripts/ci/stalled-file-reporter.mjs";
 
@@ -28,6 +28,7 @@ export default defineConfig({
       "packages/adapters/openclaw-gateway",
       "packages/adapters/opencode-local",
       "packages/adapters/pi-local",
+      "packages/adapters/ompig-slim",
       "packages/plugins/sdk",
       "packages/plugins/create-paperclip-plugin",
       "packages/plugins/sandbox-providers/daytona",

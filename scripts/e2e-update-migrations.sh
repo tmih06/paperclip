@@ -76,8 +76,7 @@ trap cleanup EXIT
 
 note "0. Preflight"
 uname -a
-node --version && npm --version
-command -v corepack >/dev/null || npm install -g corepack
+bun --version
 [ -e "$SHIM" ] && { echo "shim already exists at $SHIM — refusing to run"; exit 2; }
 [ -d "$PAPERCLIP_HOME" ] && { echo "$PAPERCLIP_HOME already exists — refusing to run"; exit 2; }
 if [ "$(uname -s)" = "Linux" ] && [ ! -S "/run/user/$(id -u)/bus" ]; then
@@ -96,7 +95,7 @@ else
       "https://codeload.github.com/$E2E_REPO/tar.gz/$BASE_REF" \
     | tar -xz --strip-components=1 -C "$BOOT" || { fail_ "1a bootstrap tarball"; exit 1; }
   ( cd "$BOOT" \
-      && corepack pnpm install --frozen-lockfile > "$HOME/e2e-upd-bootstrap-install.log" 2>&1 \
+      && bun install --frozen-lockfile > "$HOME/e2e-upd-bootstrap-install.log" 2>&1 \
       && PAPERCLIP_README_ASSET_REF="$BASE_REF" bash scripts/build-npm.sh --skip-checks --skip-typecheck > "$HOME/e2e-upd-bootstrap-build.log" 2>&1 ) \
     || { tail -40 "$HOME"/e2e-upd-bootstrap-*.log; fail_ "1b bootstrap build"; exit 1; }
   TARBALL="$(cd "$BOOT/cli" && npm pack --silent 2>/dev/null | tail -1)"
@@ -105,11 +104,11 @@ else
     || { tail -40 "$HOME/e2e-upd-bootstrap-npm.log"; fail_ "1c bootstrap npm install"; exit 1; }
   BOOTSTRAP_CLI="$HOME/e2e-upd-bootstrap-cli/node_modules/paperclipai/dist/index.js"
 fi
-node "$BOOTSTRAP_CLI" --version >/dev/null || { fail_ "1d bootstrap CLI smoke"; exit 1; }
+bun "$BOOTSTRAP_CLI" --version >/dev/null || { fail_ "1d bootstrap CLI smoke"; exit 1; }
 pass "1 bootstrap CLI ready"
 
 note "2. install --ref $BASE_REF (the 'old version' the user installed a while ago)"
-if node "$BOOTSTRAP_CLI" install --repo "$E2E_REPO" --ref "$BASE_REF" --yes; then
+if bun "$BOOTSTRAP_CLI" install --repo "$E2E_REPO" --ref "$BASE_REF" --yes; then
   pass "2a install base ref exits 0"
 else
   fail_ "2a install base ref exits 0"; exit 1
@@ -151,7 +150,7 @@ fi
 BACKUPS_BEFORE="$(backup_count)"
 
 note "5. simulate time passing: tracked ref now points at $NEXT_REF (adds one migration)"
-node -e '
+bun -e '
   const fs = require("fs");
   const p = process.argv[1];
   const m = JSON.parse(fs.readFileSync(p, "utf8"));

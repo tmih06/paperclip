@@ -253,7 +253,7 @@ describe("remarkWorkspaceFileRefs", () => {
       const tree = paragraph([
         inlineCode("ui/src/a.ts:1"),
         textNode(" then "),
-        inlineCode("pnpm test"),
+        inlineCode("bun run test"),
       ]);
       runPlugin(tree, resolve);
       expect(resolve).toHaveBeenCalledTimes(1);

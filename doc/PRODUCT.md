@@ -1,18 +1,44 @@
-# Paperclip — Product Definition
+# Paperclip software factory: product definition
+
+This document defines the target factory workflow and records inherited Paperclip behavior below it. The target is not a claim that every step works end to end today.
+
+## Target workflow
+
+| Step | Expected behavior |
+| --- | --- |
+| Queue | The operator supplies a ticket with a repository, base branch, acceptance criteria, and the authority to open a PR. Only eligible tickets can be claimed. |
+| Claim | Paperclip atomically assigns the ticket to one executor and records its task identity, branch, and execution state. Duplicate queue events or heartbeats do not start duplicate work. |
+| Provision | The sandbox provider starts one Kubernetes pod for the task. The pod gets an isolated workspace, the selected coding agent, scoped repository credentials, and resource limits. Do not run the task on the controller if the pod cannot start. |
+| Implement | The agent checks out the repository, follows its instructions, implements the ticket, and runs relevant checks. It publishes progress and evidence to the ticket. |
+| Open or update the PR | Push the task branch and open a PR against the configured base, or update the existing PR for the task. Link the ticket and include the change summary and verification evidence. |
+| Iterate | Follow required CI and actionable review feedback. Fix failures within scope, push to the same branch, and recheck the new head. Wait for external events without repeatedly starting agents or holding an idle pod. |
+| Hand off | Record the PR URL, current head, check results, and any required human action. Release the lease after saving recoverable work. Stop at handoff unless merge or deploy is separately authorized. |
+
+### Pod ownership and recovery
+
+One task can have at most one active execution pod. Different tasks do not share an execution pod, workspace, or credentials. An unclaimed, externally waiting, or finished ticket need not have a pod. A task can use a replacement only after Paperclip confirms the prior executor cannot continue. Resume the same ticket, branch, and PR and restore saved work rather than replaying completed writes. Keep recovery attempts and resource use bounded. If work cannot continue safely, report why and what would unblock it.
+
+### PR readiness
+
+A PR is ready for human review when its current head meets the ticket's acceptance criteria, relevant local verification and required CI have passed, and it has no known conflicts or unresolved actionable feedback the agent is authorized to fix. Required human approval remains a separate gate. If verification, credentials, budget, or an external dependency prevents readiness, report the ticket as waiting or blocked. Do not treat a successful agent turn, a draft PR, or checks from an earlier head as a completed handoff.
+
+### Scope
+
+The fork owns ticket orchestration, sandbox lifecycle, progress, and delivery evidence. Reuse the existing issue, workspace, adapter, and provider contracts. Keep source review and merge policy in the repository host. A general work tracker, a replacement for GitHub review, automatic merge and deployment, and a rewrite of external provider runtimes are not part of this default workflow.
+
+## Current capabilities
+
+Paperclip has company-scoped issues, atomic checkout, execution locks, agent adapters, and sandbox providers. A [recorded Kubernetes run](benchmarks/2026-11-18-ompig-beam-kubernetes-e2e.md) demonstrated real task execution and clean-stop output collection. It did not demonstrate the full ticket-to-PR lifecycle or crash-durable workspace storage. The sections below describe inherited Paperclip concepts and features that the fork builds on.
+
+## Core Concepts
 
 Reusable workflows stay inside the Cases experiment. A workflow is a company-shared
 name and Markdown prompt; a case may adopt, leave and revisit workflows without
 changing its primary task. The task's workflow document is the effective copy,
 so shared edits affect future adoptions and explicit refreshes. Existing handoffs
-record workflow/phase movement and document revisions, including names as they
-were at the time. Authoring starts with agents/APIs; the case UI reads current
+record workflow and phase movement and document revisions, including names as they
+were at the time. Authoring starts with agents and APIs; the case UI reads current
 workflow information and history.
-
-## What It Is
-
-Paperclip is the control plane for autonomous AI companies. One instance of Paperclip can run multiple companies. A **company** is a first-order object.
-
-## Core Concepts
 
 ### Company
 
@@ -310,98 +336,11 @@ agent assignments; skills used by agents must be detached before deletion.
 
 An explicit restricted policy may deny selected operations or switch to a default-deny preset with explicit allow rules. Core exposes a stable versioned policy API so EE and other administrative clients configure and simulate the same evaluator used by skill mutation routes. Core Skill Studio only needs to perform normal skill work, explain an explicit denial, and point administrators to EE when its richer policy UI is available; it must not recreate a partial enterprise permission editor.
 
-## Principles
+## Deployment modes and task model
 
-1. **Unopinionated about how you run your agents.** Your agents could be OpenClaw bots, Python scripts, Node scripts, Claude Code sessions, Codex instances — we don't care. Paperclip defines the control plane for communication and provides utility infrastructure for heartbeats. It does not mandate an agent runtime.
+Paperclip supports local trusted and authenticated deployments. See [deployment modes](DEPLOYMENT-MODES.md) for configuration and [the task data model](TASKS.md) for issue behavior.
 
-2. **Company is the unit of organization.** Everything lives under a company. One Paperclip instance, many companies.
-
-3. **Adapter config defines the agent.** Every agent has an adapter type and configuration that controls its identity and behavior. The minimum contract is just "be callable."
-
-4. **All work traces to the goal.** Hierarchical task management means nothing exists in isolation. If you can't explain why a task matters to the company goal, it shouldn't exist.
-
-5. **Control plane, not execution plane.** Paperclip orchestrates. Agents run wherever they run and phone home.
-
-## User Flow (Dream Scenario)
-
-1. Open Paperclip, create a new company
-2. Define the company's goal: "Create the #1 AI note-taking app, $1M MRR in 3 months"
-3. Create the CEO
-   - Choose an adapter (e.g., process adapter for Claude Code, HTTP adapter for OpenClaw)
-   - Configure the adapter (agent identity, loop behavior, execution settings)
-   - CEO proposes strategic breakdown → board approves
-4. Define the CEO's reports: CTO, CMO, CFO, etc.
-   - Each gets their own adapter config and role definition
-5. Define their reports: engineers under CTO, marketers under CMO, etc.
-6. Set budgets, define initial strategic tasks
-7. Hit go — agents start their heartbeats and the company runs
-
-## Guidelines
-
-There are two runtime modes Paperclip must support:
-
-- `local_trusted` (default): single-user local trusted deployment with no login friction
-- `authenticated`: login-required mode that supports both private-network and public deployment exposure policies
-
-Canonical mode design and command expectations live in `doc/DEPLOYMENT-MODES.md`.
-
-## Further Detail
-
-See [TASKS.md](./TASKS.md) for the task management data model.
-
----
-
-Paperclip’s core identity is a **control plane for autonomous AI companies**, centered on **companies, org charts, goals, issues/comments, heartbeats, budgets, approvals, and board governance**. The public docs are also explicit about the current boundaries: **tasks/comments are the built-in communication model**, Paperclip is **not a chatbot**, and it is **not a code review tool**. The roadmap already points toward **easier onboarding, cloud agents, easier agent configuration, plugins, better docs, and ClipMart/ClipHub-style reusable companies/templates**.
-
-## What Paperclip should do vs. not do
-
-**Do**
-
-- Stay **board-level and company-level**. Users should manage goals, orgs, budgets, approvals, and outputs.
-- Make the first five minutes feel magical: install, answer a few questions, see a CEO do something real.
-- Keep work anchored to **issues/comments/projects/goals**, even if the surface feels conversational.
-- Treat **agency / internal team / startup** as the same underlying abstraction with different templates and labels.
-- Make outputs first-class: files, docs, reports, previews, links, screenshots.
-- Provide **hooks into engineering workflows**: worktrees, preview servers, PR links, external review tools.
-- Use **plugins** for edge cases like rich chat, knowledge bases, doc editors, custom tracing.
-
-**Do not**
-
-- Do not make the core product a general chat app. The current product definition is explicitly task/comment-centric and “not a chatbot,” and that boundary is valuable.
-- Do not build a complete Jira/GitHub replacement. The repo/docs already position Paperclip as organization orchestration, not focused on pull-request review.
-- Do not build enterprise-grade RBAC first. Paperclip now has authenticated mode, company memberships, instance roles, and permission grants, but fine-grained enterprise governance should remain secondary to the core company control plane.
-- Do not interpret agent-profile privacy flags as project/issue privacy. Work remains company-open by default, while explicitly private issues and projects use their own task ACLs.
-- Do not lead with raw bash logs and transcripts. Default view should be human-readable intent/progress, with raw detail beneath.
-- Do not force users to understand provider/API-key plumbing unless absolutely necessary. There are active onboarding/auth issues already; friction here is clearly real.
-
-## Specific design goals
-
-1. **Time-to-first-success under 5 minutes**
-   A fresh user should go from install to “my CEO completed a first task” in one sitting.
-
-2. **Board-level abstraction always wins**
-   The default UI should answer: what is the company doing, who is doing it, why does it matter, what did it cost, and what needs my approval.
-
-3. **Conversation stays attached to work objects**
-   “Chat with CEO” should still resolve to strategy threads, decisions, tasks, or approvals.
-
-4. **Progressive disclosure**
-   Top layer: human-readable summary. Middle layer: checklist/steps/artifacts. Bottom layer: raw logs/tool calls/transcript.
-
-5. **Output-first**
-   Work is not done until the user can see the result: file, document, preview link, screenshot, plan, or PR.
-
-6. **Execution visibility without log worship**
-   Active runs, recovery issues, blockers, and work products should be first-class surfaces. Raw transcripts are available when needed, but they are not the primary product surface.
-
-7. **Local-first, cloud-ready**
-   The mental model should not change between local solo use and shared/private or public/cloud deployment.
-
-8. **Safe autonomy**
-   Auto mode is allowed; hidden token burn is not.
-
-9. **Thin core, rich edges**
-   Put optional chat, knowledge, and special surfaces into plugins/extensions rather than bloating the control plane.
+## Other inherited features
 
 ### Experimental iMessage Photon channel
 

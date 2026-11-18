@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -6,7 +6,7 @@ import process from "node:process";
 
 const repoRoot = process.cwd();
 const dockerfilePath = path.join(repoRoot, "Dockerfile");
-const workspacePath = path.join(repoRoot, "pnpm-workspace.yaml");
+const workspacePath = path.join(repoRoot, "bunfig.toml");
 
 function extractDepsStage(dockerfileText) {
   const lines = dockerfileText.split("\n");
@@ -134,7 +134,7 @@ function main() {
 
   const workspaceRoots = parseWorkspaceRoots(readFileSync(workspacePath, "utf8"));
   if (workspaceRoots.length === 0) {
-    console.error("Could not derive workspace roots from pnpm-workspace.yaml.");
+    console.error("Could not derive workspace roots from bunfig.toml.");
     process.exit(1);
   }
 

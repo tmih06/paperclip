@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Run in a credential-free public npm consumer after `paperclipai runtime setup pi`.
 // Use the server's normal packaged daemon resolver; never submit a prompt.
 import assert from 'node:assert/strict';

@@ -75,7 +75,7 @@ function inspect(root) {
   return {root,wrapper:fs.readFileSync(path.join(root,'SKILL.md'),'utf8'),files};
 }
 process.stdout.write(JSON.stringify(${JSON.stringify(roots)}.map(inspect)));`;
-  return `node -e 'eval(Buffer.from("${Buffer.from(source).toString("base64")}","base64").toString())'`;
+  return `bun -e '${source.replaceAll("'", "'\\''")}'`;
 }
 
 export function gradeRepositoryBundles(bundles: RepositoryBundleReceipt[], expected: RepositoryFileReceipt[], skills: string[]) {

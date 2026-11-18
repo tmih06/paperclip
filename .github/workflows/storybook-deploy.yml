@@ -81,18 +81,18 @@ jobs:
             "https://codeload.github.com/paperclipai/paperclip/tar.gz/$SOURCE_SHA" \
             --output "$RUNNER_TEMP/source.tar.gz"
           tar -xzf "$RUNNER_TEMP/source.tar.gz" --strip-components=1
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           package-manager-cache: false
       # Feature branches omit lockfile commits; resolve their manifests just as PR CI does.
       - name: Resolve branch dependency lock
-        run: pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm build-storybook
+        run: bun install --no-save
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run build-storybook
       - name: Record source and validate output
         id: artifact
         env:
@@ -155,13 +155,13 @@ jobs:
           SOURCE_BRANCH: ${{ needs.authorize.outputs.branch }}
           STORYBOOK_S3_BUCKET: ${{ vars.STORYBOOK_S3_BUCKET }}
           STORYBOOK_PUBLIC_BASE_URL: ${{ vars.STORYBOOK_PUBLIC_BASE_URL }}
-        run: node .github/scripts/publish-storybook.cjs
+        run: bun .github/scripts/publish-storybook.cjs
       - name: Verify public build and stable branch URL
         env:
           BUILD_URL: ${{ steps.deployment.outputs.build_url }}
           BRANCH_URL: ${{ steps.deployment.outputs.url }}
           SOURCE_SHA: ${{ needs.authorize.outputs.sha }}
-        run: node .github/scripts/verify-storybook.cjs
+        run: bun .github/scripts/verify-storybook.cjs
       - name: Upload deployment links
         if: ${{ !cancelled() && steps.deployment.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * runner-loss-rerun.mjs
  *
@@ -8,7 +8,7 @@
  * API metadata only and never touches the PR's code or artifacts.
  *
  * Local dry run against a real run (no rerun is requested):
- *   GITHUB_TOKEN=$(gh auth token) node .github/scripts/runner-loss-rerun.mjs --run-id <id> --dry-run
+ *   GITHUB_TOKEN=$(gh auth token) bun .github/scripts/runner-loss-rerun.mjs --run-id <id> --dry-run
  */
 import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";

@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe("update command", () => {
-  it.each(["npm", "git", "global-npm"] as const)("rejects %s updates on unsupported Node before any update work", async (source) => {
+  it.each(["npm", "git", "global-npm"] as const)("rejects %s updates on unsupported Bun before any update work", async (source) => {
     const paths = resolveInstallStorePaths(); initializeInstallStore(paths);
     const payload = payloadPathFor(paths, "npm", "1.0.0");
     const entrypoint = createPayload(payload, "1.0.0");
@@ -46,25 +46,25 @@ describe("update command", () => {
     const runCommand = vi.fn<CommandRunner>();
     const backup = vi.fn();
     const restartActiveService = vi.fn();
-    const nodeVersion = Object.getOwnPropertyDescriptor(process.versions, "node")!;
-    Object.defineProperty(process.versions, "node", { ...nodeVersion, value: "22.22.2" });
+    const bunVersion = Object.getOwnPropertyDescriptor(process.versions, "bun")!;
+    Object.defineProperty(process.versions, "bun", { ...bunVersion, value: "1.4.3" });
     try {
       await expect(updateCommand({ yes: true }, {
         paths,
         executablePath: source === "global-npm" ? path.join(root, "lib", "node_modules", "paperclipai", "dist", "index.js") : entrypoint,
         runCommand, backup, restartActiveService,
-      })).rejects.toThrow("npx paperclipai@latest install --yes");
+      })).rejects.toThrow("bun x --bun paperclipai@latest install --yes");
       expect(runCommand).not.toHaveBeenCalled();
       expect(backup).not.toHaveBeenCalled();
       expect(restartActiveService).not.toHaveBeenCalled();
       expect(readInstallManifest(paths)).toEqual(manifest);
       expect(fs.realpathSync(paths.currentPath)).toBe(fs.realpathSync(payload));
     } finally {
-      Object.defineProperty(process.versions, "node", nodeVersion);
+      Object.defineProperty(process.versions, "bun", bunVersion);
     }
   });
 
-  it("keeps update checks, dry runs, and rollback available on unsupported Node", async () => {
+  it("keeps update checks, dry runs, and rollback available on unsupported Bun", async () => {
     const paths = resolveInstallStorePaths(); initializeInstallStore(paths);
     const oldPayload = payloadPathFor(paths, "npm", "1.0.0"); createPayload(oldPayload, "1.0.0");
     const payload = payloadPathFor(paths, "npm", "2.0.0"); const executablePath = createPayload(payload, "2.0.0");
@@ -72,8 +72,8 @@ describe("update command", () => {
     writeInstallManifestAtomic({ schemaVersion: 1, ...record(payload, "2.0.0"), previous: [record(oldPayload, "1.0.0")] }, paths);
     const runCommand = vi.fn(async () => ({ stdout: '\"3.0.0\"\n', stderr: "" }));
     const restartActiveService = vi.fn(async () => false);
-    const nodeVersion = Object.getOwnPropertyDescriptor(process.versions, "node")!;
-    Object.defineProperty(process.versions, "node", { ...nodeVersion, value: "22.22.2" });
+    const bunVersion = Object.getOwnPropertyDescriptor(process.versions, "bun")!;
+    Object.defineProperty(process.versions, "bun", { ...bunVersion, value: "1.4.3" });
     try {
       await updateCommand({ check: true }, { paths, executablePath, runCommand });
       await updateCommand({ dryRun: true }, { paths, executablePath, runCommand });
@@ -82,7 +82,7 @@ describe("update command", () => {
       expect(readInstallManifest(paths)?.version).toBe("1.0.0");
       expect(restartActiveService).toHaveBeenCalledWith("1.0.0");
     } finally {
-      Object.defineProperty(process.versions, "node", nodeVersion);
+      Object.defineProperty(process.versions, "bun", bunVersion);
     }
   });
 

@@ -159,8 +159,36 @@ async function readGit(cwd: string, args: string[]) {
   return (await execFileAsync("git", args, { cwd })).stdout.trim();
 }
 
-async function runPnpm(cwd: string, args: string[]) {
-  await execFileAsync("pnpm", args, { cwd });
+async function runBunInstall(cwd: string, args: string[]) {
+  await execFileAsync("bun", ["install", ...args], { cwd });
+}
+
+/**
+ * Writes a `bun` shim that answers `bun install` with the given shell body and
+ * forwards every other invocation to the real Bun. Provisioning always runs its
+ * inline programs and the CLI entry through Bun, so a shim that swallowed those
+ * calls would test nothing.
+ */
+async function writeBunShim(binDir: string, installBody: string) {
+  const { stdout } = await execFileAsync("bash", ["-lc", "command -v bun"], { encoding: "utf8" });
+  const realBun = stdout.trim();
+  if (!realBun) throw new Error("workspace-runtime provisioning tests require Bun on PATH");
+  await fs.mkdir(binDir, { recursive: true });
+  const shimPath = path.join(binDir, "bun");
+  await fs.writeFile(
+    shimPath,
+    [
+      "#!/usr/bin/env bash",
+      'if [[ "$1" == "install" ]]; then',
+      "  shift",
+      installBody,
+      "fi",
+      `exec ${JSON.stringify(realBun)} "$@"`,
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await fs.chmod(shimPath, 0o755);
 }
 
 async function writeRegisteredSourceConfig(baseCwd: string, instanceId = "source-instance") {
@@ -179,11 +207,59 @@ async function createTempRepo(defaultBranch = "main") {
   await runGit(repoRoot, ["init", "--initial-branch", defaultBranch]);
   await runGit(repoRoot, ["config", "user.email", "paperclip@example.com"]);
   await runGit(repoRoot, ["config", "user.name", "Paperclip Test"]);
+  // The real repository ignores installed trees and local instance state, so a
+  // fixture that committed them would hand its worktrees files the real one
+  // never checks out.
+  await fs.writeFile(path.join(repoRoot, ".gitignore"), "node_modules/\n.paperclip/\n", "utf8");
   await fs.writeFile(path.join(repoRoot, "README.md"), "hello\n", "utf8");
-  await runGit(repoRoot, ["add", "README.md"]);
+  await runGit(repoRoot, ["add", ".gitignore", "README.md"]);
   await runGit(repoRoot, ["commit", "-m", "Initial commit"]);
   await runGit(repoRoot, ["checkout", "-B", defaultBranch]);
   return repoRoot;
+}
+
+/**
+ * Writes the base checkout's CLI entry that `scripts/setup-paperclip-worktree.sh`
+ * boots for `worktree init`. Provisioning prefers this entry over an ambient
+ * `paperclipai` on PATH, so a fixture base without it would silently exercise
+ * whatever CLI the test runner's environment happens to expose.
+ *
+ * The entry reproduces the contract the script depends on: it creates the
+ * worktree's `.paperclip/config.json` and `.env` and anchors every runtime path
+ * under a per-instance root, which is what makes a rerun reuse the config
+ * instead of regenerating it.
+ */
+async function writeBaseCliEntry(baseCwd: string) {
+  const entryPath = path.join(baseCwd, "cli", "src", "index.ts");
+  await fs.mkdir(path.dirname(entryPath), { recursive: true });
+  await fs.writeFile(
+    entryPath,
+    [
+      'import fs from "node:fs";',
+      'import path from "node:path";',
+      'const cliArgs = process.argv.slice(2);',
+      'if (cliArgs.includes("--help")) process.exit(0);',
+      'if (cliArgs[0] !== "worktree" || cliArgs[1] !== "init") process.exit(1);',
+      'const instanceArg = cliArgs.indexOf("--instance");',
+      'const instanceId = instanceArg === -1 ? "fixture" : cliArgs[instanceArg + 1];',
+      'const stateDir = path.join(process.cwd(), ".paperclip");',
+      'const instanceRoot = path.join(stateDir, "runtime", "instances", instanceId);',
+      'fs.mkdirSync(instanceRoot, { recursive: true });',
+      'const configPath = path.join(stateDir, "config.json");',
+      'fs.writeFileSync(configPath, JSON.stringify({',
+      '  $meta: { version: 1, source: "fixture-cli" },',
+      '  database: { mode: "embedded-postgres", embeddedPostgresDataDir: path.join(instanceRoot, "db"), embeddedPostgresPort: 54329, backup: { enabled: false, intervalMinutes: 60, retentionDays: 30, dir: path.join(instanceRoot, "backups") } },',
+      '  logging: { mode: "file", logDir: path.join(instanceRoot, "logs") },',
+      '  server: { deploymentMode: "local_trusted", exposure: "private", host: "127.0.0.1", port: 3101, allowedHostnames: [], serveUi: true },',
+      '  storage: { provider: "local_disk", localDisk: { baseDir: path.join(instanceRoot, "data", "storage") } },',
+      '  secrets: { provider: "local_encrypted", strictMode: false, localEncrypted: { keyFilePath: path.join(instanceRoot, "secrets", "master.key") } },',
+      '}, null, 2));',
+      'fs.writeFileSync(path.join(stateDir, ".env"), [`PAPERCLIP_HOME=${instanceRoot}`, `PAPERCLIP_INSTANCE_ID=${instanceId}`, `PAPERCLIP_CONFIG=${configPath}`, "PAPERCLIP_IN_WORKTREE=true", ""].join("\\n"));',
+      "process.exit(0);",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
 }
 
 async function expectPersistedBranchMismatchRejected(input: {
@@ -704,7 +780,7 @@ describe("ensureServerWorkspaceLinksCurrent", () => {
     await fs.mkdir(stalePackageDir, { recursive: true });
     await fs.mkdir(serverNodeModulesScopeDir, { recursive: true });
     await fs.writeFile(path.join(repoRoot, ".git"), "gitdir: /tmp/paperclip-main/.git/worktrees/runtime-links\n", "utf8");
-    await fs.writeFile(path.join(repoRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n  - server\n", "utf8");
+    await fs.writeFile(path.join(repoRoot, "bunfig.toml"), "packages:\n  - packages/*\n  - server\n", "utf8");
     await fs.writeFile(
       path.join(repoRoot, "server", "package.json"),
       JSON.stringify({
@@ -740,7 +816,7 @@ describe("ensureServerWorkspaceLinksCurrent", () => {
     await fs.mkdir(expectedPackageDir, { recursive: true });
     await fs.mkdir(serverNodeModulesScopeDir, { recursive: true });
     await fs.writeFile(path.join(repoRoot, ".git"), "gitdir: /tmp/paperclip-main/.git/worktrees/runtime-links-current\n", "utf8");
-    await fs.writeFile(path.join(repoRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n  - server\n", "utf8");
+    await fs.writeFile(path.join(repoRoot, "bunfig.toml"), "packages:\n  - packages/*\n  - server\n", "utf8");
     await fs.writeFile(
       path.join(repoRoot, "server", "package.json"),
       JSON.stringify({
@@ -773,7 +849,7 @@ describe("ensureServerWorkspaceLinksCurrent", () => {
     await fs.mkdir(expectedPackageDir, { recursive: true });
     await fs.mkdir(stalePackageDir, { recursive: true });
     await fs.mkdir(serverNodeModulesScopeDir, { recursive: true });
-    await fs.writeFile(path.join(repoRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n  - server\n", "utf8");
+    await fs.writeFile(path.join(repoRoot, "bunfig.toml"), "packages:\n  - packages/*\n  - server\n", "utf8");
     await fs.writeFile(
       path.join(repoRoot, "server", "package.json"),
       JSON.stringify({
@@ -2007,8 +2083,9 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     process.env.PAPERCLIP_WORKTREES_DIR = isolatedWorktreeHome;
     delete process.env.PAPERCLIP_CONFIG;
     // Keep this server-side fixture on provision-worktree.sh's config writer path;
-    // CLI/database seeding is covered by the CLI worktree tests.
-    await fs.symlink(process.execPath, path.join(isolatedBin, "node"));
+    // CLI/database seeding is covered by the CLI worktree tests. Bun is the only
+    // runtime the script accepts, so the isolated PATH must still reach it.
+    await fs.symlink(process.execPath, path.join(isolatedBin, "bun"));
     process.env.PATH = `${isolatedBin}${path.delimiter}/usr/bin${path.delimiter}/bin`;
 
     await fs.mkdir(sharedConfigDir, { recursive: true });
@@ -2193,7 +2270,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
   }, 15_000);
 
   it(
-    "provisions worktree-local pnpm node_modules instead of reusing base-repo links",
+    "provisions worktree-local node_modules instead of reusing base-repo links",
     async () => {
     const repoRoot = await createTempRepo();
     await writeRegisteredSourceConfig(repoRoot);
@@ -2206,7 +2283,8 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         {
           name: "workspace-root",
           private: true,
-          packageManager: "pnpm@9.15.4",
+          packageManager: "bun@1.4.4",
+          workspaces: ["packages/*", "server"],
         },
         null,
         2,
@@ -2214,8 +2292,9 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       "utf8",
     );
     await fs.writeFile(
-      path.join(repoRoot, "pnpm-workspace.yaml"),
-      ["packages:", "  - packages/*", "  - server", ""].join("\n"),
+      path.join(repoRoot, "bunfig.toml"),
+      // Per-package node_modules, matching the layout this test asserts.
+      ["[install]", "linker = \"isolated\"", ""].join("\n"),
       "utf8",
     );
     await fs.writeFile(
@@ -2253,9 +2332,10 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     await fs.writeFile(path.join(repoRoot, "server", "index.js"), "export {};\n", "utf8");
     await fs.copyFile(provisionWorktreeScriptPath, path.join(repoRoot, "scripts", "provision-worktree.sh"));
     await fs.chmod(path.join(repoRoot, "scripts", "provision-worktree.sh"), 0o755);
-    await runPnpm(repoRoot, ["install"]);
+    await runBunInstall(repoRoot, []);
+    await writeBaseCliEntry(repoRoot);
     await runGit(repoRoot, ["add", "."]);
-    await runGit(repoRoot, ["commit", "-m", "Add pnpm workspace fixture"]);
+    await runGit(repoRoot, ["commit", "-m", "Add Bun workspace fixture"]);
 
     const workspace = await realizeExecutionWorkspace({
       base: {
@@ -2307,7 +2387,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         {
           name: "workspace-root",
           private: true,
-          packageManager: "pnpm@9.15.4",
+          packageManager: "bun@1.4.4",
         },
         null,
         2,
@@ -2315,27 +2395,23 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       "utf8",
     );
     await fs.writeFile(
-      path.join(repoRoot, "pnpm-lock.yaml"),
-      [
-        "lockfileVersion: '9.0'",
-        "",
-        "settings:",
-        "  autoInstallPeers: true",
-        "  excludeLinksFromLockfile: false",
-        "",
-        "importers:",
-        "  .: {}",
-        "",
-      ].join("\n"),
+      path.join(repoRoot, "bun.lock"),
+      `${JSON.stringify({
+        lockfileVersion: 3,
+        configVersion: 1,
+        workspaces: { "": { name: "workspace-root" } },
+        packages: {},
+      }, null, 2)}\n`,
       "utf8",
     );
     await fs.copyFile(provisionWorktreeScriptPath, path.join(repoRoot, "scripts", "provision-worktree.sh"));
     await fs.chmod(path.join(repoRoot, "scripts", "provision-worktree.sh"), 0o755);
+    await writeBaseCliEntry(repoRoot);
 
     await fs.mkdir(path.join(repoRoot, "node_modules"), { recursive: true });
     await fs.writeFile(path.join(repoRoot, "node_modules", ".keep"), "", "utf8");
 
-    await runGit(repoRoot, ["add", "package.json", "pnpm-lock.yaml", "scripts/provision-worktree.sh"]);
+    await runGit(repoRoot, ["add", "package.json", "bun.lock", "scripts/provision-worktree.sh", "cli/src/index.ts"]);
     await runGit(repoRoot, ["commit", "-m", "Add minimal provision fixture"]);
 
     const workspace = await realizeExecutionWorkspace({
@@ -2371,18 +2447,20 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     );
   }, 30_000);
 
-  it("reinstalls worktree-local pnpm dependencies when package metadata changes", async () => {
+  it("reinstalls worktree-local dependencies when package metadata changes", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-stale-deps-"));
     const baseRoot = path.join(tempRoot, "base");
     const worktreeRoot = path.join(tempRoot, "worktree");
     const fakeBin = path.join(tempRoot, "bin");
-    const fakePnpmPath = path.join(fakeBin, "pnpm");
     const scriptPath = path.join(worktreeRoot, "provision-worktree.sh");
     const installLogPath = path.join(tempRoot, "install.log");
 
     try {
       await fs.mkdir(path.join(baseRoot, "node_modules"), { recursive: true });
       await writeRegisteredSourceConfig(baseRoot);
+      // The base checkout owns the CLI the script boots; without it the
+      // script would fall through to an ambient `paperclipai`.
+      await writeBaseCliEntry(baseRoot);
       await fs.mkdir(path.join(worktreeRoot, "node_modules"), { recursive: true });
       await fs.mkdir(path.join(worktreeRoot, "ui"), { recursive: true });
       await fs.mkdir(fakeBin, { recursive: true });
@@ -2394,7 +2472,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
           {
             name: "workspace-root",
             private: true,
-            packageManager: "pnpm@9.15.4",
+            packageManager: "bun@1.4.4",
           },
           null,
           2,
@@ -2402,8 +2480,13 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         "utf8",
       );
       await fs.writeFile(
-        path.join(worktreeRoot, "pnpm-lock.yaml"),
-        ["lockfileVersion: '9.0'", "", "importers:", "  .: {}", ""].join("\n"),
+        path.join(worktreeRoot, "bun.lock"),
+        `${JSON.stringify({
+          lockfileVersion: 3,
+          configVersion: 1,
+          workspaces: { "": { name: "workspace-root" }, ui: { name: "ui" } },
+          packages: {},
+        }, null, 2)}\n`,
         "utf8",
       );
       await fs.writeFile(
@@ -2411,24 +2494,17 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         JSON.stringify({ name: "ui", private: true, dependencies: {} }, null, 2),
         "utf8",
       );
-      await fs.writeFile(
-        fakePnpmPath,
+      await writeBunShim(
+        fakeBin,
         [
-          "#!/bin/sh",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"--help\" ]; then",
-          "  exit 1",
-          "fi",
-          "if [ \"$1\" = \"install\" ] && [ \"$2\" = \"--prod=false\" ] && [ \"$3\" = \"--frozen-lockfile\" ]; then",
-          "  mkdir -p \"$PWD/node_modules\"",
-          `  echo "install:$*" >> ${JSON.stringify(installLogPath)}`,
+          'if [[ "$1" == "--frozen-lockfile" ]]; then',
+          '  mkdir -p "$PWD/node_modules"',
+          `  echo "install:install $*" >> ${JSON.stringify(installLogPath)}`,
           "  exit 0",
           "fi",
           "exit 1",
-          "",
         ].join("\n"),
-        "utf8",
       );
-      await fs.chmod(fakePnpmPath, 0o755);
 
       const runScript = () => execFileAsync(scriptPath, [], {
         cwd: worktreeRoot,
@@ -2443,7 +2519,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       await runScript();
       await runScript();
       await expect(fs.readFile(installLogPath, "utf8")).resolves.toBe(
-        "install:install --prod=false --frozen-lockfile\n",
+        "install:install --frozen-lockfile\n",
       );
 
       await fs.writeFile(
@@ -2458,7 +2534,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
 
       await runScript();
       await expect(fs.readFile(installLogPath, "utf8")).resolves.toBe(
-        "install:install --prod=false --frozen-lockfile\ninstall:install --prod=false --frozen-lockfile\n",
+        "install:install --frozen-lockfile\ninstall:install --frozen-lockfile\n",
       );
     } finally {
       await fs.rm(tempRoot, { recursive: true, force: true });
@@ -2469,34 +2545,27 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-provision-fail-"));
     const baseRoot = path.join(tempRoot, "base");
     const worktreeRoot = path.join(tempRoot, "worktree");
-    const fakeBin = path.join(tempRoot, "bin");
-    const fakePnpmPath = path.join(fakeBin, "pnpm");
     const scriptPath = path.join(worktreeRoot, "provision-worktree.sh");
 
     try {
       await fs.mkdir(baseRoot, { recursive: true });
       await writeRegisteredSourceConfig(baseRoot);
       await fs.mkdir(worktreeRoot, { recursive: true });
-      await fs.mkdir(fakeBin, { recursive: true });
       await fs.copyFile(provisionWorktreeScriptPath, scriptPath);
       await fs.chmod(scriptPath, 0o755);
+      // The base checkout carries a CLI entry that boots but fails `worktree
+      // init`, so provisioning must propagate the failure.
+      await fs.mkdir(path.join(baseRoot, "cli", "src"), { recursive: true });
       await fs.writeFile(
-        fakePnpmPath,
+        path.join(baseRoot, "cli", "src", "index.ts"),
         [
-          "#!/bin/sh",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"--help\" ]; then",
-          "  exit 0",
-          "fi",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"worktree\" ] && [ \"$3\" = \"init\" ]; then",
-          "  echo \"simulated init failure\" >&2",
-          "  exit 42",
-          "fi",
-          "exit 0",
+          'if (process.argv.slice(2).includes("--help")) process.exit(0);',
+          'console.error("simulated init failure");',
+          "process.exit(42);",
           "",
         ].join("\n"),
         "utf8",
       );
-      await fs.chmod(fakePnpmPath, 0o755);
 
       let caught: Error | null = null;
       try {
@@ -2504,7 +2573,6 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
           cwd: worktreeRoot,
           env: {
             ...process.env,
-            PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
             PAPERCLIP_WORKSPACE_BASE_CWD: baseRoot,
             PAPERCLIP_WORKSPACE_CWD: worktreeRoot,
           },
@@ -2526,8 +2594,6 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-stale-config-"));
     const baseRoot = path.join(tempRoot, "base");
     const worktreeRoot = path.join(tempRoot, "worktree");
-    const fakeBin = path.join(tempRoot, "bin");
-    const fakePnpmPath = path.join(fakeBin, "pnpm");
     const scriptPath = path.join(worktreeRoot, "provision-worktree.sh");
     const paperclipDir = path.join(worktreeRoot, ".paperclip");
 
@@ -2535,7 +2601,6 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
       await fs.mkdir(baseRoot, { recursive: true });
       await writeRegisteredSourceConfig(baseRoot);
       await fs.mkdir(paperclipDir, { recursive: true });
-      await fs.mkdir(fakeBin, { recursive: true });
       await fs.copyFile(provisionWorktreeScriptPath, scriptPath);
       await fs.chmod(scriptPath, 0o755);
       await fs.writeFile(
@@ -2574,31 +2639,31 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         ].join("\n"),
         "utf8",
       );
+      // The base checkout owns the CLI that rewrites the stale guest config.
+      await fs.mkdir(path.join(baseRoot, "cli", "src"), { recursive: true });
       await fs.writeFile(
-        fakePnpmPath,
+        path.join(baseRoot, "cli", "src", "index.ts"),
         [
-          "#!/bin/sh",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"--help\" ]; then",
-          "  exit 0",
-          "fi",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"worktree\" ] && [ \"$3\" = \"init\" ]; then",
-          "  mkdir -p \"$PWD/.paperclip\"",
-          "  printf '%s\\n' '{\"database\":{\"embeddedPostgresDataDir\":\"'$PWD'/.paperclip/runtime/db\"}}' > \"$PWD/.paperclip/config.json\"",
-          "  printf '%s\\n' \"PAPERCLIP_HOME=$PWD/.paperclip/runtime\" \"PAPERCLIP_INSTANCE_ID=healthy\" \"PAPERCLIP_CONFIG=$PWD/.paperclip/config.json\" > \"$PWD/.paperclip/.env\"",
-          "  exit 0",
-          "fi",
-          "exit 0",
+          'import fs from "node:fs";',
+          'import path from "node:path";',
+          'const cliArgs = process.argv.slice(2);',
+          'if (cliArgs.includes("--help")) process.exit(0);',
+          'if (cliArgs[0] !== "worktree" || cliArgs[1] !== "init") process.exit(1);',
+          'const stateDir = path.join(process.cwd(), ".paperclip");',
+          'fs.mkdirSync(stateDir, { recursive: true });',
+          'fs.writeFileSync(path.join(stateDir, "config.json"), JSON.stringify({ database: { embeddedPostgresDataDir: path.join(stateDir, "runtime", "db") } }));',
+          'const configPath = path.join(stateDir, "config.json");',
+          'fs.writeFileSync(path.join(stateDir, ".env"), [`PAPERCLIP_HOME=${path.join(stateDir, "runtime")}`, "PAPERCLIP_INSTANCE_ID=healthy", `PAPERCLIP_CONFIG=${configPath}`, ""].join("\\n"));',
+          "process.exit(0);",
           "",
         ].join("\n"),
         "utf8",
       );
-      await fs.chmod(fakePnpmPath, 0o755);
 
       const result = await execFileAsync(scriptPath, [], {
         cwd: worktreeRoot,
         env: {
           ...process.env,
-          PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
           PAPERCLIP_WORKSPACE_BASE_CWD: baseRoot,
           PAPERCLIP_WORKSPACE_CWD: worktreeRoot,
         },
@@ -2614,19 +2679,20 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
     }
   });
 
-  it("retries worktree-local pnpm install without a frozen lockfile when the lockfile is outdated", async () => {
+  it("retries worktree-local bun install without a frozen lockfile when the lockfile is outdated", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-worktree-outdated-lockfile-"));
     const baseRoot = path.join(tempRoot, "base");
     const worktreeRoot = path.join(tempRoot, "worktree");
     const fakeBin = path.join(tempRoot, "bin");
-    const fakePnpmPath = path.join(fakeBin, "pnpm");
     const scriptPath = path.join(worktreeRoot, "provision-worktree.sh");
 
     try {
       await fs.mkdir(path.join(baseRoot, "node_modules"), { recursive: true });
       await writeRegisteredSourceConfig(baseRoot);
+      // The base checkout owns the CLI the script boots; without it the
+      // script would fall through to an ambient `paperclipai`.
+      await writeBaseCliEntry(baseRoot);
       await fs.mkdir(worktreeRoot, { recursive: true });
-      await fs.mkdir(fakeBin, { recursive: true });
       await fs.copyFile(provisionWorktreeScriptPath, scriptPath);
       await fs.chmod(scriptPath, 0o755);
       await fs.writeFile(
@@ -2635,7 +2701,7 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
           {
             name: "workspace-root",
             private: true,
-            packageManager: "pnpm@9.15.4",
+            packageManager: "bun@1.4.4",
           },
           null,
           2,
@@ -2643,32 +2709,31 @@ process.stderr.write(${JSON.stringify(stderr)}, () => { process.exitCode = ${cod
         "utf8",
       );
       await fs.writeFile(
-        path.join(worktreeRoot, "pnpm-lock.yaml"),
-        ["lockfileVersion: '9.0'", "", "importers:", "  .: {}", ""].join("\n"),
+        path.join(worktreeRoot, "bun.lock"),
+        `${JSON.stringify({
+          lockfileVersion: 3,
+          configVersion: 1,
+          workspaces: { "": { name: "workspace-root" } },
+          packages: {},
+        }, null, 2)}\n`,
         "utf8",
       );
-      await fs.writeFile(
-        fakePnpmPath,
+      await writeBunShim(
+        fakeBin,
         [
-          "#!/bin/sh",
-          "if [ \"$1\" = \"paperclipai\" ] && [ \"$2\" = \"--help\" ]; then",
+          'if [[ "$1" == "--frozen-lockfile" ]]; then',
+          // Bun's frozen-lockfile drift diagnostic, verbatim from its CLI.
+          '  echo "error: lockfile had changes, but lockfile is frozen" >&2',
           "  exit 1",
           "fi",
-          "if [ \"$1\" = \"install\" ] && [ \"$2\" = \"--prod=false\" ] && [ \"$3\" = \"--frozen-lockfile\" ]; then",
-          "  echo \"ERR_PNPM_OUTDATED_LOCKFILE\" >&2",
-          "  exit 1",
-          "fi",
-          "if [ \"$1\" = \"install\" ] && [ \"$2\" = \"--prod=false\" ] && [ \"$3\" = \"--no-frozen-lockfile\" ]; then",
-          "  mkdir -p \"$PWD/node_modules\"",
-          "  : > \"$PWD/node_modules/.retry-success\"",
+          'if [[ "$1" == "--no-frozen-lockfile" ]]; then',
+          '  mkdir -p "$PWD/node_modules"',
+          '  : > "$PWD/node_modules/.retry-success"',
           "  exit 0",
           "fi",
           "exit 0",
-          "",
         ].join("\n"),
-        "utf8",
       );
-      await fs.chmod(fakePnpmPath, 0o755);
 
       const result = await execFileAsync(scriptPath, [], {
         cwd: worktreeRoot,

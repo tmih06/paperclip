@@ -144,13 +144,6 @@ async function start(ctx: ChatCatalogContext, input: ChatgptInput) {
     const child = spawn(
       process.execPath,
       [
-        "--import",
-        fileURLToPath(
-          new URL(
-            "../../../server/node_modules/tsx/dist/loader.mjs",
-            import.meta.url,
-          ),
-        ),
         fileURLToPath(new URL("./external-chatgpt-worker.ts", import.meta.url)),
         filename,
       ],

@@ -568,7 +568,7 @@ describeEmbeddedPostgres("reconstructable Git expiration", () => {
     const locations = await gitCacheExpirationLockLocations(row);
     const token = readGitCacheExpiration(row)!.lockToken!;
     const module = new URL("../services/git-workspace-expiration-locks.ts", import.meta.url).href;
-    const child = spawnSync(process.execPath, ["--import", createRequire(import.meta.url).resolve("tsx"), "--input-type=module", "-e", `
+    const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
       import fs from 'node:fs/promises';
       import { acquireGitExpirationLocks } from ${JSON.stringify(module)};
       ${beforePublication ? "fs.link = async () => process.exit(71);" : ""}

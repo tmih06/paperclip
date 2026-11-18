@@ -19,7 +19,7 @@ async function writeFailingClaudeCommand(
 ): Promise<void> {
   const payload = JSON.stringify(options.resultEvent);
   const exit = options.exitCode ?? 1;
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 console.log(${JSON.stringify(payload)});
 process.exit(${exit});
@@ -33,7 +33,7 @@ async function writeTextFailingClaudeCommand(
   options: { stdout?: string; stderr?: string; exitCode?: number },
 ): Promise<void> {
   const exit = options.exitCode ?? 1;
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 if (${JSON.stringify(options.stdout ?? "")}) {
   process.stdout.write(${JSON.stringify(options.stdout ?? "")});
@@ -48,7 +48,7 @@ process.exit(${exit});
 }
 
 async function writeFakeClaudeCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 const fs = require("node:fs");
 const path = require("node:path");
@@ -90,7 +90,7 @@ console.log(JSON.stringify({ type: "result", session_id: "11111111-1111-4111-811
 }
 
 async function writeHelpWithoutEffortClaudeCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 const fs = require("node:fs");
 const path = require("node:path");
@@ -129,7 +129,7 @@ console.log(JSON.stringify({ type: "result", session_id: "33333333-3333-4333-833
 }
 
 async function writeHelpWithEffortClaudeCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 const fs = require("node:fs");
 const path = require("node:path");
@@ -190,7 +190,7 @@ afterEach(() => {
 });
 
 async function writePoisonedMessageIdClaudeCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 const fs = require("node:fs");
 
@@ -227,7 +227,7 @@ console.log(JSON.stringify({ type: "result", session_id: "bbbbbbbb-bbbb-4bbb-8bb
 }
 
 async function writeAlwaysPoisonedMessageIdClaudeCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 const fs = require("node:fs");
 
@@ -258,7 +258,7 @@ process.exit(1);
 }
 
 async function writeRetryThenSucceedClaudeCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 const fs = require("node:fs");
 

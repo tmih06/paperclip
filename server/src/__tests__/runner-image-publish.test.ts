@@ -333,7 +333,7 @@ describe("lockfile state", () => {
   function context() {
     const directory = path.join(scratch, String(sequence += 1));
     mkdirSync(path.join(directory, "packages", "paperclip-runner"), { recursive: true });
-    writeFileSync(path.join(directory, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    writeFileSync(path.join(directory, "bun.lock"), "lockfileVersion: '9.0'\n");
     writeFileSync(path.join(directory, "packages", "paperclip-runner", "package.json"), "{}\n");
     return directory;
   }
@@ -358,7 +358,7 @@ describe("lockfile state", () => {
   });
 
   it.each([
-    [" ERR_PNPM_OUTDATED_LOCKFILE  Cannot install with \"frozen-lockfile\" because pnpm-lock.yaml is not up to date with <ROOT>/packages/paperclip-runner/package.json"],
+    [" ERR_PNPM_OUTDATED_LOCKFILE  Cannot install with \"frozen-lockfile\" because bun.lock is not up to date with <ROOT>/packages/paperclip-runner/package.json"],
     [" ERR_PNPM_LOCKFILE_CONFIG_MISMATCH  Cannot proceed with the frozen installation. The current \"patchedDependencies\" configuration doesn't match the value found in the lockfile"],
   ])("reports a lockfile the manifests have moved past as behind: %s", (stderr) => {
     const result = runnerLockState(context(), { run: answer(1, stderr).run });
@@ -377,7 +377,7 @@ describe("lockfile state", () => {
 
   it("fails for a directory that is not a Runner build context", () => {
     const directory = context();
-    rmSync(path.join(directory, "pnpm-lock.yaml"));
+    rmSync(path.join(directory, "bun.lock"));
     expect(() => runnerLockState(directory, { run: answer(0).run })).toThrow(/no pnpm-lock\.yaml/);
   });
 

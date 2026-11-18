@@ -1,12 +1,14 @@
-#!/usr/bin/env -S node --import tsx
+#!/usr/bin/env bun
 import fs from "node:fs/promises";
-import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { repoRoot } from "./dev-service-profile.ts";
 
 type WorkspaceLinkMismatch = {
   workspaceDir: string;
   packageName: string;
+  linkPath: string;
   expectedPath: string;
   actualPath: string | null;
 };
@@ -54,7 +56,7 @@ const workspaceDirs = Array.from(
 
 function findWorkspaceLinkMismatches(workspaceDir: string): WorkspaceLinkMismatch[] {
   const nodeModulesDir = path.join(repoRoot, workspaceDir, "node_modules");
-  if (!existsSync(nodeModulesDir)) {
+  if (!existsSync(nodeModulesDir) && !existsSync(path.join(repoRoot, "node_modules"))) {
     return [];
   }
 
@@ -64,6 +66,7 @@ function findWorkspaceLinkMismatches(workspaceDir: string): WorkspaceLinkMismatc
     ...(packageJson.devDependencies as Record<string, unknown> | undefined),
   };
   const mismatches: WorkspaceLinkMismatch[] = [];
+  const resolveFromWorkspace = createRequire(path.join(repoRoot, workspaceDir, "package.json"));
 
   for (const [packageName, version] of Object.entries(dependencies)) {
     if (typeof version !== "string" || !version.startsWith("workspace:")) continue;
@@ -71,13 +74,22 @@ function findWorkspaceLinkMismatches(workspaceDir: string): WorkspaceLinkMismatc
     const expectedPath = workspacePackagePaths.get(packageName);
     if (!expectedPath) continue;
 
-    const linkPath = path.join(repoRoot, workspaceDir, "node_modules", ...packageName.split("/"));
+    const searchRoots = (resolveFromWorkspace.resolve.paths(packageName) ?? []).filter((directory) => {
+      const relative = path.relative(repoRoot, directory);
+      return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+    });
+    const linkPath = searchRoots.map((directory) => path.join(directory, ...packageName.split("/")))
+      .find((candidate) => lstatSync(candidate, { throwIfNoEntry: false }))
+      ?? path.join(nodeModulesDir, ...packageName.split("/"));
     const actualPath = existsSync(linkPath) ? path.resolve(realpathSync(linkPath)) : null;
-    if (actualPath === path.resolve(expectedPath)) continue;
+    const portable = !lstatSync(linkPath, { throwIfNoEntry: false })?.isSymbolicLink()
+      || !path.isAbsolute(readlinkSync(linkPath));
+    if (actualPath === path.resolve(expectedPath) && portable) continue;
 
     mismatches.push({
       workspaceDir,
       packageName,
+      linkPath,
       expectedPath: path.resolve(expectedPath),
       actualPath,
     });
@@ -98,10 +110,16 @@ async function ensureWorkspaceLinksCurrent(workspaceDir: string) {
   }
 
   for (const mismatch of mismatches) {
-    const linkPath = path.join(repoRoot, mismatch.workspaceDir, "node_modules", ...mismatch.packageName.split("/"));
+    const { linkPath } = mismatch;
+    let existingParent = path.dirname(linkPath);
+    while (!existsSync(existingParent)) existingParent = path.dirname(existingParent);
+    const relativeParent = path.relative(realpathSync(repoRoot), realpathSync(existingParent));
+    if (relativeParent === ".." || relativeParent.startsWith(`..${path.sep}`) || path.isAbsolute(relativeParent)) {
+      throw new Error(`Refusing workspace repair outside the current checkout: ${linkPath}`);
+    }
     await fs.mkdir(path.dirname(linkPath), { recursive: true });
     await fs.rm(linkPath, { recursive: true, force: true });
-    await fs.symlink(mismatch.expectedPath, linkPath);
+    await fs.symlink(path.relative(path.dirname(linkPath), mismatch.expectedPath), linkPath);
   }
 
   const remainingMismatches = findWorkspaceLinkMismatches(workspaceDir);

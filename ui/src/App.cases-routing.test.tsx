@@ -64,6 +64,7 @@ vi.mock("./components/OnboardingWizardVariant", () => ({
 }));
 
 // Sentinel pages so we can assert *which* route resolved.
+vi.mock("./pages/Network", () => ({ Network: () => <div>NETWORK_PAGE</div> }));
 vi.mock("./pages/Cases", () => ({ Cases: () => <div>CASES_LIST_PAGE</div> }));
 vi.mock("./pages/CaseDetail", () => ({ CaseDetail: () => <div>CASE_DETAIL_PAGE</div> }));
 
@@ -130,6 +131,16 @@ describe("App Cases routing (PAP-13002)", () => {
     container.remove();
     document.body.innerHTML = "";
     vi.clearAllMocks();
+  });
+
+  it("redirects unprefixed /network to the company-prefixed Network page", async () => {
+    const root = await renderAppAt(container, "/network");
+    try {
+      await waitForRoute(container, "NETWORK_PAGE");
+      expect(container.textContent).not.toContain("No organization matches prefix");
+    } finally {
+      flushSync(() => root.unmount());
+    }
   });
 
   it("redirects unprefixed /cases to the company-prefixed list page", async () => {

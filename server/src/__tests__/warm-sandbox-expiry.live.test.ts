@@ -6,11 +6,11 @@
 //
 // Prerequisite: the Daytona provider is outside the root workspace, so install
 // and build it on its own first (this test loads its dist/ and its own SDK):
-//   pnpm --dir packages/plugins/sandbox-providers/daytona install
-//   pnpm --dir packages/plugins/sandbox-providers/daytona build
+//   bun run --cwd packages/plugins/sandbox-providers/daytona install
+//   bun run --cwd packages/plugins/sandbox-providers/daytona build
 // Then, from server/:
 //   PAPERCLIP_LIVE_WARM_EXPIRY=1 DAYTONA_API_KEY=... \
-//     pnpm exec vitest run src/__tests__/warm-sandbox-expiry.live.test.ts
+//     bun x vitest run src/__tests__/warm-sandbox-expiry.live.test.ts
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { access, writeFile } from "node:fs/promises";
@@ -133,7 +133,7 @@ describeLive("live Daytona warm sandbox expiry", () => {
     if (!process.env.DAYTONA_API_KEY) throw new Error("DAYTONA_API_KEY required");
     for (const url of [pluginUrl, manifestUrl]) {
       await access(new URL(url)).catch(() => {
-        throw new Error("Build the Daytona provider first: pnpm --dir packages/plugins/sandbox-providers/daytona install && pnpm --dir packages/plugins/sandbox-providers/daytona build");
+        throw new Error("Build the Daytona provider first: bun run --cwd packages/plugins/sandbox-providers/daytona install && bun run --cwd packages/plugins/sandbox-providers/daytona build");
       });
     }
     temporary = await startEmbeddedPostgresTestDatabase("live-warm-expiry-");

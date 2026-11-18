@@ -6,7 +6,7 @@ import { testEnvironment } from "@paperclipai/adapter-gemini-local/server";
 
 async function writeFakeGeminiCommand(binDir: string, argsCapturePath: string): Promise<string> {
   const commandPath = path.join(binDir, "gemini");
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 const fs = require("node:fs");
 const outPath = process.env.PAPERCLIP_TEST_ARGS_PATH;
 if (outPath) {
@@ -29,7 +29,7 @@ console.log(JSON.stringify({
 
 async function writeQuotaGeminiCommand(binDir: string): Promise<string> {
   const commandPath = path.join(binDir, "gemini");
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--help")) {
   process.exit(0);
 }

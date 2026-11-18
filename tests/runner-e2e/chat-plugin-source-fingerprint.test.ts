@@ -15,13 +15,13 @@ it.each(selected)("%s binds its actual source CLI, loader and required built SDK
   const descriptor = findChatCatalogCase(id)!;
   const implementation = await loadChatCatalogImplementation(descriptor);
   expect(implementation.sourceFiles).toEqual(descriptor.sourceFiles);
-  expect(descriptor.sourceFiles).toEqual(expect.arrayContaining(["../../cli/src/index.ts", "../../cli/node_modules/tsx/dist/loader.mjs", "../../packages/plugins/sdk/dist/index.js"]));
+  expect(descriptor.sourceFiles).toEqual(expect.arrayContaining(["../../cli/src/index.ts", "../../packages/shared/src/bun-version.ts", "../../packages/plugins/sdk/dist/index.js"]));
   expect(descriptor.sourceFiles).not.toContain("../../cli/dist/index.js");
 });
 
 it("resolves and hashes the actual executed source CLI and loader dependency closure without running either", () => {
   const root = fileURLToPath(new URL("../../", import.meta.url));
-  const entries = ["cli/src/index.ts", "cli/node_modules/tsx/dist/loader.mjs"];
+  const entries = ["cli/src/index.ts", "packages/shared/src/bun-version.ts"];
   const fingerprint = fingerprintChatDependencyClosure({ root, entries, selected: { fixture: "source-cli" } });
   for (const file of [...entries, "cli/src/commands/client/plugin.ts"]) {
     expect(fingerprint.sources).toContainEqual({ file, sha256: createHash("sha256").update(readFileSync(path.join(root, file))).digest("hex") });
@@ -36,6 +36,6 @@ it("still rejects missing actual source imports, the executed loader and require
   expect(() => fingerprint(["cli/src/index.ts"])).toThrow("Unresolved fingerprint dependency: ./command.js");
   writeFileSync(path.join(root, "cli/src/command.ts"), "export const command = 1;");
   expect(fingerprint(["cli/src/index.ts"]).sources.map(row => row.file)).toContain("cli/src/command.ts");
-  expect(() => fingerprint(["cli/src/index.ts", "cli/node_modules/tsx/dist/loader.mjs"])).toThrow("Unresolved fingerprint dependency");
+  expect(() => fingerprint(["cli/src/index.ts", "packages/shared/src/bun-version.ts"])).toThrow("Unresolved fingerprint dependency");
   expect(() => fingerprint(["cli/src/index.ts", "packages/plugins/sdk/dist/index.js"])).toThrow("Unresolved fingerprint dependency");
 });

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * codemod-extract-sizes.mjs
  *
@@ -76,7 +76,7 @@
  * operators (percent/length arithmetic), in addition to underscore reversal.
  *
  * Tailwind v4 paren-shorthand rewrite forms used (confirmed via mandatory
- * Step-0 syntax spike — scratch story + `pnpm build-storybook` + grep of
+ * Step-0 syntax spike — scratch story + `bun run build-storybook` + grep of
  * emitted CSS, then deleted before this codemod ran):
  *   w-[320px]              -> w-(--sz-320)                 width:var(--sz-320)
  *   max-h-[85vh]           -> max-h-(--sz-85vh)             max-height:var(...)
@@ -120,7 +120,7 @@
  * Idempotent: the FIND regex only matches the ORIGINAL bracket-literal form;
  * once rewritten the pattern no longer matches, so re-running is a no-op.
  *
- * Usage: node scripts/codemod-extract-sizes.mjs [--check]
+ * Usage: bun scripts/codemod-extract-sizes.mjs [--check]
  *   --check   Report what WOULD change without writing files (dry run).
  */
 

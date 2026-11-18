@@ -2,7 +2,8 @@ import { readPrivateAttemptObservation } from "./private-attempt-diagnostic.js";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createRequire, stripTypeScriptTypes } from "node:module";
+import { createRequire } from "node:module";
+import { transform } from "esbuild";
 import { cp, mkdtemp, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -285,7 +286,7 @@ it.each([0, 1])("actual launcher packaging call %s retains the verified private 
   calls.push(source.slice(match.index!, end));
  }
  expect(calls).toHaveLength(2);
- const code = stripTypeScriptTypes(`async function actualCall(manualPrivateHandoff, candidate, casePrivateDir, uploadDir, credentials, result) { return ${calls[index]}; }`, { mode: "strip" });
+ const { code } = await transform(`async function actualCall(manualPrivateHandoff, candidate, casePrivateDir, uploadDir, credentials, result) { return ${calls[index]}; }`, { loader: "ts" });
  const actualCall = Function("packageEvidence", "privateCellEvidenceOwner", `${code}; return actualCall;`)(packageEvidence, privateCellEvidenceOwner) as (context: ManualPrivateHandoff | undefined, candidate: { id: string }, source: string, target: string, secrets: string[], result: { status: string }) => ReturnType<typeof packageEvidence>;
  const f = await fixture();
  const packaged = await actualCall(f.context, { id: f.id }, f.cell, f.upload, [], { status: "failed" });
@@ -302,7 +303,7 @@ async function walkFiles(root: string, relative = ""): Promise<string[]> {
 }
 async function actualLauncherEvidenceBranch(packageCall = packageEvidence) {
   const source = await readFile(new URL("./launch.ts", import.meta.url), "utf8");
-  const parser = createRequire(import.meta.url)("../../node_modules/.pnpm/@babel+parser@7.29.8/node_modules/@babel/parser");
+  const parser = createRequire(import.meta.url)("@babel/parser");
   const ast = parser.parse(source, { sourceType: "module", plugins: ["typescript"] });
   let start = -1, end = -1;
   const visit = (node: any) => {
@@ -316,7 +317,7 @@ async function actualLauncherEvidenceBranch(packageCall = packageEvidence) {
   };
   visit(ast);
   expect(start).toBeGreaterThan(0); expect(end).toBeGreaterThan(start);
-  const code = stripTypeScriptTypes(`async function actualBranch(manualPrivateHandoff, candidate, casePrivateDir, resultsRoot, uploadDir, credentials, result, resultPath) { let manualDiagnostic; ${source.slice(start, end)} return result; }`, { mode: "strip" });
+  const { code } = await transform(`async function actualBranch(manualPrivateHandoff, candidate, casePrivateDir, resultsRoot, uploadDir, credentials, result, resultPath) { let manualDiagnostic; ${source.slice(start, end)} return result; }`, { loader: "ts" });
   const publisher = vi.fn(publishRunnerE2EAttemptEvidence);
   const branch = Function("preserveOriginalFrameworkResult", "writeFile", "sanitizeJson", "packageEvidence", "privateCellEvidenceOwner", "sealStandardOriginalEvidence", "publishRunnerE2EAttemptEvidence", "readPrivateAttemptObservation", "dropDuplicatePlaywrightOutput", "PRIVATE_FRAMEWORK_REPORT", "referenceSealedFrameworkAttachments", "path", "manualCellKind", `${code}; return actualBranch;`)(
     preserveOriginalFrameworkResult, writeFile, sanitizeJson, packageCall, privateCellEvidenceOwner, sealStandardOriginalEvidence, publisher, readPrivateAttemptObservation, dropDuplicatePlaywrightOutput, PRIVATE_FRAMEWORK_REPORT, referenceSealedFrameworkAttachments, path, manualCellKind,

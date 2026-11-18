@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * codemod-type-ladder.mjs
  *
@@ -31,7 +31,7 @@
  * IDEMPOTENT: a second run finds no old references and the ladder marker
  * already present in index.css, and changes nothing.
  *
- * Usage: node scripts/codemod-type-ladder.mjs
+ * Usage: bun scripts/codemod-type-ladder.mjs
  */
 
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";

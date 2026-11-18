@@ -1,6 +1,6 @@
 # Docker Quickstart
 
-Run Paperclip in Docker without installing Node or pnpm locally.
+Run Paperclip in Docker without installing Bun or Node locally.
 
 All commands below assume you are in the **project root** (the directory containing `package.json`), not inside `docker/`.
 
@@ -34,12 +34,16 @@ docker build -t paperclip-local \
 ```
 
 The image starts the server from a runtime bundle, `server/dist-runtime/index.mjs`,
-with plain `node`. The build creates it from the server's `tsc` output with
-`pnpm --filter @paperclipai/server build:runtime` (`server/scripts/bundle-runtime.mjs`),
-compiling in the workspace packages that otherwise load as TypeScript source.
-This avoids transpiling them through the tsx loader on every boot. To check a
-build boots, run `scripts/server-boot-smoke.sh node server/dist-runtime/index.mjs`;
-PR CI runs the same check after `pnpm build`.
+with Bun 1.4.4 from a digest-pinned image. The build creates it from the server's
+`tsc` output with `bun run --filter @paperclipai/server build:runtime`
+(`server/scripts/bundle-runtime.mjs`), compiling in workspace packages that
+otherwise load as TypeScript source. To check a build boots, run
+`scripts/server-boot-smoke.sh bun server/dist-runtime/index.mjs`;
+PR CI runs the same check after `bun run build`.
+
+Provider packs retain separate Bun and true Node binaries. First-party helpers
+use Bun; external provider distributions that require Node-specific module hooks
+continue using verified Node. Do not alias either executable to the other.
 
 ## Standard images and downstream composition
 
@@ -111,7 +115,7 @@ drift checks; repository CI runs those. See "The application image" in the
 contract for the rules a consumer of the application image can rely on.
 
 The Runner stages install with a frozen lockfile, so `docker build` fails when
-`pnpm-lock.yaml` is behind the manifests they read: the root `package.json`,
+`bun.lock` is behind the manifests they read: the root `package.json`,
 `packages/paperclip-runner` and `packages/paperclip-eval-kernel`. The
 `runner-lockfile` stage makes that check from those manifests and the lockfile
 alone, so it runs as soon as the `base` stage is built. The `deps` stage starts
@@ -127,7 +131,7 @@ lockfile in the checkout, then build again. Do not commit the result (see
 "Dependency Lockfile Policy" in `doc/ci-workflows.md`):
 
 ```sh
-pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
+bun install --lockfile-only --ignore-scripts --no-frozen-lockfile
 ```
 
 ### The Runner of the application image
@@ -142,7 +146,7 @@ verifies. On a `master` push it waits for the commit's own run of
 `runner-image.yml`, at most 40 minutes from the push. In every other case the
 build is inline, with a notice: no state of the Runner image fails an
 application image build. A build that copies the published image builds the
-committed `pnpm-lock.yaml`: the workflow does not refresh it first, and the
+committed `bun.lock`: the workflow does not refresh it first, and the
 `deps` stage resolves the other packages' manifests inside the image.
 
 An image that copied the published Runner has the labels
@@ -283,7 +287,7 @@ on the setup screen. This browser claim is disabled for `authenticated/public`;
 public deployments should run the high-entropy CLI invite fallback instead:
 
 ```sh
-pnpm paperclipai auth bootstrap-ceo
+bun run paperclipai auth bootstrap-ceo
 ```
 
 Granular overrides remain available if needed (`PAPERCLIP_AUTH_PUBLIC_BASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, `PAPERCLIP_ALLOWED_HOSTNAMES`).

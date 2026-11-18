@@ -22,7 +22,7 @@
  *
  *   git show <base>:server/src/services/heartbeat-run-events.ts \
  *     > server/src/services/heartbeat-run-events.baseline.ts
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-run-event-checkpoint-lock.ts
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-run-event-checkpoint-lock.ts
  *
  * Optional: EVENTS (default 400 per pass), PASSES (4), HOLD_MS (5), EVENT_KIB (2), SERIAL (0).
  * Delete the baseline copy afterwards.

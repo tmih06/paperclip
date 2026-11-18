@@ -2430,7 +2430,7 @@ it.skipIf(process.platform === "win32")(
     writeFileSync(
       executable,
       [
-        "#!/usr/bin/env node",
+        "#!/usr/bin/env bun",
         'process.stdout.write("token=raw-stdout-secret " + "o".repeat(256 * 1024));',
         'process.stderr.write("Authorization: Bearer raw-stderr-secret " + "e".repeat(256 * 1024));',
       ].join("\n"),

@@ -57,7 +57,7 @@ At the October 21, 2026 catalog audit, 47 suites declared 738 cells. `--all`
 included 179; the other 559 required explicit selection. The bounded weekly
 selection included four cells, and daily two. These are dated inventory counts,
 not live acceptance results or an enduring catalog-size contract. Inspect the
-current `pnpm test:e2e:runner -- --list` before choosing work. In particular,
+current `bun run test:e2e:runner -- --list` before choosing work. In particular,
 Everyday Workflows, provider connections, feedback persistence, interruption,
 and case handoffs must not be inferred from a passing `--all` campaign.
 
@@ -202,7 +202,7 @@ is `scripts/eval-schedule-monitor.mjs`. Run it through a separate host with an
 authenticated GitHub CLI and one private state file:
 
 ```sh
-node scripts/eval-schedule-monitor.mjs "$HOME/.config/paperclip-evals/schedule-monitor.json"
+bun scripts/eval-schedule-monitor.mjs "$HOME/.config/paperclip-evals/schedule-monitor.json"
 ```
 
 The observer uses only GitHub GET requests. It never starts or retries paid
@@ -233,7 +233,7 @@ Retained state includes the last successful inspection and inspected run IDs.
 entry has an ID. After confirmed delivery, the host acknowledges those IDs:
 
 ```sh
-node scripts/eval-schedule-monitor.mjs "$HOME/.config/paperclip-evals/schedule-monitor.json" --ack <notification-id> ...
+bun scripts/eval-schedule-monitor.mjs "$HOME/.config/paperclip-evals/schedule-monitor.json" --ack <notification-id> ...
 ```
 
 Until acknowledgment, later inspections return the same pending entries even

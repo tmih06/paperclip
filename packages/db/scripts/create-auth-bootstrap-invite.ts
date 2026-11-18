@@ -24,7 +24,7 @@ async function main() {
   const baseUrl = readArg("--base-url");
 
   if (!configPath || !baseUrl) {
-    throw new Error("Usage: tsx create-auth-bootstrap-invite.ts --config <path> --base-url <url>");
+    throw new Error("Usage: bun create-auth-bootstrap-invite.ts --config <path> --base-url <url>");
   }
 
   const config = JSON.parse(readFileSync(path.resolve(configPath), "utf8")) as {

@@ -22,8 +22,8 @@ export async function privateEmailOperation(input: EmailPrivateInput, privateSec
   privateSecrets.push(input.credential, ...input.cookies.map(row => row.value), ...(input.reviewer ? [input.reviewer.credential] : [])); const directory = await mkdtemp(path.join(tmpdir(), "paperclip-email-private-")); await chmod(directory, 0o700);
   try {
     const filename = path.join(directory, "request.json"); await writeFile(filename, JSON.stringify(input), { mode: 0o600, flag: "wx" });
-    const loader = fileURLToPath(new URL("../../../server/node_modules/tsx/dist/loader.mjs", import.meta.url)), worker = fileURLToPath(new URL("./runtime-email-private-worker.ts", import.meta.url));
-    let output: string; try { output = (await promisify(execFile)(process.execPath, ["--import", loader, worker, filename], { timeout: 180000, maxBuffer: 32768, env: { PATH: process.env.PATH ?? "", NODE_ENV: "test", HOME: directory, TMPDIR: directory, DO_NOT_TRACK: "1" } })).stdout; } catch { throw new Error("Actual private AgentMail operation failed; credential-bearing request and provider diagnostics withheld"); }
+    const worker = fileURLToPath(new URL("./runtime-email-private-worker.ts", import.meta.url));
+    let output: string; try { output = (await promisify(execFile)(process.execPath, [worker, filename], { timeout: 180000, maxBuffer: 32768, env: { PATH: process.env.PATH ?? "", NODE_ENV: "test", HOME: directory, TMPDIR: directory, DO_NOT_TRACK: "1" } })).stdout; } catch { throw new Error("Actual private AgentMail operation failed; credential-bearing request and provider diagnostics withheld"); }
     if (privateSecrets.some(secret => secret && [secret, encodeURIComponent(secret), Buffer.from(secret).toString("base64")].some(value => output.includes(value)))) throw new Error("Private email child exceeded its secret-free closed output; diagnostics withheld");
     let value: unknown; try { value = JSON.parse(output); } catch { throw new Error("Private email operation returned no closed receipt"); } return validateEmailPrivateReceipt(value, input);
   } finally { await rm(directory, { recursive: true, force: true }); }

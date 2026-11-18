@@ -69,6 +69,14 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
+      - &bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
+        env:
+          NPM_CONFIG_AUDIT: 'false'
+          NPM_CONFIG_FUND: 'false'
+          NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+        with:
+          bun-version: 1.4.4
       - &guard
         name: Verify the exact reusable protocol and main-only caller
         env:
@@ -77,15 +85,7 @@ jobs:
           CHAT_TESTOPS_PROTOCOL: ${{ inputs.protocol }}
         run: |
           test "$CHAT_TESTOPS_PROTOCOL" = streaming-v1
-          node tests/runner-e2e/chat-completion-testops-cli.mjs guard
-      - &pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        env:
-          NPM_CONFIG_AUDIT: 'false'
-          NPM_CONFIG_FUND: 'false'
-          NPM_CONFIG_UPDATE_NOTIFIER: 'false'
-        with:
-          version: 9.15.4
+          bun tests/runner-e2e/chat-completion-testops-cli.mjs guard
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.target_sha }}
@@ -115,23 +115,23 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C .testops-trusted rev-parse HEAD)" = "$GITHUB_SHA"
-          node .testops-trusted/tests/runner-e2e/chat-completion-testops-cli.mjs verify-selection chat-completion-testops-selection/testops-pilot-selection.json
+          bun .testops-trusted/tests/runner-e2e/chat-completion-testops-cli.mjs verify-selection chat-completion-testops-selection/testops-pilot-selection.json
           (cd chat-completion-build && sha256sum -c chat-completion-build.tar.gz.sha256)
           tar -xzf chat-completion-build/chat-completion-build.tar.gz -C "$GITHUB_WORKSPACE"
-          pnpm install --frozen-lockfile --ignore-scripts
-          (cd .testops-trusted && node tests/runner-e2e/prepare-report-lock.mjs && pnpm install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/chat-completion-retention-store")
+          bun install --frozen-lockfile --ignore-scripts
+          (cd .testops-trusted && bun tests/runner-e2e/prepare-report-lock.mjs && bun install --frozen-lockfile --ignore-scripts --cache-dir "$RUNNER_TEMP/chat-completion-retention-store")
       - name: Qualify the pinned provider runtime and preinstalled browser
         run: |
-          node packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
-          node -e 'const fs=require("node:fs");fs.chmodSync(process.execPath,fs.statSync(process.execPath).mode&~0o022);if(fs.statSync(process.execPath).mode&0o022)throw Error("Writable provider Node")'
+          bun packages/paperclip-runner/scripts/materialize-opencode-binary.mjs
+          bun -e 'const fs=require("node:fs");fs.chmodSync(process.execPath,fs.statSync(process.execPath).mode&~0o022);if(fs.statSync(process.execPath).mode&0o022)throw Error("Writable provider Node")'
           google-chrome --version
-          pnpm exec playwright install ffmpeg
+          bun x --bun --no-install playwright install ffmpeg
       - name: Bind exact private evidence under the authenticated TestOps authority
         id: private
         env:
           TARGET_ROOT: ${{ github.workspace }}
           SELECTED_EXECUTION_ID: ${{ fromJSON(inputs.cell).executionId }}
-        run: node .testops-trusted/cli/node_modules/tsx/dist/cli.mjs .testops-trusted/tests/runner-e2e/manual-private-transfer.ts prepare
+        run: bun .testops-trusted/tests/runner-e2e/manual-private-transfer.ts prepare
       - name: Obtain only this cell's exact-key storage session
         id: cell_credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
@@ -151,7 +151,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.cell_credentials.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.cell_credentials.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node .testops-trusted/cli/node_modules/tsx/dist/cli.mjs .testops-trusted/tests/runner-e2e/manual-private-transfer.ts verify
+        run: bun .testops-trusted/tests/runner-e2e/manual-private-transfer.ts verify
       - name: Execute only the selected original case with zero retries
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -170,11 +170,11 @@ jobs:
           # Agents can read any process's argv in /proc; keep the case id off the command line.
           selector=(--id "$PAPERCLIP_RUNNER_E2E_SELECTED_ID")
           if grep -q PAPERCLIP_RUNNER_E2E_SELECTED_ID tests/runner-e2e/selectors.ts 2>/dev/null; then selector=(); fi
-          pnpm test:e2e:runner -- "${selector[@]}" --max-parallel 1 --max-automatic-retries 0 > "$PRIVATE_EVIDENCE_ROOT/launcher-output.log" 2>&1
+          bun run test:e2e:runner -- "${selector[@]}" --max-parallel 1 --max-automatic-retries 0 > "$PRIVATE_EVIDENCE_ROOT/launcher-output.log" 2>&1
       - name: Retain original evidence after success or failure
         if: always() && steps.cell_credentials.outcome == 'success'
         env: *cell_session
-        run: node .testops-trusted/cli/node_modules/tsx/dist/cli.mjs .testops-trusted/tests/runner-e2e/manual-private-transfer.ts upload-cell
+        run: bun .testops-trusted/tests/runner-e2e/manual-private-transfer.ts upload-cell
 
   report:
     name: Retain private originals and build the exact safe TestOps projection
@@ -193,19 +193,19 @@ jobs:
     steps:
       - *checkout
       - *node
+      - *bun
       - *guard
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           artifact-ids: ${{ inputs.selection_artifact_id }}
           path: chat-completion-testops-selection
-      - *pnpm
       - name: Install trusted reporting dependencies with lifecycle scripts disabled
         run: |
-          node tests/runner-e2e/prepare-report-lock.mjs
-          pnpm install --frozen-lockfile --ignore-scripts --store-dir "$RUNNER_TEMP/chat-completion-report-store"
+          bun tests/runner-e2e/prepare-report-lock.mjs
+          bun install --frozen-lockfile --ignore-scripts --cache-dir "$RUNNER_TEMP/chat-completion-report-store"
       - name: Prepare unchanged exact-key report and cell policies
         id: session
-        run: node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/manual-private-transfer.ts report-session
+        run: bun tests/runner-e2e/manual-private-transfer.ts report-session
       - name: Obtain exact first-cell reader
         id: reader_0
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
@@ -225,11 +225,11 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ steps.reader_0.outputs.aws-secret-access-key }}
           AWS_SESSION_TOKEN: ${{ steps.reader_0.outputs.aws-session-token }}
           AWS_DEFAULT_REGION: ${{ vars.RUNNER_E2E_PRIVATE_HISTORY_AWS_REGION }}
-        run: node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/manual-private-transfer.ts download-cell
+        run: bun tests/runner-e2e/manual-private-transfer.ts download-cell
       - name: Verify every selected original and its completeness receipt
         env:
           PRIVATE_REPORT_ROOT: ${{ github.workspace }}
-        run: node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/manual-private-transfer.ts verify-downloads
+        run: bun tests/runner-e2e/manual-private-transfer.ts verify-downloads
       - name: Build the existing report while preserving failed source grades
         id: normalize
         continue-on-error: true
@@ -242,11 +242,11 @@ jobs:
           PAPERCLIP_RUNNER_E2E_SOURCE_REF: refs/heads/codex/chat-catalog-master-integration
         run: |
           mkdir -p runner-e2e-merged-report
-          pnpm test:e2e:runner:report > runner-e2e-merged-report/report.log 2>&1
+          bun run test:e2e:runner:report > runner-e2e-merged-report/report.log 2>&1
       - name: Export only exact reviewed synthetic fixture results
         id: export
         if: always() && steps.reader_0.outcome == 'success'
-        run: node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/chat-completion-testops-export.ts
+        run: bun tests/runner-e2e/chat-completion-testops-export.ts
       - name: Require a complete safe projection even after a failed normalization
         if: always()
         env:
@@ -265,7 +265,7 @@ jobs:
         run: |
           mkdir -m 700 "$RUNNER_TEMP/chat-catalog-case-bundle"
           cp -R runner-e2e-testops "$RUNNER_TEMP/chat-catalog-case-bundle/projection"
-          node tests/runner-e2e/chat-completion-testops-cli.mjs prepare-case-upload "$RUNNER_TEMP/chat-catalog-case-bundle/projection"
+          bun tests/runner-e2e/chat-completion-testops-cli.mjs prepare-case-upload "$RUNNER_TEMP/chat-catalog-case-bundle/projection"
           cp "$RUNNER_TEMP/chat-completion-testops-prepare-case-upload/prepared.json" "$RUNNER_TEMP/chat-catalog-case-bundle/prepared.json"
       - name: Retain the immutable metadata-only case bundle
         id: bundle
@@ -287,6 +287,7 @@ jobs:
     steps:
       - *checkout
       - *node
+      - *bun
       - *guard
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -309,7 +310,7 @@ jobs:
           CHAT_TESTOPS_EXECUTION_ID: ${{ fromJSON(inputs.cell).executionId }}
           CHAT_TESTOPS_PREPARED_FILE: ${{ runner.temp }}/chat-catalog-case-bundle/prepared.json
           ALLURE_RESULTS: ${{ runner.temp }}/chat-catalog-case-bundle/allure
-        run: node tests/runner-e2e/chat-completion-testops-cli.mjs upload-case "$RUNNER_TEMP/chat-catalog-case-bundle/projection"
+        run: bun tests/runner-e2e/chat-completion-testops-cli.mjs upload-case "$RUNNER_TEMP/chat-catalog-case-bundle/projection"
       - name: Retain only the closed singleton publication receipt
         if: always() && !cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

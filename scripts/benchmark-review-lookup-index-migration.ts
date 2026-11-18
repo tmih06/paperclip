@@ -2,7 +2,7 @@
  * Times migration 0456 through the normal migration runner on a large
  * synthetic database, including a rerun after the history row is removed.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-review-lookup-index-migration.ts
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-review-lookup-index-migration.ts
  *
  * Optional sizes: RUNS (default 200000), RUN_CONTEXT_KIB (8), LINKS (500000),
  * DELIVERIES (100000).

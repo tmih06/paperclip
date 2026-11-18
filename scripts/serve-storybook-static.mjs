@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Built Storybook plus the real, public on-demand avatar endpoint.
 // Uses an isolated disposable cache; no company database or credentials.
 import { createRequire } from "node:module";
@@ -31,7 +31,7 @@ if (!Number.isInteger(port) || port <= 0 || port > 65535) {
 }
 
 if (!existsSync(join(root, "index.html"))) {
-  console.error(`No built Storybook at ${root}. Run \`pnpm build-storybook\` first.`);
+  console.error(`No built Storybook at ${root}. Run \`bun run build-storybook\` first.`);
   process.exit(1);
 }
 
@@ -56,9 +56,9 @@ const MIME = {
   ".mp4": "video/mp4",
 };
 
+// Bun loads the server TypeScript sources directly. Express is still resolved
+// through the server package, which owns that dependency.
 const serverRequire = createRequire(new URL("../server/package.json", import.meta.url));
-const { register } = await import(serverRequire.resolve("tsx/esm/api"));
-register();
 const express = serverRequire("express");
 const { agentAvatarRoutes } = await import("../server/src/routes/agent-avatars.ts");
 const { createAgentAvatarService } = await import("../server/src/services/agent-avatars.ts");

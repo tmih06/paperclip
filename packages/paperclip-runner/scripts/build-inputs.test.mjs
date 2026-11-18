@@ -70,8 +70,8 @@ async function makeRepo() {
   const repoRoot = await mkdtemp(path.join(tmpdir(), "runner-build-inputs-"));
   await writeTree(repoRoot, {
     "package.json": "{}\n",
-    "pnpm-lock.yaml": "lockfileVersion: 9\n",
-    "pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+    "bun.lock": "lockfileVersion: 9\n",
+    "bunfig.toml": "packages:\n  - packages/*\n",
     "tsconfig.base.json": "{}\n",
     "patches/acpx@0.22.0.patch": "--- a\n+++ b\n",
     "patches/pi-acp@0.0.33.patch": "--- c\n+++ d\n",
@@ -123,8 +123,8 @@ test("the input set covers sources, the eval kernel, root patches and root confi
       "packages/paperclip-runner/src/index.ts",
       "patches/acpx@0.22.0.patch",
       "patches/pi-acp@0.0.33.patch",
-      "pnpm-lock.yaml",
-      "pnpm-workspace.yaml",
+      "bun.lock",
+      "bunfig.toml",
       "tsconfig.base.json",
     ]);
     assert.equal(files.length, INPUT_FILE_COUNT);
@@ -180,7 +180,7 @@ test("the digest is stable, ignores outputs and caches, and tracks every kind of
     await expectChange("the pi-acp patch the build copies into dist", { "patches/pi-acp@0.0.33.patch": "--- c\n+++ d\n+e\n" });
     await expectChange("the acpx patch the profile check hashes", { "patches/acpx@0.22.0.patch": "--- a\n+++ b\n+c\n" });
     await expectChange("a new patch", { "patches/brace-expansion@5.0.9.patch": "--- x\n+++ y\n" });
-    await expectChange("the lockfile", { "pnpm-lock.yaml": "lockfileVersion: 9\nchanged: true\n" });
+    await expectChange("the lockfile", { "bun.lock": "lockfileVersion: 9\nchanged: true\n" });
     await expectChange("the base tsconfig", { "tsconfig.base.json": '{"compilerOptions":{}}\n' });
     await expectChange("a new file", { "packages/paperclip-runner/protocol/new.json": "{}\n" });
     await rm(path.join(repoRoot, "packages/paperclip-runner/protocol/new.json"));
@@ -328,7 +328,7 @@ test("a build that did not begin, or that left a required output missing, cannot
       () => recordRunnerBuild({ repoRoot, packageRoot }),
       new RegExp(
         `no pending build inputs for build ${process.ppid} or ${process.pid} under .*paperclip-runner-build-inputs\\.pending: ` +
-          "the Runner build must start with `node scripts/record-build-inputs\\.mjs --begin`",
+          "the Runner build must start with `bun scripts/record-build-inputs\\.mjs --begin`",
       ),
     );
     assert.equal(readBuildInputsStamp(stampPath), null, "the previous stamp outlived a build that did not begin");

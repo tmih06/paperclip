@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Screenshot a single story id at desktop 1440x900.
 import fs from "node:fs/promises";
 import path from "node:path";

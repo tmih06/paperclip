@@ -13,7 +13,7 @@ import { seedIssueReadVisibilityFixture } from '../../server/src/__tests__/helpe
 import { listIssueNavigationState } from '../../server/src/services/issue-summaries.ts';
 import { issueReadSqlCondition } from '../../server/src/services/authorization.ts';
 
-// Run from the server package: pnpm --filter @paperclipai/server exec tsx scripts/benchmark-sidebar-subtasks.ts
+// Run from the server package: bun run --filter @paperclipai/server exec tsx scripts/benchmark-sidebar-subtasks.ts
 // All data is synthetic. The temporary PostgreSQL cluster is removed in finally.
 const directory = resolve(process.env.PAPERCLIP_BENCHMARK_OUTPUT ?? '../test-results/sidebar-subtasks-benchmark');
 await mkdir(directory, { recursive: true });

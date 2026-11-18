@@ -10,6 +10,7 @@ import {
   Search,
   SquarePen,
   Network,
+  Server,
   Boxes,
   Repeat,
   Layers,
@@ -160,6 +161,7 @@ export function Sidebar() {
             badgeTone={inboxBadge.failedRuns > 0 ? "danger" : "default"}
             alert={inboxBadge.failedRuns > 0}
           />
+          <SidebarNavItem to="/network" label="Servers" icon={Server} />
           {showDecisions ? (
             <SidebarNavItem
               to="/decisions"

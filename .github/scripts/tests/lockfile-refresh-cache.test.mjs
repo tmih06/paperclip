@@ -15,9 +15,9 @@ function cacheProvider(explicitCache, automaticCache, packageManager) {
   return undefined;
 }
 
-for (const packageManager of ["pnpm@9.15.4", "npm@11.0.0"]) {
+for (const packageManager of ["bun@1.4.4", "pnpm@9.15.4", "npm@11.0.0"]) {
   test(`resolution-only refresh cannot write a package-store cache (${packageManager})`, () => {
-    assert.match(workflow, /run: pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile/);
+    assert.match(workflow, /run: bun install --lockfile-only --ignore-scripts --no-frozen-lockfile/);
     assert.equal(
       cacheProvider(input("cache"), input("package-manager-cache"), packageManager),
       undefined,

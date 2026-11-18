@@ -1,2 +1,2 @@
 #!/bin/sh
-exec node "$(dirname "$0")/../in-feed-codex.mjs" --completion-stream-fixture "$@"
+exec bun "$(dirname "$0")/../in-feed-codex.mjs" --completion-stream-fixture "$@"

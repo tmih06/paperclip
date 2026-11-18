@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 /**
  * One-shot cleaner for `agent_task_sessions` rows whose persisted `claude_local`
  * session is poisoned by a non-`msg_*` `previous_message_id`.
@@ -19,7 +19,7 @@
  *     [--dry-run] [--json]
  *
  * Or in a Paperclip checkout shell:
- *   pnpm --filter @paperclipai/db exec tsx scripts/clean-poisoned-claude-sessions.ts --dry-run
+ *   bun run --filter @paperclipai/db exec tsx scripts/clean-poisoned-claude-sessions.ts --dry-run
  *
  * Exits 0 on success even when nothing was healed. Idempotent.
  */

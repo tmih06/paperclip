@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-pr-dependencies.mjs
  * Detects new npm packages added in this PR vs. the base branch.

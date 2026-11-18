@@ -23,7 +23,7 @@ issue is never confused with a real `PAP-` issue.
 
 The scripted driver replays a recorded conversation over the same mock core.
 It needs no provider credential, no runnerd process, and no network after
-`pnpm install`. It is the mode used for:
+`bun install`. It is the mode used for:
 
 - the 106-case conformance suite and its bounded parity report;
 - the byte-stable screenshot matrix;

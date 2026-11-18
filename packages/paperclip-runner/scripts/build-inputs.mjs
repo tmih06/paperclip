@@ -3,11 +3,11 @@
 // nothing it depends on has changed.
 //
 // server's `prepare:runner-vendor` runs the Runner's full `build`, because a
-// standalone `pnpm --filter @paperclipai/server build`
+// standalone `bun run --filter @paperclipai/server build`
 // must produce a current vendored Runner on its own. Inside `pnpm -r build`
 // the same command has just built the Runner a few seconds earlier, and the
 // rebuild cost 12-16s on the CI Build job's critical path (six master runs,
-// 2026-10-11), the same again in every other `pnpm build`.
+// 2026-10-11), the same again in every other `bun run build`.
 //
 // The Runner's `build` brackets itself with scripts/record-build-inputs.mjs:
 // `--begin` removes any previous stamp and writes a pending record of the
@@ -40,7 +40,7 @@
 // and brace-expansion patches into dist; and the root files the Runner's
 // tsconfig and dependency graph read. The toolchain pins live inside the
 // package (rust-toolchain.toml, runner/Cargo.lock), and the TypeScript version
-// comes from pnpm-lock.yaml, so both are covered.
+// comes from bun.lock, so both are covered.
 //
 // Outputs: the server build vendors packages/paperclip-runner/dist wholesale
 // (`cp -Rf ../packages/paperclip-runner/dist/. dist/vendor/paperclip-runner/`),
@@ -70,8 +70,8 @@ const EVAL_KERNEL_PACKAGE_RELATIVE = "packages/paperclip-eval-kernel";
 const ROOT_INPUT_DIRECTORIES = ["patches"];
 const ROOT_INPUT_FILES = [
   "package.json",
-  "pnpm-lock.yaml",
-  "pnpm-workspace.yaml",
+  "bun.lock",
+  "bunfig.toml",
   "tsconfig.base.json",
 ];
 const OUTPUT_DIRECTORY_RELATIVE = "dist";
@@ -338,7 +338,7 @@ export function recordRunnerBuild({
     throw new Error(
       `no pending build inputs for build ${candidates.join(" or ")} under ` +
         `${buildInputsPendingDirectory(packageRoot)}: the Runner build must start with ` +
-        "`node scripts/record-build-inputs.mjs --begin` before it can record its result",
+        "`bun scripts/record-build-inputs.mjs --begin` before it can record its result",
     );
   }
   rmSync(pendingPath, { force: true });

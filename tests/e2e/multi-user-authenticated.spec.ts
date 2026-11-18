@@ -60,14 +60,11 @@ function createBootstrapInvite() {
     throw new Error(`Authenticated bootstrap helper not found at ${BOOTSTRAP_SCRIPT_PATH}`);
   }
 
-  const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+  // Bun runs the TypeScript bootstrap helper directly, so the helper is the
+  // process under test rather than a package-manager launcher.
   return execFileSync(
-    pnpmCommand,
+    process.execPath,
     [
-      "--filter",
-      "@paperclipai/db",
-      "exec",
-      "tsx",
       BOOTSTRAP_SCRIPT_PATH,
       "--config",
       CONFIG_PATH,

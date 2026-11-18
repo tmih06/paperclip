@@ -488,7 +488,6 @@ describe('repository packages', () => {
     const scratch = await fs.mkdtemp(path.join(os.tmpdir(), 'skill-audit-deadline-'));
     try {
       const service = pathToFileURL(path.resolve(import.meta.dirname, '../services/company-skills.ts')).href;
-      const loader = path.resolve(import.meta.dirname, '../../../cli/node_modules/tsx/dist/loader.mjs');
       const script = `import { auditSkillSnapshot } from ${JSON.stringify(service)};
         process.once('message', async () => {
           try {
@@ -503,7 +502,7 @@ describe('repository packages', () => {
       const scriptPath = path.join(scratch, 'audit.mjs');
       await fs.writeFile(scriptPath, script);
       const child = fork(scriptPath, [], {
-        execArgv: ['--import', loader], silent: true, env: { ...process.env, TMPDIR: scratch },
+        execArgv: [], silent: true, env: { ...process.env, TMPDIR: scratch },
       });
       let stdout = '';
       let stderr = '';

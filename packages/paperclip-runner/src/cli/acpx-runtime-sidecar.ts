@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { recordSidecarShutdownThenQueue, sidecarShutdownSnapshot } from "./acpx-sidecar-shutdown.js";
 import { RUNNER_TOOL_BRIDGE_DIAGNOSTIC_CODE } from "../drivers/tool-input-coercion.js";
 import { classifyClaudeStatusBanner } from "../drivers/acpx/claude-status-banners.js";

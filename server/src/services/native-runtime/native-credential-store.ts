@@ -47,7 +47,7 @@ export function createNativeCredentialStore(input: {
   const read = async (name: string): Promise<string> => {
     if (!input.runner || !input.remoteHome) return readLocalAiCredentialFile(join(input.localHome, name));
     // Remote isolated-home preparation already requires Node. Read only on a refresh or retirement.
-    const result = await input.runner.execute({ command: "node", args: ["-e", READ_CREDENTIAL, posix.join(input.remoteHome, name)], bypassSession: true, timeoutMs: 10_000 });
+    const result = await input.runner.execute({ command: "bun", args: ["-e", READ_CREDENTIAL, posix.join(input.remoteHome, name)], bypassSession: true, timeoutMs: 10_000 });
     if (result.exitCode !== 0 || result.timedOut) throw Object.assign(new Error("Native credential export unavailable"), {
       code: result.exitCode === 66 && !result.timedOut ? "ENOENT" : "INVALID_CREDENTIAL",
     });

@@ -10,7 +10,7 @@ First I considered the root cause of the bug in the cursor logic. Then I traced 
 - Added .toISOString() call before binding anchor.createdAt to the postgres query
 
 ## Verification
-Run pnpm test:run:general and verify the cursor pagination tests pass.
+Run bun run test:run:general and verify the cursor pagination tests pass.
 
 ## Risks
 Low risk — isolated change to one query parameter.

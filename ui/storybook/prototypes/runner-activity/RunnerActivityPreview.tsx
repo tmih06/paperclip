@@ -88,7 +88,7 @@ const entries: Entry[] = [
     kind: "activity",
     id: "test",
     tool: "exec_command",
-    target: "pnpm check:token-gates",
+    target: "bun run check:token-gates",
     detail:
       "Token gates passed. No hardcoded visual values in the activity rows.",
   },

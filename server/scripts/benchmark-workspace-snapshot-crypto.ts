@@ -14,8 +14,8 @@
  *
  * The archive is synthetic random bytes: the storage layer treats it as opaque.
  *
- *   pnpm --filter @paperclipai/server exec tsx scripts/benchmark-workspace-snapshot-crypto.ts --mib=200
- *   pnpm --filter @paperclipai/server exec tsx scripts/benchmark-workspace-snapshot-crypto.ts --mib=1024
+ *   bun run --filter @paperclipai/server exec tsx scripts/benchmark-workspace-snapshot-crypto.ts --mib=200
+ *   bun run --filter @paperclipai/server exec tsx scripts/benchmark-workspace-snapshot-crypto.ts --mib=1024
  *
  * Options: --mib=<archive size, default 200>, --samples=<default 1>,
  * --no-load (skip the restore). To compare two revisions, run the same script

@@ -1,30 +1,37 @@
 [
   {
     "adapterType": "claude_local",
-    "runtimeImage": "ghcr.io/tmih06/paperclip:2026.1114.1-cloud",
+    "runtimeImage": "paperclip-ompig-runtime:0.1.10-bun1.4.4",
     "envKeys": ["ANTHROPIC_API_KEY"],
     "allowFqdns": ["api.anthropic.com"],
     "probeCommand": ["claude", "--version"]
   },
   {
     "adapterType": "codex_local",
-    "runtimeImage": "ghcr.io/tmih06/paperclip:2026.1114.1-cloud",
+    "runtimeImage": "paperclip-ompig-runtime:0.1.10-bun1.4.4",
     "envKeys": ["OPENAI_API_KEY"],
     "allowFqdns": ["api.openai.com"],
     "probeCommand": ["codex", "--version"]
   },
   {
     "adapterType": "gemini_local",
-    "runtimeImage": "ghcr.io/tmih06/paperclip:2026.1114.1-cloud",
+    "runtimeImage": "paperclip-ompig-runtime:0.1.10-bun1.4.4",
     "envKeys": ["GOOGLE_API_KEY", "GEMINI_API_KEY"],
     "allowFqdns": ["generativelanguage.googleapis.com"],
     "probeCommand": ["gemini", "--version"]
   },
   {
     "adapterType": "opencode_local",
-    "runtimeImage": "ghcr.io/tmih06/paperclip:2026.1114.1-cloud",
+    "runtimeImage": "paperclip-ompig-runtime:0.1.10-bun1.4.4",
     "envKeys": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY"],
     "allowFqdns": ["api.anthropic.com", "api.openai.com", "openrouter.ai"],
     "probeCommand": ["opencode", "--version"]
+  },
+  {
+    "adapterType": "ompig_slim",
+    "runtimeImage": "paperclip-ompig-runtime:0.1.10-bun1.4.4",
+    "envKeys": [],
+    "allowFqdns": [],
+    "probeCommand": ["ompig-slim", "durable", "--help"]
   }
 ]

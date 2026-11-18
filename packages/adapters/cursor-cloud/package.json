@@ -45,9 +45,9 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "bun x --bun --no-install tsc",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bun x --bun --no-install tsc --noEmit"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.28",

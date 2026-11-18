@@ -1,5 +1,6 @@
 import path from "path";
-import { defineConfig } from "vite";
+import { createRequire } from "node:module";
+import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { createUiDevWatchOptions } from "./src/lib/vite-watch";
@@ -9,42 +10,43 @@ import { readBrowserBuildCommit } from "./src/lib/vite-build-commit";
 import { preloadIssueDetail } from "./src/lib/vite-issue-detail-preload";
 
 const apiProxy = createApiProxy();
+const lexicalEntry = createRequire(import.meta.url).resolve("lexical");
 
 export default defineConfig(({ mode }) => ({
   define: {
-    __PAPERCLIP_BUILD_COMMIT__: JSON.stringify(
-      readBrowserBuildCommit(__dirname),
-    ),
+    __PAPERCLIP_BUILD_COMMIT__: JSON.stringify(readBrowserBuildCommit(__dirname)),
   },
   plugins: [react(), tailwindcss(), serviceWorkerBuildIdPlugin(), preloadIssueDetail()],
   build: {
-    minify: "esbuild",
+    minify: "oxc",
     rolldownOptions: {
       output: {
+        minify:
+          mode === "production"
+            ? {
+                compress: { dropConsole: true, dropDebugger: true, keepNames: { function: true, class: true } },
+                mangle: { keepNames: true },
+              }
+            : undefined,
+        comments: { legal: false },
         codeSplitting: {
           groups: [
             { name: "board-startup", tags: ["$initial"], priority: 10 },
-            { name: "collections", test: /\/src\/pages\/(?:Issues|Inbox|LegacyInbox|CoordinatorTasks)\.tsx$/, priority: 6 },
+            {
+              name: "collections",
+              test: /\/src\/pages\/(?:Issues|Inbox|LegacyInbox|CoordinatorTasks)\.tsx$/,
+              priority: 6,
+            },
             { name: "issue-detail", test: /\/src\/pages\/IssueDetail\.tsx$/, priority: 5 },
           ],
         },
       },
     },
   },
-  esbuild:
-    mode === "production"
-      ? {
-          // React's component trace uses function names. Keep those useful in
-          // error reports without publishing source maps or page context.
-          keepNames: true,
-          drop: ["console", "debugger"],
-          legalComments: "none",
-        }
-      : undefined,
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      lexical: path.resolve(__dirname, "./node_modules/lexical/dist/Lexical.mjs"),
+      lexical: path.join(path.dirname(lexicalEntry), "Lexical.mjs"),
     },
   },
   server: {

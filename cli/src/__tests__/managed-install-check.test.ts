@@ -2,7 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { managedInstallChecks } from "../checks/managed-install-check.js";
+import { bunRuntimeCheck, managedInstallChecks } from "../checks/managed-install-check.js";
+import { MINIMUM_BUN_VERSION } from "@paperclipai/shared/bun-version";
 import {
   MANAGED_STORE_MARKER,
   buildNextManifest,
@@ -13,9 +14,40 @@ import {
 } from "../install-store.js";
 
 const originalPath = process.env.PATH;
+const originalBunVersion = process.versions.bun;
 
 afterEach(() => {
   process.env.PATH = originalPath;
+  (process.versions as Record<string, string | undefined>).bun = originalBunVersion;
+});
+
+describe("Bun runtime doctor check", () => {
+  it("passes with the Bun that is running the check", () => {
+    expect(bunRuntimeCheck()).toEqual({
+      name: "Bun runtime",
+      status: "pass",
+      message: `Bun ${process.versions.bun}`,
+    });
+  });
+
+  it("fails on an old Bun and asks for a Bun upgrade, not a Node.js install", () => {
+    (process.versions as Record<string, string | undefined>).bun = "1.0.0";
+    const result = bunRuntimeCheck();
+    expect(result).toMatchObject({ name: "Bun runtime", status: "fail" });
+    expect(result.message).toBe("Bun 1.0.0 is unsupported");
+    expect(result.repairHint).toBe(`Upgrade to Bun ${MINIMUM_BUN_VERSION} or newer with \`bun upgrade\``);
+    expect(result.repairHint).not.toContain("Node.js");
+  });
+
+  it("fails when the process is not Bun at all", () => {
+    delete (process.versions as Record<string, string | undefined>).bun;
+    const result = bunRuntimeCheck();
+    expect(result).toMatchObject({ name: "Bun runtime", status: "fail" });
+    expect(result.message).toBe(
+      `Paperclip is not running on Bun (Node.js compatibility ${process.versions.node} at ${process.execPath})`,
+    );
+    expect(result.repairHint).toContain(`Bun ${MINIMUM_BUN_VERSION} or newer`);
+  });
 });
 
 describe("managed install doctor checks", () => {

@@ -62,7 +62,7 @@ export async function completeHumanGitHubGrant(ctx: ChatCatalogContext, input: O
     await writeFile(request, JSON.stringify({ ...input, origin: ctx.input.api.baseURL, auth, cookies, deadlineAt: Date.now() + 420000,
       executablePath: process.env.PAPERCLIP_RUNNER_E2E_CHROMIUM_EXECUTABLE ?? (channel ? undefined : chromium.executablePath()), channel }), { mode: 0o600 });
     let output: string;
-    try { output = (await promisify(execFile)(process.execPath, ["--import", fileURLToPath(new URL("../../../server/node_modules/tsx/dist/loader.mjs", import.meta.url)), fileURLToPath(new URL("./runtime-workspace-repositories-auth-worker.ts", import.meta.url)), request],
+    try { output = (await promisify(execFile)(process.execPath, [fileURLToPath(new URL("./runtime-workspace-repositories-auth-worker.ts", import.meta.url)), request],
       { timeout: 425000, maxBuffer: 32768, env: { PATH: process.env.PATH ?? "", NODE_ENV: "test", DO_NOT_TRACK: "1", HOME: directory, TMPDIR: directory } })).stdout; }
     catch { throw new Error("GitHub human authorization prerequisite or UI completion failed; private child diagnostics withheld"); }
     let receipt: ReadOnlyGitHubGrant;

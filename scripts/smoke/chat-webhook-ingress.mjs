@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Opt-in transport diagnostic, NOT a signed Slack event or an agent smoke test.
 import { Resolver } from "node:dns/promises";
 import http from "node:http";
@@ -11,7 +11,7 @@ export const TIMEOUT_MS = 8_000;
 export const INERT_BODY = "{}";
 // A real v0 signature has 64 hexadecimal hash characters. This cannot match it.
 export const INVALID_SIGNATURE = "v0=ingress-canary-invalid";
-const USAGE = `Usage: node scripts/smoke/chat-webhook-ingress.mjs --url HTTPS_SLACK_WEBHOOK
+const USAGE = `Usage: bun scripts/smoke/chat-webhook-ingress.mjs --url HTTPS_SLACK_WEBHOOK
   [--compare-url HTTP_LOOPBACK_SAME_PATH] [--relay-ip PUBLIC_IP]
 
 No arguments or --help sends nothing. The public URL must use a DNS hostname

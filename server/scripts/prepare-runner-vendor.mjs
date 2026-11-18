@@ -3,11 +3,11 @@
 //
 // The server build used to run the Runner's full `build`
 // unconditionally here. That is what lets a standalone
-// `pnpm --filter @paperclipai/server build` produce a current vendored Runner
-// on its own. But inside `pnpm -r build` the
+// `bun run --filter @paperclipai/server build` produce a current vendored Runner
+// on its own. But inside `bun run --workspaces build` the
 // Runner has just been built by the same command, and repeating it cost
 // 12-16s on the CI Build job's critical path (six master runs, 2026-10-11)
-// and the same again in every other `pnpm build`.
+// and the same again in every other `bun run build`.
 //
 // The Runner's `build` now records a digest of its inputs, captured before its
 // first step and confirmed after its last, together with a manifest of every
@@ -24,7 +24,7 @@
 // then never rebuilds. It reuses a current build as usual and fails, with the
 // reason, when the build is not current. It leaves the stamp in place.
 //
-// Usage: node scripts/prepare-runner-vendor.mjs [--repo-root <dir>]
+// Usage: bun scripts/prepare-runner-vendor.mjs [--repo-root <dir>]
 // The repo root defaults to this checkout; the flag exists for tests that
 // build a throwaway workspace layout.
 
@@ -38,7 +38,7 @@ import {
 } from "../../packages/paperclip-runner/scripts/build-inputs.mjs";
 
 /** The command the server build has always run here; the rebuild path is unchanged. */
-export const RUNNER_VENDOR_BUILD_COMMAND = "pnpm --filter @paperclipai/paperclip-runner build";
+export const RUNNER_VENDOR_BUILD_COMMAND = "bun run --filter @paperclipai/paperclip-runner build";
 export const FORCE_REBUILD_VARIABLE = "PAPERCLIP_RUNNER_VENDOR_REBUILD";
 export const REQUIRE_CURRENT_VARIABLE = "PAPERCLIP_RUNNER_VENDOR_REQUIRE_CURRENT";
 export const TIMING_SCHEMA = "paperclip.runner-vendor.timing.v1";
@@ -57,34 +57,40 @@ export function decideRunnerVendorAction({ env, assessment }) {
 }
 
 /**
- * The pnpm that is running this script, the same rule as the CLI's
- * resolvePnpmInstallInvocation: pnpm sets npm_execpath to its own entry, which
- * is a JavaScript file for a normal install (run through this Node) or a native
- * executable for a standalone pnpm (run directly). Outside a pnpm script,
- * `pnpm` on PATH is the only option. The pnpm entry is not always on PATH in a
- * script (corepack, for one), so this cannot just spawn `pnpm`.
+ * The Bun that is running this script. `bun run <script>` sets npm_execpath to
+ * the Bun binary, which is the only reliable handle on it: the binary is not
+ * always on PATH (version-manager shims, container images that exec an absolute
+ * path), so spawning a bare `bun` would pick a different install or none.
+ * Outside a Bun script the runtime that loaded this module is used when it is
+ * Bun, and `bun` on PATH is the last resort.
  */
-export function resolvePnpmInvocation(env = process.env, nodeExecPath = process.execPath) {
-  const npmExecPath = env.npm_execpath?.trim();
-  if (npmExecPath && npmExecPath.toLowerCase().includes("pnpm")) {
-    if (/\.(cjs|mjs|js)$/i.test(npmExecPath)) {
-      return { command: nodeExecPath, argsPrefix: [npmExecPath] };
-    }
-    return { command: npmExecPath, argsPrefix: [] };
-  }
-  return { command: "pnpm", argsPrefix: [] };
+export function resolveBunInvocation(env = process.env, execPath = process.execPath, isBun = Boolean(process.versions.bun)) {
+  const executor = env.npm_execpath?.trim();
+  if (executor && /(^|[\\/])bun(\.exe)?$/i.test(executor)) return { command: executor, argsPrefix: [] };
+  if (isBun) return { command: execPath, argsPrefix: [] };
+  return { command: "bun", argsPrefix: [] };
+}
+
+/**
+ * `RUNNER_VENDOR_BUILD_COMMAND` names Bun, and every caller already runs it
+ * through Bun. The invocation is still resolved rather than spawned as a bare
+ * `bun` so the exact binary that started this script runs the workspace build.
+ */
+export function resolveBuildInvocation(command, env = process.env, execPath = process.execPath, isBun) {
+  const [tool, ...args] = command.split(" ");
+  if (tool !== "bun") throw new Error(`unexpected build command ${command}`);
+  const bun = resolveBunInvocation(env, execPath, isBun);
+  return { command: bun.command, argsPrefix: [...bun.argsPrefix, ...args] };
 }
 
 export function runBuildCommand(command, { cwd, env = process.env }) {
-  const [tool, ...args] = command.split(" ");
-  if (tool !== "pnpm") throw new Error(`unexpected build command ${command}`);
-  const pnpm = resolvePnpmInvocation(env);
-  const result = spawnSync(pnpm.command, [...pnpm.argsPrefix, ...args], {
+  const build = resolveBuildInvocation(command, env);
+  const result = spawnSync(build.command, build.argsPrefix, {
     cwd,
     env,
     stdio: "inherit",
-    // A bare `pnpm` on Windows is pnpm.cmd, which needs the shell to resolve.
-    shell: pnpm.command === "pnpm" && process.platform === "win32",
+    // A bare `bun` on Windows is bun.exe, which needs the shell to resolve.
+    shell: build.command === "bun" && process.platform === "win32",
   });
   if (result.error) throw result.error;
   return result.status ?? 1;
@@ -117,7 +123,7 @@ export function prepareRunnerVendor({
     log(
       `prepare:runner-vendor: ${REQUIRE_CURRENT_VARIABLE}=1 forbids the Runner rebuild this step needs (${decision.detail}). `
         + "packages/paperclip-runner/dist and its build stamp must come from a Runner build of exactly this tree's Runner inputs, "
-        + "pnpm-lock.yaml included. Supply that build, or unset the variable to rebuild the Runner in this step.",
+        + "bun.lock included. Supply that build, or unset the variable to rebuild the Runner in this step.",
     );
     log(`${TIMING_SCHEMA},action:fail,reason:${decision.code},check_ms:${checkMs},build_ms:0,status:1`);
     return 1;

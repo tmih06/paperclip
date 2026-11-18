@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { parseAst } from "vite";
+import { parseAst } from "vite-plus";
 import { expect, it } from "vitest";
 
 // /api/ready means "this server can serve requests and take over". Each step

@@ -25,9 +25,8 @@ export async function privateIdentityBrowser(input: PrivateIdentityOperation, ca
     const request = path.join(directory, "request.json"); const channel = process.env.PAPERCLIP_PLAYWRIGHT_CHANNEL;
     await writeFile(request, JSON.stringify({ ...input, executablePath: process.env.PAPERCLIP_RUNNER_E2E_CHROMIUM_EXECUTABLE ?? (channel ? undefined : chromium.executablePath()), channel }), { mode: 0o600 });
     const worker = fileURLToPath(new URL("./identity-private-browser-worker.ts", import.meta.url));
-    const loader = fileURLToPath(new URL("../../../server/node_modules/tsx/dist/loader.mjs", import.meta.url));
     let output: string;
-    try { output = (await promisify(execFile)(process.execPath, ["--import", loader, worker, request], { timeout: (input.kind === "wizard" || input.kind === "new-company-native") ? Math.max(1, Math.min(540_000, input.deadlineAt - Date.now())) : 120_000,
+    try { output = (await promisify(execFile)(process.execPath, [worker, request], { timeout: (input.kind === "wizard" || input.kind === "new-company-native") ? Math.max(1, Math.min(540_000, input.deadlineAt - Date.now())) : 120_000,
       maxBuffer: 32_768, env: { PATH: process.env.PATH ?? "", NODE_ENV: "test", DO_NOT_TRACK: "1", HOME: directory, TMPDIR: directory } })).stdout; }
     catch { throw new Error(`Private identity browser operation failed${await readPrivateChildFailure(directory, IDENTITY_PRIVATE_STEPS)}; child diagnostics withheld`); }
     let receipt: PrivateIdentityReceipt;

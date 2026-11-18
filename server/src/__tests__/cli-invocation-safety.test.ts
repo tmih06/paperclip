@@ -15,7 +15,7 @@ import { generateReadme } from "../services/company-export-readme.js";
 // binary directly. It passes the argument as an inert argv value and does not
 // run a shell over the value. `npx paperclipai` is the safe form.
 //
-// `pnpm exec paperclipai` is not a safe substitute. The root workspace does not
+// `bun x paperclipai` is not a safe substitute. The root workspace does not
 // depend on the `paperclipai` package, so `pnpm` never links its binary into
 // `node_modules/.bin`. The command fails with `Command "paperclipai" not found`,
 // even after a build. The guard bans it from the guidance surfaces.
@@ -458,11 +458,11 @@ function scanForOffenders(): string[] {
   return offenders;
 }
 
-// A line that recommends the broken `pnpm exec paperclipai` form. A warning line
+// A line that recommends the broken `bun x paperclipai` form. A warning line
 // names the broken form on purpose to tell the reader not to use it. Skip such a
 // line, so the note itself does not trip the ban.
 function recommendsBrokenExecForm(line: string): boolean {
-  if (!line.includes("pnpm exec paperclipai")) return false;
+  if (!line.includes("bun x paperclipai")) return false;
   const lower = line.toLowerCase();
   const warns =
     lower.includes("broken") ||
@@ -567,11 +567,11 @@ describe("paperclipai CLI invocation safety", () => {
     ).toEqual([]);
   });
 
-  it("never recommends the broken pnpm exec paperclipai form", () => {
+  it("never recommends the broken bun x paperclipai form", () => {
     const offenders = scanForBrokenExecForm();
     expect(
       offenders,
-      `\`pnpm exec paperclipai\` does not resolve the CLI binary; use \`npx paperclipai\`:\n${offenders.join("\n")}`,
+      `\`bun x paperclipai\` does not resolve the CLI binary; use \`npx paperclipai\`:\n${offenders.join("\n")}`,
     ).toEqual([]);
   });
 
@@ -804,13 +804,13 @@ describe("paperclipai CLI invocation safety", () => {
     expect(source).toContain("run npx paperclipai allowed-hostname <host>");
     expect(source).not.toContain("allowed-hostname ${hostname}");
     expect(source).not.toContain("pnpm paperclipai allowed-hostname");
-    expect(source).not.toContain("pnpm exec paperclipai allowed-hostname");
+    expect(source).not.toContain("bun x paperclipai allowed-hostname");
   });
 
   it("emits a static, non-interpolated safe form from the onboarding access diagnostics", () => {
     const source = read("server/src/routes/access.ts");
     expect(source).not.toMatch(/pnpm paperclipai allowed-hostname/);
-    expect(source).not.toContain("pnpm exec paperclipai allowed-hostname");
+    expect(source).not.toContain("bun x paperclipai allowed-hostname");
     expect(source).toContain("npx paperclipai allowed-hostname <host>");
     // The onboarding host comes from the request base URL, so a requester
     // controls it. The emitted command must carry a static `<host>` placeholder
@@ -821,7 +821,7 @@ describe("paperclipai CLI invocation safety", () => {
   it("emits the safe form from the agent onboarding prompt", () => {
     const source = read("ui/src/lib/agent-onboarding-prompt.ts");
     expect(source).not.toContain("pnpm paperclipai allowed-hostname");
-    expect(source).not.toContain("pnpm exec paperclipai allowed-hostname");
+    expect(source).not.toContain("bun x paperclipai allowed-hostname");
     expect(source).toContain("npx paperclipai allowed-hostname <host>");
   });
 
@@ -832,13 +832,13 @@ describe("paperclipai CLI invocation safety", () => {
     );
     expect(readme).toContain("npx paperclipai company import this-github-url-or-folder");
     expect(readme).not.toContain("pnpm paperclipai company import");
-    expect(readme).not.toContain("pnpm exec paperclipai company import");
+    expect(readme).not.toContain("bun x paperclipai company import");
   });
 
   it("emits the safe form in the company-export preview builder", () => {
     const source = read("ui/src/pages/CompanyExport.tsx");
     expect(source).not.toContain("pnpm paperclipai company import");
-    expect(source).not.toContain("pnpm exec paperclipai company import");
+    expect(source).not.toContain("bun x paperclipai company import");
     expect(source).toContain("npx paperclipai company import");
   });
 
@@ -857,7 +857,7 @@ describe("paperclipai CLI invocation safety", () => {
     const source = read("server/src/startup-banner.ts");
     expect(source).toContain("npx paperclipai onboard");
     expect(source).not.toContain("pnpm paperclipai onboard");
-    expect(source).not.toContain("pnpm exec paperclipai onboard");
+    expect(source).not.toContain("bun x paperclipai onboard");
   });
 
   it("emits the safe run form from the client connection-error hint", () => {
@@ -880,11 +880,11 @@ describe("paperclipai CLI invocation safety", () => {
     expect(source).toContain("env-lab down");
     // The bare `pnpm paperclipai` script form is unsafe. Do not restore it.
     expect(source).not.toContain("pnpm paperclipai env-lab");
-    // `pnpm exec paperclipai` does not resolve the CLI binary. Do not use it.
-    expect(source).not.toContain("pnpm exec paperclipai env-lab");
+    // `bun x paperclipai` does not resolve the CLI binary. Do not use it.
+    expect(source).not.toContain("bun x paperclipai env-lab");
     // The CWD-relative form breaks from a checkout subdirectory. Do not restore it.
     expect(source).not.toContain(
-      "node cli/node_modules/tsx/dist/cli.mjs cli/src/index.ts env-lab down",
+      "bun cli/src/index.ts env-lab down",
     );
   });
 
@@ -892,14 +892,14 @@ describe("paperclipai CLI invocation safety", () => {
     const source = read("ui/src/bootstrapSetup.ts");
     expect(source).toContain("npx paperclipai auth bootstrap-ceo");
     expect(source).not.toContain("pnpm paperclipai auth bootstrap-ceo");
-    expect(source).not.toContain("pnpm exec paperclipai auth bootstrap-ceo");
+    expect(source).not.toContain("bun x paperclipai auth bootstrap-ceo");
   });
 
   it("emits the setup form from the board skill", () => {
     const source = read("skills/paperclip-board/SKILL.md");
     expect(source).toContain("npx paperclipai board setup");
     expect(source).not.toContain("pnpm paperclipai board setup");
-    expect(source).not.toContain("pnpm exec paperclipai board setup");
+    expect(source).not.toContain("bun x paperclipai board setup");
   });
 
   // ── The safe-invocation note ─────────────────────────────────────────────
@@ -920,10 +920,10 @@ describe("paperclipai CLI invocation safety", () => {
     expect(subsection).toContain("### Offline and air-gapped use");
     expect(subsection).toContain("npx --offline paperclipai");
     // The offline subsection must not present `pnpm paperclipai` or
-    // `pnpm exec paperclipai` as a safe or offline form. Only a warning line
+    // `bun x paperclipai` as a safe or offline form. Only a warning line
     // may name `pnpm paperclipai`, and it must tell the reader not to use it.
     for (const line of subsection.split("\n")) {
-      expect(line).not.toContain("pnpm exec paperclipai");
+      expect(line).not.toContain("bun x paperclipai");
       if (line.includes("pnpm paperclipai")) {
         expect(line.toLowerCase()).toContain("do not use");
       }
@@ -983,10 +983,10 @@ describe("paperclipai CLI invocation safety", () => {
     expect(scanText("doc/EXAMPLE.md", source)).toEqual([]);
   });
 
-  it("flags a recommended pnpm exec paperclipai line but skips a warning line", () => {
-    expect(recommendsBrokenExecForm("Run pnpm exec paperclipai issue create --title x")).toBe(true);
+  it("flags a recommended bun x paperclipai line but skips a warning line", () => {
+    expect(recommendsBrokenExecForm("Run bun x paperclipai issue create --title x")).toBe(true);
     expect(
-      recommendsBrokenExecForm("`pnpm exec paperclipai <command> <args>` — broken. Do not use it."),
+      recommendsBrokenExecForm("`bun x paperclipai <command> <args>` — broken. Do not use it."),
     ).toBe(false);
   });
 });

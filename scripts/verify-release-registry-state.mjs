@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { pathToFileURL } from "node:url";
 
@@ -29,7 +29,7 @@ function usage() {
   process.stderr.write(
     [
       "Usage:",
-      "  node scripts/verify-release-registry-state.mjs --channel <canary|nightly|beta|stable> --dist-tag <tag> --target-version <version> --package <name> [--package <name> ...] [--allow-canary-latest] [--allow-newer-canary]",
+      "  bun scripts/verify-release-registry-state.mjs --channel <canary|nightly|beta|stable> --dist-tag <tag> --target-version <version> --package <name> [--package <name> ...] [--allow-canary-latest] [--allow-newer-canary]",
       "",
     ].join("\n"),
   );

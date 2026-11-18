@@ -1,9 +1,12 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Runs the workspace typecheck with less memory, but more slowly. It checks one
 // package at a time, and scripts/run-tsc.mjs uses one thread for the largest
 // programs. See "Typecheck memory" in doc/test-infrastructure.md.
 //
-// Usage: node scripts/typecheck-low-memory.mjs
+// The steps are Bun commands. `--workspace-concurrency=1` was a pnpm option;
+// Bun's equivalent is `--sequential`, which runs one workspace script at a time.
+//
+// Usage: bun scripts/typecheck-low-memory.mjs
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -12,21 +15,21 @@ import { LOW_MEMORY_VARIABLE } from "./run-tsc.mjs";
 
 export const STEPS = [
   ["run", "preflight:workspace-links"],
-  ["-r", "--workspace-concurrency=1", "typecheck"],
+  ["run", "--workspaces", "--if-present", "--sequential", "typecheck"],
 ];
 
-export function runPnpm(args, options) {
-  const result = spawnSync("pnpm", args, {
+export function runBun(args, options) {
+  const result = spawnSync("bun", args, {
     ...options,
     stdio: "inherit",
-    // A bare `pnpm` on Windows is pnpm.cmd, which needs the shell to resolve.
+    // A bare `bun` on Windows is bun.exe, which needs the shell to resolve.
     shell: process.platform === "win32",
   });
   if (result.error) throw result.error;
   return result.status ?? 1;
 }
 
-export function typecheckLowMemory({ cwd, env = process.env, run = runPnpm }) {
+export function typecheckLowMemory({ cwd, env = process.env, run = runBun }) {
   for (const args of STEPS) {
     const status = run(args, { cwd, env: { ...env, [LOW_MEMORY_VARIABLE]: "1" } });
     if (status !== 0) return status;

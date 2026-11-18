@@ -57,4 +57,4 @@ jobs:
           HONEYCOMB_CI_DATASET: paperclip-ci
           HONEYCOMB_TEAM: paperclip
           HONEYCOMB_ENVIRONMENT: test
-        run: node scripts/ci-profile/export.mjs
+        run: bun scripts/ci-profile/export.mjs

@@ -28,7 +28,7 @@ tar -xf "$asset_tar" -C "$stage_dir" || exit 1
 keep_sandbox=0
 if [ -f "$sandbox_auth" ]; then
   if command -v node >/dev/null 2>&1; then
-    node "$decision_script" "$sandbox_auth" "$host_auth"
+    bun "$decision_script" "$sandbox_auth" "$host_auth"
     decision_rc=$?
     if [ "$decision_rc" -eq 10 ]; then
       keep_sandbox=1

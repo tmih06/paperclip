@@ -36,18 +36,18 @@ The accepted policy lives in [doc/plans/2026-05-06-llm-wiki-paperclip-asset-secu
 ## Development
 
 ```bash
-pnpm install
+bun install
 pnpm dev            # watch builds
 pnpm dev:ui         # local dev server with hot-reload events
-pnpm test
+bun run test
 ```
 
 From the Paperclip repo root:
 
 ```bash
-pnpm --filter @paperclipai/plugin-llm-wiki typecheck
-pnpm --filter @paperclipai/plugin-llm-wiki test
-pnpm --filter @paperclipai/plugin-llm-wiki build
+bun run --filter @paperclipai/plugin-llm-wiki typecheck
+bun run --filter @paperclipai/plugin-llm-wiki test
+bun run --filter @paperclipai/plugin-llm-wiki build
 ```
 
 ## Alpha Verification
@@ -56,9 +56,9 @@ Run these commands from the Paperclip repo root before handing off alpha plugin
 changes:
 
 ```bash
-pnpm --filter @paperclipai/plugin-llm-wiki typecheck
-pnpm --filter @paperclipai/plugin-llm-wiki test
-pnpm --filter @paperclipai/plugin-llm-wiki build
+bun run --filter @paperclipai/plugin-llm-wiki typecheck
+bun run --filter @paperclipai/plugin-llm-wiki test
+bun run --filter @paperclipai/plugin-llm-wiki build
 ```
 
 The focused Vitest suite covers:
@@ -92,14 +92,14 @@ curl -X POST http://127.0.0.1:3100/api/plugins/install \
 
 ## Build Options
 
-- `pnpm build` uses esbuild presets from `@paperclipai/plugin-sdk/bundlers`.
-- `pnpm build:rollup` uses rollup presets from the same SDK.
+- `bun run build` uses esbuild presets from `@paperclipai/plugin-sdk/bundlers`.
+- `bun run build:rollup` uses rollup presets from the same SDK.
 
 After changing manifest-loaded assets such as skills, agent instructions, or
 templates, recompile the local plugin before re-enabling it:
 
 ```bash
-pnpm --filter @paperclipai/plugin-llm-wiki build
+bun run --filter @paperclipai/plugin-llm-wiki build
 ```
 
 The package-local `dist/` directory is ignored by git, but local Paperclip

@@ -1,11 +1,11 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /** Run after the final server build and Linux daemon/provider-pack assembly. */
 import { createHash } from 'node:crypto';
 import { writeFile, realpath } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const [directory, sourceRevision, ...extra] = process.argv.slice(2);
-if (!directory || !/^[a-f0-9]{40}$/.test(sourceRevision ?? '') || extra.length) throw new Error('Usage: node scripts/create-runner-remote-companion.mjs DIRECTORY SOURCE_SHA');
+if (!directory || !/^[a-f0-9]{40}$/.test(sourceRevision ?? '') || extra.length) throw new Error('Usage: bun scripts/create-runner-remote-companion.mjs DIRECTORY SOURCE_SHA');
 const root = await realpath(directory);
 const { createRemotePiCompanionManifest } = await import(pathToFileURL(resolve('server/dist/services/native-runtime/remote-pi-companion.js')).href);
 const manifest = await createRemotePiCompanionManifest(root, sourceRevision);

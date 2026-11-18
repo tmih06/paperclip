@@ -20,7 +20,7 @@
  *
  * Run it against the preview's OWN database (never this instance's data):
  *   DATABASE_URL=postgres://... \
- *     pnpm --filter @paperclipai/server exec tsx ../scripts/seed-needs-you-demo.ts
+ *     bun run --filter @paperclipai/server exec tsx ../scripts/seed-needs-you-demo.ts
  *
  * Logins: the three demo users share one password, the DEMO_PASSWORD constant
  * below (override with SEED_DEMO_PASSWORD). Emails are listed in DEMO_USERS.

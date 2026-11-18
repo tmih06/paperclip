@@ -2,7 +2,7 @@
  * Run the universal checks U1–U5 over saved wave evidence, to measure false
  * positives before a rule is enforced.
  *
- *   node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/universal-audit.ts [--json] <results dir> [...]
+ *   bun tests/restart-chaos/universal-audit.ts [--json] <results dir> [...]
  *
  * Each results dir holds `w-*` wave directories with `<task>.grade.json`. A
  * task counts as known-good when it passed R1–R6 and T; a wave is known-good

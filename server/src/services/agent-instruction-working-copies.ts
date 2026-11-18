@@ -89,7 +89,7 @@ export function instructionWorkingCopyGuidance(copy: Pick<Copy, "executionRoot" 
 /** Remote reads use the registered entry only; never scan for files called AGENTS.md. */
 export function instructionCollectionScript(root: string, entry: string) {
   instructionPath(entry);
-  return `node -e ${quote([
+  return `bun -e ${quote([
     "const fs=require('node:fs'),path=require('node:path')",
     "const root=process.argv[1],entry=process.argv[2],max=Number(process.argv[3])",
     "const absolute=path.resolve(root,entry),parts=absolute.split('/').filter(Boolean)",
@@ -249,7 +249,7 @@ export function agentInstructionWorkingCopyService(db: Db, options: { environmen
       });
       if (staged.assetDirs.instructions !== executionRoot) throw new Error("Instruction copy staging path changed");
       const excluded = await runAdapterExecutionTargetShellCommand(input.runId, target,
-        `node -e ${quote(instructionGitExcludeProgram)} ${quote(target.remoteCwd)}`, { cwd: target.remoteCwd, env: {}, timeoutSec: 15 });
+        `bun -e ${quote(instructionGitExcludeProgram)} ${quote(target.remoteCwd)}`, { cwd: target.remoteCwd, env: {}, timeoutSec: 15 });
       if (excluded.exitCode !== 0 || excluded.timedOut) throw new Error("Could not exclude private instructions from Git staging");
     }
     // A refresh does not supersede the completed turn until every local and

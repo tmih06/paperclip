@@ -1,0 +1,6 @@
+[install]
+linker = "hoisted"
+peer = false
+
+[test]
+timeout = 120000

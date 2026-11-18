@@ -13,7 +13,7 @@
  * to give a reviewer the untouched demo.
  *
  *   BASE_URL=http://127.0.0.1:3200 \
- *     pnpm --filter @paperclipai/server exec tsx ../scripts/verify-needs-you-checklist.ts
+ *     bun run --filter @paperclipai/server exec tsx ../scripts/verify-needs-you-checklist.ts
  *
  * What it cannot prove: anything a browser shows (the live update without a
  * reload, the confirmation dialogs, the classic page's layout). Those steps are

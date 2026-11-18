@@ -39,7 +39,7 @@ jobs:
       - name: Generate commitperclip token
         id: token
         run: |
-          TOKEN=$(node .github/scripts/get-bot-token.mjs)
+          TOKEN=$(bun .github/scripts/get-bot-token.mjs)
           echo "::add-mask::$TOKEN"
           echo "value=$TOKEN" >> $GITHUB_OUTPUT
         env:
@@ -48,7 +48,7 @@ jobs:
       - name: Run quality gates
         id: quality
         if: github.event.pull_request.user.login != 'dependabot[bot]'
-        run: node .github/scripts/run-quality-gates.mjs
+        run: bun .github/scripts/run-quality-gates.mjs
         continue-on-error: true
         env:
           GH_TOKEN: ${{ steps.token.outputs.value }}

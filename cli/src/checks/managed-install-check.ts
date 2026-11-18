@@ -7,7 +7,7 @@ import {
   type InstallStorePaths,
 } from "../install-store.js";
 import type { CheckResult } from "./index.js";
-import { isSupportedNodeVersion, MINIMUM_NODE_VERSION } from "@paperclipai/shared/node-version";
+import { detectBunVersion, isSupportedBunVersion, MINIMUM_BUN_VERSION } from "@paperclipai/shared/bun-version";
 
 function pathContains(directory: string): boolean {
   const normalized = path.resolve(directory);
@@ -33,14 +33,23 @@ function hasManagedArtifacts(paths: InstallStorePaths): boolean {
   }
 }
 
-export function nodeRuntimeCheck(): CheckResult {
-  return isSupportedNodeVersion(process.versions.node)
-    ? { name: "Node.js runtime", status: "pass", message: `Node.js ${process.versions.node}` }
+export function bunRuntimeCheck(): CheckResult {
+  const bunVersion = detectBunVersion();
+  if (!bunVersion) {
+    return {
+      name: "Bun runtime",
+      status: "fail",
+      message: `Paperclip is not running on Bun (Node.js compatibility ${process.versions.node} at ${process.execPath})`,
+      repairHint: `Run Paperclip with Bun ${MINIMUM_BUN_VERSION} or newer, for example the downloaded install.sh workflow`,
+    };
+  }
+  return isSupportedBunVersion(bunVersion)
+    ? { name: "Bun runtime", status: "pass", message: `Bun ${bunVersion}` }
     : {
-        name: "Node.js runtime",
+        name: "Bun runtime",
         status: "fail",
-        message: `Node.js ${process.versions.node} is unsupported`,
-        repairHint: `Install Node.js ${MINIMUM_NODE_VERSION} or newer before installing or running Paperclip`,
+        message: `Bun ${bunVersion} is unsupported`,
+        repairHint: `Upgrade to Bun ${MINIMUM_BUN_VERSION} or newer with \`bun upgrade\``,
       };
 }
 

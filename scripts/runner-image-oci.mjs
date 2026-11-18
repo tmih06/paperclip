@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // OCI archives of the Runner image, as `docker buildx build --output type=oci`
 // writes them for one platform. doc/runner-image-contract.md is the contract.
 //
@@ -12,8 +12,8 @@
 //                 those.
 //
 // Usage:
-//   node scripts/runner-image-oci.mjs unpack IMAGE.oci.tar --out DIR
-//   node scripts/runner-image-oci.mjs check-layers [--slim SLIM.oci.tar] [--full FULL.oci.tar]
+//   bun scripts/runner-image-oci.mjs unpack IMAGE.oci.tar --out DIR
+//   bun scripts/runner-image-oci.mjs check-layers [--slim SLIM.oci.tar] [--full FULL.oci.tar]
 //
 // The archive and its layers are read here, not with the system's tar, so
 // every platform reads them the same way. Each blob is checked against its

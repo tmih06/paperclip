@@ -39,10 +39,10 @@ The package includes an operator-facing Cloudflare Worker scaffold under [bridge
 
 ```bash
 cd packages/plugins/sandbox-providers/cloudflare
-pnpm install --ignore-workspace --no-lockfile
-pnpm build
-pnpm test
-pnpm typecheck
+bun install --no-save
+bun run build
+bun run test
+bun run typecheck
 ```
 
 These commands assume the repo root has already been installed once so the local `@paperclipai/plugin-sdk` workspace package is available to the compiler during development.

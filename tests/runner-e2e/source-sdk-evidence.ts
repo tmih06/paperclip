@@ -98,7 +98,7 @@ export async function retainPreparedSourceSdk(input: { repositoryRoot: string; t
   await retainScanAudit(root, input.executionIds[0]!, scanAudit, true, secrets);
   const syntax = scanAudit.observations.some(row => row.classification === "public_schema_type");
   const receipt: RetainedBuild = { schema: syntax ? "paperclip.source-plugin-sdk/v2" : "paperclip.source-plugin-sdk/v1", ...(syntax ? { sourceRootSha256: hash(repository), scanAudit } : {}), executionId: input.executionIds[0]!, sourceRevision: input.sourceRevision!, retainedAt: new Date().toISOString(),
-    buildHelperSha256: hash(await readFile(path.join(repository, "scripts/ensure-plugin-build-deps.mjs"))), lockSha256: hash(await readFile(path.join(repository, "pnpm-lock.yaml"))),
+    buildHelperSha256: hash(await readFile(path.join(repository, "scripts/ensure-plugin-build-deps.mjs"))), lockSha256: hash(await readFile(path.join(repository, "bun.lock"))),
     certifiedTargets, files: buffers.map(({ bytes: _, ...row }) => ({ ...row, retainedPath: retainedPath(row.file), retainedSha256: row.sha256 })) };
   if (new Set(receipt.files.map(file => file.retainedPath)).size !== receipt.files.length) throw new Error("Source SDK retained filename collision");
   const receiptBytes = Buffer.from(JSON.stringify(receipt, null, 2) + "\n"); checkSecret(receiptBytes, secrets);

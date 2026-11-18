@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Restart chaos provider-message fault shim (PV1 delay, PV2 drop, PV3 duplicate).
 //
 // The harness installs this file as the `codex` executable of a stand-in

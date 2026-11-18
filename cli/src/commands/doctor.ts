@@ -10,7 +10,7 @@ import {
   llmCheck,
   logCheck,
   managedInstallChecks,
-  nodeRuntimeCheck,
+  bunRuntimeCheck,
   portCheck,
   secretsCheck,
   serviceHealthChecks,
@@ -126,9 +126,9 @@ export async function doctor(opts: {
   printResult(portResult);
 
   // 10. Runtime and managed install checks
-  const nodeResult = nodeRuntimeCheck();
-  results.push(nodeResult);
-  printResult(nodeResult);
+  const bunResult = bunRuntimeCheck();
+  results.push(bunResult);
+  printResult(bunResult);
   for (const result of managedInstallChecks()) {
     results.push(result);
     printResult(result);

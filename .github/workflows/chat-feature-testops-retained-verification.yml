@@ -25,8 +25,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
+        with:
+          bun-version: 1.4.4
       - name: Check the credential-free retained-verification controls
-        run: node --test tests/runner-e2e/chat-feature-testops-retained-verification.node-test.mjs
+        run: bun test tests/runner-e2e/chat-feature-testops-retained-verification.node-test.mjs
       - name: Read only the fixed retained measurement with separate executor identity
         env:
           GH_TOKEN: ${{ github.token }}
@@ -34,7 +37,7 @@ jobs:
           ALLURE_TOKEN: ${{ secrets.ALLURE_TOKEN }}
           NODE_OPTIONS: ''
           NODE_PATH: ''
-        run: node tests/runner-e2e/testops-chat-retained-verification.mjs
+        run: bun tests/runner-e2e/testops-chat-retained-verification.mjs
       - name: Retain only closed verification metadata
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

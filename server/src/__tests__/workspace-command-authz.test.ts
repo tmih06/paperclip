@@ -25,7 +25,7 @@ describe("workspace host-command mutation detection", () => {
     {
       name: "project workspace jobs",
       actual: () => collectProjectWorkspaceCommandPaths({
-        runtimeConfig: { workspaceRuntime: { jobs: [{ name: "build", command: "pnpm build" }] } },
+        runtimeConfig: { workspaceRuntime: { jobs: [{ name: "build", command: "bun run build" }] } },
       }),
       expected: "runtimeConfig.workspaceRuntime.jobs[0].command",
     },
@@ -49,7 +49,7 @@ describe("workspace host-command mutation detection", () => {
       name: "execution workspace metadata jobs",
       actual: () => collectExecutionWorkspaceCommandPaths({
         metadata: {
-          config: { workspaceRuntime: { jobs: [{ name: "build", command: "pnpm build" }] } },
+          config: { workspaceRuntime: { jobs: [{ name: "build", command: "bun run build" }] } },
         },
       }),
       expected: "metadata.config.workspaceRuntime.jobs[0].command",

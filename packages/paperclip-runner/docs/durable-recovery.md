@@ -965,7 +965,7 @@ owners and evidence.
 Run the short experiment from this package with:
 
 ```sh
-pnpm exec vitest run src/control-plane/runner-recovery-fixture.test.ts --maxWorkers=1
+bun x vitest run src/control-plane/runner-recovery-fixture.test.ts --maxWorkers=1
 ```
 
 The fixture builds through Cargo during test setup. Production distribution builds

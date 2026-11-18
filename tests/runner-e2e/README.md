@@ -90,28 +90,28 @@ Install dependencies and Chromium once. Native local cells also need the local
 runner binaries:
 
 ```bash
-pnpm install
-pnpm exec playwright install chromium
-pnpm --filter @paperclipai/paperclip-runner run build:runner-binaries
+bun install
+bun x playwright install chromium
+bun run --filter @paperclipai/paperclip-runner run build:runner-binaries
 ```
 
 List cells without loading credentials or starting Paperclip:
 
 ```bash
-pnpm test:e2e:runner -- --list
+bun run test:e2e:runner -- --list
 ```
 
 Examples of explicit billable runs:
 
 ```bash
-pnpm test:e2e:runner -- --id core-compatibility.legacy-codex.local.message-marker --headed
-pnpm test:e2e:runner -- --suite openrouter-model-breadth --case hello-complete
-pnpm test:e2e:runner -- --group native --environment local
-pnpm test:e2e:runner -- --profile runner-codex --case message-marker
-pnpm test:e2e:runner -- --case plan-revise-accept --group local
-pnpm test:e2e:runner -- --case ask-question --group native
-pnpm test:e2e:runner -- --suite daytona-warm-continuity
-pnpm test:e2e:runner -- --all
+bun run test:e2e:runner -- --id core-compatibility.legacy-codex.local.message-marker --headed
+bun run test:e2e:runner -- --suite openrouter-model-breadth --case hello-complete
+bun run test:e2e:runner -- --group native --environment local
+bun run test:e2e:runner -- --profile runner-codex --case message-marker
+bun run test:e2e:runner -- --case plan-revise-accept --group local
+bun run test:e2e:runner -- --case ask-question --group native
+bun run test:e2e:runner -- --suite daytona-warm-continuity
+bun run test:e2e:runner -- --all
 ```
 
 The regular browser suite has deterministic process providers in
@@ -121,10 +121,10 @@ GitHub discovery is simulated, scoped to a fixture-only credential; repository
 permissions and mutations remain real. Run it with:
 
 ```bash
-pnpm --filter @paperclipai/ui build
-pnpm test:e2e tests/e2e/agent-chat.spec.ts
+bun run --filter @paperclipai/ui build
+bun run test:e2e tests/e2e/agent-chat.spec.ts
 # Against a dedicated authenticated test instance configured per that suite:
-pnpm test:e2e:multiuser-authenticated --grep 'agent chats'
+bun run test:e2e:multiuser-authenticated --grep 'agent chats'
 ```
 
 Both suites save and restore experimental settings. Browser E2E always starts a
@@ -162,15 +162,15 @@ memory.
 Credential-free checks are:
 
 ```bash
-pnpm test:e2e:runner:unit
-pnpm test:e2e:runner:typecheck
+bun run test:e2e:runner:unit
+bun run test:e2e:runner:typecheck
 ```
 
 The unit command removes ambient `NODE_PATH` and `NODE_OPTIONS` when it starts
 the actual Vitest and Node test processes. It invokes Vitest's JavaScript entry
 directly so pnpm's generated bin shim cannot inject `NODE_PATH` again. Installed
 CLI guards still reject ambient injection and repository-only resolution. Test
-file filters and Vitest options can follow `pnpm test:e2e:runner:unit`; the Node
+file filters and Vitest options can follow `bun run test:e2e:runner:unit`; the Node
 prerequisite tests still run after Vitest succeeds. Missing dependencies or an
 unavailable/terminated test process produce a `launcher/environment failure`
 diagnostic and exit 2. Assertion failures retain the test runner's exit status
@@ -188,7 +188,7 @@ cache entry against the source and recompiles on a mismatch. Set
 module loads small: about 140 test files load `catalog.ts` and about 230 load
 `chat-feature-cases.ts`, so a cost at load is paid once per file.
 
-PR CI runs `pnpm test:e2e:runner:unit` as the required "Runner support suite"
+PR CI runs `bun run test:e2e:runner:unit` as the required "Runner support suite"
 job in `pr-trusted.yml`. It runs when server, CLI, package or UI source
 changes, and on every full CI run. The suite pins workflow security policy,
 evidence oracles, profile versions, suite hashes and dated fixtures. When a
@@ -200,7 +200,7 @@ runs never mutate it. Refresh it deliberately, review the source/capture/hash
 diff, and rerun credential-free checks:
 
 ```bash
-pnpm test:e2e:runner:models:update
+bun run test:e2e:runner:models:update
 ```
 
 ## Daytona image
@@ -247,7 +247,7 @@ or publish the current source locally:
 ```bash
 content_id="$(pnpm --silent test:e2e:runner:image-id)"
 source_revision="$(git rev-parse HEAD)"
-lock_sha="$(shasum -a 256 pnpm-lock.yaml | cut -d ' ' -f 1)"
+lock_sha="$(shasum -a 256 bun.lock | cut -d ' ' -f 1)"
 image="ghcr.io/paperclipai/paperclip-daytona-runner:e2e-content-${content_id}"
 if ! docker buildx imagetools inspect "$image" >/dev/null 2>&1; then
   docker buildx build \
@@ -264,7 +264,7 @@ docker buildx imagetools inspect "$image"
 ```
 
 The Dockerfile has no lockfile digest default: every build passes the SHA-256
-of the `pnpm-lock.yaml` in its build context, and a missing or malformed value
+of the `bun.lock` in its build context, and a missing or malformed value
 fails before installation. Build from a clean checkout of the source revision
 so the content ID, provenance, and lockfile digest describe the same tree.
 
@@ -557,9 +557,9 @@ visual and generated report evidence removed:
 gh run download <run-id> --repo paperclipai/paperclip --name github-pages --dir /tmp/runner-e2e-pages
 mkdir /tmp/runner-e2e-site
 tar -xf /tmp/runner-e2e-pages/artifact.tar -C /tmp/runner-e2e-site
-pnpm test:e2e:runner:dashboard -- /tmp/runner-e2e-site
+bun run test:e2e:runner:dashboard -- /tmp/runner-e2e-site
 # Optionally use a downloaded history index:
-pnpm test:e2e:runner:dashboard -- /tmp/runner-e2e-site --history /tmp/history.json
+bun run test:e2e:runner:dashboard -- /tmp/runner-e2e-site --history /tmp/history.json
 ```
 
 Serve that directory with any static file server. This path does not start
@@ -591,7 +591,7 @@ never runs for a pull request or ordinary push. Start the trusted workflow from
 the default branch. A CODEOWNER can set the optional `target_branch` input to
 any branch in `paperclipai/paperclip`. The authorization job resolves that
 branch to one immutable commit before any checkout. A separate credential-free
-job checks out the resolved commit and regenerates `pnpm-lock.yaml` once with
+job checks out the resolved commit and regenerates `bun.lock` once with
 `--ignore-scripts --no-frozen-lockfile --lockfile-only`. It uploads that exact
 lockfile under a run-attempt-scoped artifact ID and records its SHA-256.
 Catalog, image, shared-build, provider-pack, and paid test jobs download the

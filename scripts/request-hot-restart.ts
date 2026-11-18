@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --import tsx
+#!/usr/bin/env bun
 import { createDb } from "../packages/db/src/index.js";
 import { loadConfig } from "../server/src/config.js";
 import {

@@ -8,6 +8,10 @@
 // second runs the native server group. Local/other callers retain ordinary
 // package sharding. Other PR shard counts keep package shards plus native
 // tests on the final lane, preserving coverage.
+//
+// Every step is a Bun command. `bun x --no-install` replaces `pnpm exec`: it
+// runs the bin already installed in the workspace (vitest's own entry, so the
+// suite still runs under Node) and fails instead of fetching a missing one.
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -89,15 +93,15 @@ if (laneMatch) {
 }
 
 const plannedCommands = [
-  { command: "pnpm", args: ["run", "ensure:eval-build-deps"], cwd: packageRoot },
-  { command: "pnpm", args: ["run", "build:rust"], cwd: packageRoot },
+  { command: "bun", args: ["run", "ensure:eval-build-deps"], cwd: packageRoot },
+  { command: "bun", args: ["run", "build:rust"], cwd: packageRoot },
   ...(runPackageTests
-    ? [{ command: "pnpm", args: ["exec", "vitest", "run", ...packageArgs], cwd: packageRoot }]
+    ? [{ command: "bun", args: ["x", "--bun", "--no-install", "vitest", "run", ...packageArgs], cwd: packageRoot, profile: "vitest" }]
     : []),
   ...(runNativeRunnerGroup
     ? [{
-        command: "pnpm",
-        args: ["test:run:general", "--", "--group", "general-server-native-runner"],
+        command: "bun",
+        args: ["run", "test:run:general", "--", "--group", "general-server-native-runner"],
         cwd: workspaceRoot,
       }]
     : []),
@@ -122,8 +126,11 @@ for (const planned of plannedCommands) {
   const result = spawnSync(planned.command, planned.args, {
     cwd: planned.cwd,
     stdio: "inherit",
-    env: planned.args[0] === "exec" && planned.args[1] === "vitest" ? invocationEnv("vitest") : process.env,
+    env: planned.profile ? invocationEnv(planned.profile) : process.env,
+    // A bare `bun` on Windows is bun.exe, which needs the shell to resolve.
+    shell: planned.command === "bun" && process.platform === "win32",
   });
+  if (result.error) throw result.error;
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }

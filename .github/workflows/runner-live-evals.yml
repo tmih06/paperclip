@@ -115,6 +115,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
+        with:
+          bun-version: 1.4.4
+
       - name: Generate private eval-repository token
         id: evals_token
         env:
@@ -122,7 +127,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          token="$(node .github/scripts/get-bot-token.mjs)"
+          token="$(bun .github/scripts/get-bot-token.mjs)"
           echo "::add-mask::$token"
           echo "value=$token" >> "$GITHUB_OUTPUT"
 
@@ -135,18 +140,13 @@ jobs:
           token: ${{ steps.evals_token.outputs.value }}
           persist-credentials: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        with:
-          version: 9.15.4
-
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Restore compatible weekly baseline
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -157,7 +157,7 @@ jobs:
             runner-live-eval-history-${{ github.ref_name }}-
 
       - name: Build provider-neutral eval kernel
-        run: pnpm --filter @paperclipai/paperclip-eval-kernel build
+        run: bun run --filter @paperclipai/paperclip-eval-kernel build
 
       - name: Run trend-only live matrix
         env:
@@ -172,7 +172,7 @@ jobs:
           PAPERCLIP_EVAL_CASE: ${{ inputs.case }}
           PAPERCLIP_EVAL_LIMIT: ${{ inputs.limit }}
           PAPERCLIP_EVALBOOK_PROGRAM: ${{ github.workspace }}/.paperclip-evals/evals/paperclip-runner/tools/eval_program.py
-        run: pnpm --filter @paperclipai/paperclip-runner report:runner-live-evals
+        run: bun run --filter @paperclipai/paperclip-runner report:runner-live-evals
 
       - name: Publish job summary
         if: always()

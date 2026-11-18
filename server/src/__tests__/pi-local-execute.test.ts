@@ -5,7 +5,7 @@ import path from "node:path";
 import { discoverPiModels, execute, testEnvironment } from "@paperclipai/adapter-pi-local/server";
 
 async function writeFakePiCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--list-models")) {
   console.log("provider  model");
   console.log("google    gemini-3-flash-preview");
@@ -28,7 +28,7 @@ process.exit(0);
 }
 
 async function writeEnvDumpPiCommand(commandPath: string, envDumpPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 const fs = require("node:fs");
 if (process.argv.includes("--list-models")) {
   console.log("provider  model");
@@ -214,7 +214,7 @@ describe("pi_local execute", () => {
     const commandPath = path.join(root, "pi");
     const envDumpPath = path.join(root, "captured-env.json");
     await fs.mkdir(workspace, { recursive: true });
-    await fs.writeFile(commandPath, `#!/usr/bin/env node
+    await fs.writeFile(commandPath, `#!/usr/bin/env bun
 require("node:fs").appendFileSync(${JSON.stringify(envDumpPath)}, JSON.stringify({ args: process.argv.slice(2), env: process.env }) + "\\n");
 if (process.argv.includes("--list-models")) {
   console.log("provider  model");

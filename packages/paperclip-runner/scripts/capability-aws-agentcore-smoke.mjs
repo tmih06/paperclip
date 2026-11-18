@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /** Live, two-turn AWS AgentCore smoke through the exact Runner Lab HTTP path. */
 
 import { createServer } from "node:http";

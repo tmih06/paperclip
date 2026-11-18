@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { createDb, type Db } from "../../../packages/db/src/index.js";
 import { agents, issues, heartbeatRuns, toolActionRequests, toolInvocations, toolActionDeliveries, agentWakeupRequests } from "../../../packages/db/src/index.js";
 import { paperclipConfigSchema } from "../../../packages/shared/src/config-schema.js";
-const { and, eq, or, inArray, sql }: typeof import("../../../packages/db/node_modules/drizzle-orm/index.js") =
+const { and, eq, or, inArray, sql }: typeof import("drizzle-orm") =
   createRequire(new URL("../../../packages/db/package.json", import.meta.url))("drizzle-orm");
 
 export interface ReviewAdmissionBinding {

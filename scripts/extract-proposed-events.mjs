@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { readFileSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -340,7 +340,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  process.stdout.write(`Usage: node scripts/extract-proposed-events.mjs [options]\n\nOptions:\n  --repo-root <path>    Repository root. Defaults to cwd.\n  --events-file <path>  events.ts path, absolute or repo-relative.\n  --repo <slug>         Source repository slug. Defaults to paperclipai/paperclip.\n  --ref <ref>           Source ref/SHA for the extractor envelope.\n  --base-ref <ref>      Optional base ref for diff-oriented inventory jobs.\n`);
+  process.stdout.write(`Usage: bun scripts/extract-proposed-events.mjs [options]\n\nOptions:\n  --repo-root <path>    Repository root. Defaults to cwd.\n  --events-file <path>  events.ts path, absolute or repo-relative.\n  --repo <slug>         Source repository slug. Defaults to paperclipai/paperclip.\n  --ref <ref>           Source ref/SHA for the extractor envelope.\n  --base-ref <ref>      Optional base ref for diff-oriented inventory jobs.\n`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Screenshot the PAP-13112 "Edit a copy" fork-flow stories.
 import fs from "node:fs/promises";
 import path from "node:path";

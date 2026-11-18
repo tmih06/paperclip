@@ -143,10 +143,10 @@ installed. The maintained source files own all behavior; no author-local helper
 script is required. Discovery and credential-free checks do no provider work:
 
 ```sh
-pnpm test:e2e:runner -- --list --suite antigravity-agent-journey
-pnpm test:e2e:runner:typecheck
-pnpm test:e2e:runner:unit
-pnpm test:e2e:runner:browser-support -- antigravity-journey-browser.spec.ts
+bun run test:e2e:runner -- --list --suite antigravity-agent-journey
+bun run test:e2e:runner:typecheck
+bun run test:e2e:runner:unit
+bun run test:e2e:runner:browser-support -- antigravity-journey-browser.spec.ts
 ```
 
 The browser calibration is included in the canonical browser-support target and
@@ -158,7 +158,7 @@ identity, exact personal default grant, local environment and candidate catalog.
 It does not run native Test, create a task or dispatch a provider prompt:
 
 ```sh
-pnpm test:e2e:runner -- \
+bun run test:e2e:runner -- \
   --id antigravity-agent-journey.runner-antigravity.local.saved-subscription-two-turn \
   --antigravity-journey-config /absolute/private/antigravity.json \
   --antigravity-journey-preflight \
@@ -169,7 +169,7 @@ After readiness, run only the exact authorized cell. A new campaign preserves
 previous attempts and uses no automatic retry:
 
 ```sh
-pnpm test:e2e:runner -- \
+bun run test:e2e:runner -- \
   --id antigravity-agent-journey.runner-antigravity.local.saved-subscription-two-turn \
   --antigravity-journey-config /absolute/private/antigravity.json \
   --max-automatic-retries 0
@@ -186,7 +186,7 @@ model calls. Environment variables, not positional report arguments, select it:
 PAPERCLIP_RUNNER_E2E_REPORT_ROOT=/absolute/private/campaign \
 PAPERCLIP_RUNNER_E2E_REPORT_OUT=/absolute/private/rebuilt-report \
 PAPERCLIP_RUNNER_E2E_EXPECTED_IDS='["antigravity-agent-journey.runner-antigravity.local.saved-subscription-two-turn"]' \
-  pnpm test:e2e:runner:report
+  bun run test:e2e:runner:report
 ```
 
 The importer must preserve the attempt verdict, cleanup outcome, duration, known
@@ -277,7 +277,7 @@ On interruption, preserve the result and receipt first. Recover with the same
 private target binding and the exact receipt; no name-based broad cleanup:
 
 ```sh
-pnpm test:e2e:runner -- \
+bun run test:e2e:runner -- \
   --id antigravity-agent-journey.runner-antigravity.local.saved-subscription-two-turn \
   --antigravity-journey-config /absolute/private/antigravity.json \
   --antigravity-journey-recover /absolute/private/campaign/owned-resources.json \

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -149,10 +149,12 @@ test("outside the PR workflow the same flake fails without a retry", () => {
 test("run-vitest-stable passes --retry to vitest run only in the PR workflow", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "retry-wrapper-"));
   try {
-    const bin = path.join(directory, "bin");
-    mkdirSync(bin);
-    writeFileSync(path.join(bin, "pnpm"), '#!/bin/sh\nprintf "%s\\n" "$@" >> "$RETRY_ARGS_FILE"\n');
-    chmodSync(path.join(bin, "pnpm"), 0o755);
+    const bin = path.join(directory, "node_modules", "vitest");
+    mkdirSync(bin, { recursive: true });
+    mkdirSync(path.join(directory, "server", "src", "__tests__"), { recursive: true });
+    mkdirSync(path.join(directory, "server", "scripts"), { recursive: true });
+    writeFileSync(path.join(bin, "vitest.mjs"),
+      'import { appendFileSync } from "node:fs"; appendFileSync(process.env.RETRY_ARGS_FILE, process.argv.slice(2).join("\\n") + "\\n");');
     const invoke = (env) => {
       const argsFile = path.join(directory, `args-${Math.random()}`);
       const childEnv = { ...process.env, ...env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, RETRY_ARGS_FILE: argsFile };
@@ -160,16 +162,16 @@ test("run-vitest-stable passes --retry to vitest run only in the PR workflow", (
         if (key === "PAPERCLIP_CI_TEST_SELECTION" || key === "PAPERCLIP_CI_PROFILE" || /^PAPERCLIP_.*_TEST_DATABASE_URL$/.test(key)) delete childEnv[key];
       }
       const result = spawnSync(process.execPath, [path.join(root, "scripts/run-vitest-stable.mjs"),
-        "--mode", "general", "--group", "general-workspaces-c"], { cwd: root, encoding: "utf8", env: childEnv, timeout: 60_000 });
+        "--mode", "general", "--group", "general-workspaces-c"], { cwd: directory, encoding: "utf8", env: childEnv, timeout: 60_000 });
       assert.equal(result.status, 0, result.stdout + result.stderr);
       return readFileSync(argsFile, "utf8").trim().split("\n");
     };
     assert.deepEqual(invoke({ ...pr, PAPERCLIP_VITEST_RETRY: "" }),
-      ["exec", "vitest", "run", "--exclude", "**/dist/**", "--retry=1", "--project", "@paperclipai/db"]);
+      ["run", "--exclude", "**/dist/**", "--retry=1", "--project", "@paperclipai/db"]);
     assert.deepEqual(invoke({ ...pr, PAPERCLIP_VITEST_RETRY: "0" }),
-      ["exec", "vitest", "run", "--exclude", "**/dist/**", "--project", "@paperclipai/db"]);
+      ["run", "--exclude", "**/dist/**", "--project", "@paperclipai/db"]);
     assert.deepEqual(invoke({ GITHUB_ACTIONS: "true", GITHUB_WORKFLOW: "Cloud readiness", PAPERCLIP_VITEST_RETRY: "" }),
-      ["exec", "vitest", "run", "--exclude", "**/dist/**", "--project", "@paperclipai/db"]);
+      ["run", "--exclude", "**/dist/**", "--project", "@paperclipai/db"]);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 

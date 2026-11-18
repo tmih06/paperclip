@@ -72,7 +72,7 @@ export const cliAuthorizationIdentityCases: readonly ChatCatalogCase[] = [identi
     return { ...o, state: { ...o.state, runEventsRead: true, agentApiOperations: agentApiOperations(events) } };
   },
   sourceFiles: ["chat-catalog-domains/identity-cli-authorization.ts", "chat-catalog-domains/identity-support.ts", "chat-catalog-domains/internal-support.ts", "chat-scenarios/access.yaml", "run-observations.ts",
-    "../../cli/src/index.ts", "../../cli/src/client/board-auth.ts", "../../cli/src/commands/client/auth.ts", "../../cli/src/commands/client/common.ts", "../../pnpm-lock.yaml"],
+    "../../cli/src/index.ts", "../../cli/src/client/board-auth.ts", "../../cli/src/commands/client/auth.ts", "../../cli/src/commands/client/common.ts", "../../bun.lock"],
   async act(ctx, state) {
     await waitForReply(ctx, chatCatalogOriginalPhaseDeadline(ctx)); const resources = owned.get(ctx); if (!resources) throw new Error("Owned CLI home missing");
     const login = runCli(ctx, ["auth", "login", "--company-id", ctx.input.fixtures.company.id, "--no-browser"], "login");
@@ -149,7 +149,7 @@ async function runCli(ctx: ChatCatalogContext, args: string[], name: string): Pr
   const resources = owned.get(ctx); if (!resources) throw new Error("Owned CLI process state missing");
   const environment: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: resources.directory, USER: process.env.USER, LANG: process.env.LANG, TMPDIR: process.env.TMPDIR,
     PAPERCLIP_HOME: resources.directory, PAPERCLIP_AUTH_STORE: resources.store, PAPERCLIP_NO_BROWSER: "1", DO_NOT_TRACK: "1" };
-  const child = spawn(process.execPath, ["--import", path.join(root, "cli/node_modules/tsx/dist/loader.mjs"), path.join(root, "cli/src/index.ts"), ...args,
+  const child = spawn(process.execPath, [path.join(root, "cli/src/index.ts"), ...args,
     "--api-base", ctx.input.api.baseURL, "--json"], { cwd: root, env: environment, stdio: ["ignore", "pipe", "pipe"] });
   resources.processes.add(child); let stdout = ""; let writes = Promise.resolve();
   child.stdout.on("data", chunk => { stdout += String(chunk); writes = writes.then(() => appendFile(path.join(resources.directory, `${name}.stdout`), chunk, { mode: 0o600 })); });

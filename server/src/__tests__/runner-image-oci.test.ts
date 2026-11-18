@@ -266,7 +266,7 @@ describe("image layers", () => {
   const receipt = JSON.stringify({ files: [{ path: "node_modules/big/big.bin" }, { path: "node_modules/node/bin/node" }, { path: "dist/cli/sidecar.cjs" }] });
   const large = { "provider-pack/node_modules/node/bin/node": "node", "provider-pack/node_modules/big/big.bin": "big" };
   const rest = {
-    "runner-image.json": "{}", "paperclip-runnerd": "elf", "pnpm-lock.yaml": "lock",
+    "runner-image.json": "{}", "paperclip-runnerd": "elf", "bun.lock": "lock",
     "provider-pack/provider-pack.json": "{}", "provider-pack/dist/cli/sidecar.cjs": "sidecar",
   };
   const stable = { "provider-pack.archives/0.tar.zst": "0", "provider-pack.archives/1.tar.zst": "1" };
@@ -309,7 +309,7 @@ describe("image layers", () => {
       /slim: transport content is in the layers both variants share \(1\): provider-pack\/node_modules\/provider-pack\.archive\.json/],
     ["a file that two layers of the slim image write", { slim: [large, { ...rest, "provider-pack/node_modules/node/bin/node": "another node" }] },
       /slim: more than one layer writes \(1\): provider-pack\/node_modules\/node\/bin\/node/],
-    ["a file that a transport layer writes over a shared layer", { full: [large, rest, stable, { ...changing, "pnpm-lock.yaml": "another lock" }] },
+    ["a file that a transport layer writes over a shared layer", { full: [large, rest, stable, { ...changing, "bun.lock": "another lock" }] },
       /full: more than one layer writes \(1\): pnpm-lock\.yaml/],
     ["an archive that both transport layers write", { full: [large, rest, stable, { ...changing, "provider-pack.archives/1.tar.zst": "another 1" }] },
       /full: more than one layer writes \(1\): provider-pack\.archives\/1\.tar\.zst/],

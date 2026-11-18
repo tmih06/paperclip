@@ -107,7 +107,7 @@ jobs:
              ! base64 --decode < "$owner_helper.base64" > "$owner_helper"; then
             fail_closed 'could not load trusted CODEOWNERS resolver'
           fi
-          owner_ids="$(node --input-type=module - "$owner_helper" "$trusted_sha" <<'NODE'
+          owner_ids="$(bun --input-type=module - "$owner_helper" "$trusted_sha" <<'NODE'
           import { pathToFileURL } from 'node:url';
           const { trustedOwnerIds } = await import(pathToFileURL(process.argv[2]));
           console.log(JSON.stringify(trustedOwnerIds(undefined, process.argv[3])));
@@ -276,7 +276,7 @@ jobs:
             exit 0
           fi
           export TRUSTED_PROFILE_SHA
-          node "$RUNNER_TEMP/ci-profile-authorize.mjs"
+          bun "$RUNNER_TEMP/ci-profile-authorize.mjs"
 
       - name: Select PR CI scope
         id: scope
@@ -407,4 +407,4 @@ jobs:
           export CI_TASK_CONFIG="$directory/turbo.json"
           export CI_TASK_MATRIX="$directory/ci-task-matrix.json"
           export CI_DIFF_REPOSITORY="$directory/repository.git"
-          node "$directory/ci-plan.mjs" || fallback
+          bun "$directory/ci-plan.mjs" || fallback

@@ -1,10 +1,10 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-pr-release-bootstrap.mjs
  * Detects release packages that this PR adds or newly release-enables whose
  * names do not exist on npm yet, and emits an informational notice: the
  * `policy` CI job will stay red until a maintainer bootstraps the name with
- * `pnpm run release:bootstrap-package`. Contributors cannot fix that
+ * `bun run release:bootstrap-package`. Contributors cannot fix that
  * themselves, so the notice says so explicitly.
  *
  * Never fails (informational only) — outputs { passed: true, informational: string[] }
@@ -67,7 +67,7 @@ export function addedWorkspaceDependencyNames(files) {
 
 function buildNotice({ name, reason }) {
   const bootstrap =
-    `a **maintainer** must run \`pnpm run release:bootstrap-package -- ${name} --publish\` ` +
+    `a **maintainer** must run \`bun run release:bootstrap-package -- ${name} --publish\` ` +
     'and configure npm trusted publishing (see `doc/PUBLISHING.md`)';
 
   if (reason === 'depended') {

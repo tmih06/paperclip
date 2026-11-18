@@ -79,7 +79,7 @@ describe("plugin init", () => {
   it("builds exact next commands using the scaffold path", () => {
     expect(buildPluginInitNextCommands("/tmp/acme plugin")).toEqual([
       "cd '/tmp/acme plugin'",
-      "pnpm install",
+      "bun install",
       "pnpm dev",
       "paperclipai plugin install '/tmp/acme plugin'",
     ]);

@@ -1,13 +1,14 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 // Runs the Vitest suite of every sandbox provider plugin.
 //
-// Sandbox providers are outside the root workspace (see pnpm-workspace.yaml), so
-// neither the root install nor `pnpm test:run` reaches them. This script installs
-// them the same way scripts/typecheck-test-programs.mjs does, because that script
-// owns the provider install: it does that install, links the in-repo plugin SDK
-// and, when given no programs, typechecks nothing. The tests then run in parallel,
-// and each provider's output prints in one block when its suite finishes.
+// Sandbox providers are outside the root workspace (see package.json
+// `workspaces`), so neither the root install nor `bun run test:run` reaches them.
+// This script installs them the same way scripts/typecheck-test-programs.mjs does,
+// because that script owns the provider install: it does that install, links the
+// in-repo plugin SDK and, when given no programs, typechecks nothing. The tests
+// then run in parallel, and each provider's output prints in one block when its
+// suite finishes.
 //
 // The `Sandbox provider tests` job in .github/workflows/pr-trusted.yml runs this
 // script. The `//#ci:sandbox-providers` inputs in turbo.json decide when it runs.
@@ -33,11 +34,17 @@ export function providersWithTests({ root, providers = SANDBOX_PROVIDERS }) {
   });
 }
 
-function runPnpmTest({ root, directory, env }) {
+function runBunTest({ root, directory, env }) {
   return new Promise((resolve) => {
     const started = Date.now();
     const chunks = [];
-    const child = spawn("pnpm", ["test"], { cwd: path.join(root, directory), env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn("bun", ["run", "test"], {
+      cwd: path.join(root, directory),
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+      // A bare `bun` on Windows is bun.exe, which needs the shell to resolve.
+      shell: process.platform === "win32",
+    });
     child.stdout.on("data", (chunk) => chunks.push(chunk));
     child.stderr.on("data", (chunk) => chunks.push(chunk));
     child.on("error", (error) => {
@@ -60,7 +67,7 @@ export async function runProviderTests({
   providers = providersWithTests({ root }),
   concurrency = Math.max(1, Math.min(MAX_CONCURRENCY, availableParallelism())),
   prepare = () => typecheckTestPrograms({ root, env, programs: [], coverage: false }),
-  runOne = runPnpmTest,
+  runOne = runBunTest,
   write = (text) => process.stdout.write(text),
   grouped = env.GITHUB_ACTIONS === "true",
 }) {

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /** Explicit operator setup only. Never imported by npm lifecycle or agent launch. */
 import { constants } from "node:fs";
 import { lstat, mkdir, mkdtemp, open, realpath, readdir, rename, rm, unlink, writeFile } from "node:fs/promises";

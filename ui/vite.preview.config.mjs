@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { defineConfig } from "vite";
+import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -18,7 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * to it. Building alone means the deployed bundle is this screen and the pieces
  * it composes, full stop. It also leaves the app's own build untouched.
  *
- *   pnpm --filter @paperclipai/ui build:preview
+ *   bun run --filter @paperclipai/ui build:preview
  */
 
 const OUT_DIR = "dist-preview";

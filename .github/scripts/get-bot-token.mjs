@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * get-bot-token.mjs
  * Generates a short-lived GitHub installation token for the commitperclip app.

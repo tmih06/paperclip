@@ -78,7 +78,7 @@ describe("Runner image identity", () => {
     ["a Runner Rust source file", "packages/paperclip-runner/runner/crates/runner-core/src/lib.rs"],
     ["the eval kernel the Runner builds first", "packages/paperclip-eval-kernel/src/index.ts"],
     ["a dependency patch", "patches/acpx@0.22.0.patch"],
-    ["the lockfile", "pnpm-lock.yaml"],
+    ["the lockfile", "bun.lock"],
     ["the root manifest", "package.json"],
     ["the pnpm configuration", ".npmrc"],
     ["the pack archive script", "scripts/create-provider-pack-archive.mjs"],
@@ -340,22 +340,22 @@ describe("Runner image stages", () => {
     // image build must run it too.
     const manifest = JSON.parse(readFileSync(path.join(repoRoot, "packages/paperclip-runner/package.json"), "utf8"));
     expect((manifest.scripts.build as string).split(" && ")).toEqual([
-      "node scripts/record-build-inputs.mjs --begin",
-      "pnpm run check:protocol-manifest",
-      "pnpm run build:typescript",
-      "pnpm run check:capability-contract",
-      "pnpm run check:capability-inventory",
-      "pnpm run check:protocol-coverage",
-      "node scripts/generate-semantic-contracts.mjs --check",
-      "node scripts/check-runner-workflow-traceability.mjs",
-      "node scripts/build-runner-binary.mjs",
-      "node scripts/generate-replay-goldens.mjs --check",
-      "node scripts/generate-semantic-action-catalog.mjs --check",
-      "node scripts/record-build-inputs.mjs --finish",
+      "bun scripts/record-build-inputs.mjs --begin",
+      "bun run check:protocol-manifest",
+      "bun run build:typescript",
+      "bun run check:capability-contract",
+      "bun run check:capability-inventory",
+      "bun run check:protocol-coverage",
+      "bun scripts/generate-semantic-contracts.mjs --check",
+      "bun scripts/check-runner-workflow-traceability.mjs",
+      "bun scripts/build-runner-binary.mjs",
+      "bun scripts/generate-replay-goldens.mjs --check",
+      "bun scripts/generate-semantic-action-catalog.mjs --check",
+      "bun scripts/record-build-inputs.mjs --finish",
     ]);
     const build = runner.find((stage) => stage.name === "runner-artifacts-build")!.lines.join("\n");
-    for (const step of ["node scripts/record-build-inputs.mjs --begin;", "pnpm run build:typescript;", "pnpm run build:binary;",
-      "node scripts/record-build-inputs.mjs --finish;", "pnpm install --frozen-lockfile --filter '@paperclipai/paperclip-runner...'"]) {
+    for (const step of ["bun scripts/record-build-inputs.mjs --begin;", "bun run build:typescript;", "bun run build:binary;",
+      "bun scripts/record-build-inputs.mjs --finish;", "bun install --frozen-lockfile --filter '@paperclipai/paperclip-runner...'"]) {
       expect(build).toContain(step);
     }
   });

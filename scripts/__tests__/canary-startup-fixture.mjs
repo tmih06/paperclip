@@ -22,7 +22,7 @@ export async function canaryStartup({ mode, onboard = "success", budget = 5000, 
     server.on("error", reject);
     server.listen(0, "127.0.0.1", () => { const port = server.address().port; server.close(() => resolve(port)); });
   });
-  const cli = `#!/usr/bin/env node
+  const cli = `#!/usr/bin/env bun
 const { appendFileSync } = require("node:fs");
 appendFileSync(process.env.FIXTURE_CALLS, JSON.stringify({kind:"onboard", pid:process.pid, args:process.argv.slice(2)}) + "\\n");
 if (process.env.FIXTURE_ONBOARD === "fail") { console.error("npm error code ETARGET"); process.exit(17); }
@@ -36,7 +36,7 @@ if (process.env.FIXTURE_ONBOARD === "serve") {
  require("node:http").createServer((req,res) => {res.end("ok");}).listen(Number(process.env.FIXTURE_PORT), "127.0.0.1");
 }
 `;
-  writeFileSync(npmFixture, `#!/usr/bin/env node
+  writeFileSync(npmFixture, `#!/usr/bin/env bun
 const fs = require("node:fs");
 const path = require("node:path");
 const args = process.argv.slice(2);

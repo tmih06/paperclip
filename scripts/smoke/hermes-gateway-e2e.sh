@@ -163,10 +163,10 @@ hash_prefix() {
 generate_key() {
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -hex 32
-  elif command -v node >/dev/null 2>&1; then
-    node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))'
+  elif command -v bun >/dev/null 2>&1; then
+    bun -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))'
   else
-    fail "missing openssl or node for API_SERVER_KEY generation"
+    fail "missing openssl or Bun for API_SERVER_KEY generation"
   fi
 }
 

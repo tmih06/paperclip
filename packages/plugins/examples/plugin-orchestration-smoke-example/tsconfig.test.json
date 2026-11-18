@@ -6,7 +6,7 @@
       "@paperclipai/shared": ["../../../shared/dist/index.d.ts"]
     },
     "types": ["node"],
-    "typeRoots": ["../../../../server/node_modules/@types"]
+    "typeRoots": ["../../../../node_modules/@types"]
   },
   "include": ["tests"]
 }

@@ -177,7 +177,7 @@ describeEmbeddedPostgres("durable native provider backups", () => {
     const f = await fixture("opencode");
     const sourceRoot = join(f.home, "qualified-provider-pack");
     await mkdir(sourceRoot);
-    const original = { nodeCommand: "qualified Node executable", opencodeExecutable: "qualified OpenCode executable",
+    const original = { bunCommand: "qualified Bun executable", opencodeExecutable: "qualified OpenCode executable",
       opencodeProxy: `qualified original proxy bytes ${artifactVersion}` };
     const artifacts = Object.fromEntries(await Promise.all(Object.entries(original).map(async ([name, bytes]) => {
       await writeFile(join(sourceRoot, name), bytes, { mode: 0o500 });

@@ -14,7 +14,7 @@ const manifest = { id: "test.idle", apiVersion: 1 as const, version: "1.0.0", di
 function worker(write = false, hostHandler: () => Promise<void> = async () => undefined) {
   return createPluginWorkerHandle("test.idle", {
     entrypointPath: fileURLToPath(new URL("./fixtures/plugin-worker-idle.cjs", import.meta.url)),
-    execArgv: ["--import", createRequire(import.meta.url).resolve("tsx")],
+    execArgv: [],
     manifest, config: {}, instanceInfo: { instanceId: "fixture", hostVersion: "1.0.0" }, apiVersion: 1,
     env: { IDLE_TEST_WRITE: write ? "1" : "0" },
     hostHandlers: { "state.set": hostHandler, "events.subscribe": async () => undefined },
@@ -31,7 +31,7 @@ describe("plugin manager idle receipts", () => {
     const manager = createPluginWorkerManager();
     const options = (version: string) => ({
       entrypointPath: fileURLToPath(new URL("./fixtures/plugin-worker-idle.cjs", import.meta.url)),
-      execArgv: ["--import", createRequire(import.meta.url).resolve("tsx")],
+      execArgv: [],
       manifest: { ...manifest, version }, config: {}, instanceInfo: { instanceId: "fixture", hostVersion: "1.0.0" }, apiVersion: 1,
       hostHandlers: { "events.subscribe": async () => {} },
     });
@@ -60,7 +60,7 @@ describe("plugin manager idle receipts", () => {
     try {
       const handle = await manager.startWorker("test.idle", {
         entrypointPath: fileURLToPath(new URL("./fixtures/plugin-worker-idle.cjs", import.meta.url)),
-        execArgv: ["--import", createRequire(import.meta.url).resolve("tsx")],
+        execArgv: [],
         manifest, config: {}, instanceInfo: { instanceId: "fixture", hostVersion: "1.0.0" }, apiVersion: 1,
         env: { IDLE_TEST_WRITE: "1" },
         hostHandlers: {

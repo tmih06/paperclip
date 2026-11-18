@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Re-render immutable recorded evidence; this command never invokes a model.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";

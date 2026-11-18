@@ -57,7 +57,7 @@ function showDecisions(): ChatCatalogCase {
       const informational = await ctx.input.api.post<Request>(`/api/issues/${history.id}/interactions`, question("Confirm receipt of the launch brief", ownerId));
       const completedQuestion = await ctx.input.api.post<Request>(`/api/issues/${history.id}/interactions/${informational.id}/respond`, { answers: [{ questionId: "launch-input", optionIds: [], otherText: "Received the launch brief; no further decision is needed." }] });
       const hiring = await ctx.input.api.post<Request>(`/api/companies/${ctx.input.fixtures.company.id}/approvals`, { type: "hire_agent", requestedByAgentId: ctx.input.fixtures.agent.id,
-        payload: { name: "Launch designer", role: "designer", title: "Launch designer", capabilities: "Create launch design proposals", adapterType: "process", adapterConfig: { command: "node", args: ["-e", "process.exit(0)"] } } });
+        payload: { name: "Launch designer", role: "designer", title: "Launch designer", capabilities: "Create launch design proposals", adapterType: "process", adapterConfig: { command: "bun", args: ["-e", "process.exit(0)"] } } });
       if (hiring.status !== "pending" || pendingQuestion.status !== "pending" || completedQuestion.status !== "answered") throw new Error("Decision prerequisites did not persist their genuine pending/history states");
       if (!ctx.input.privateSecrets) throw new Error("Decision scope probe requires attempt-private credential redaction");
       key = await ctx.input.api.postSensitive(`/api/agents/${ctx.input.fixtures.agent.id}/keys`, { name: `decision-scope-${ctx.input.nonce}` }); ctx.input.privateSecrets.push(key!.token);

@@ -8,15 +8,15 @@ import { readPluginsUnder } from "./link-plugin-dev-sdk.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const postinstallHooks = new Map([
-  [".", "node scripts/link-plugin-dev-sdk.mjs"],
-  ["server", "node scripts/install-copilot-assets.mjs"],
-  ["packages/paperclip-runner", "node scripts/install-copilot-assets.mjs"],
+  [".", "bun scripts/link-plugin-dev-sdk.mjs"],
+  ["server", "bun scripts/install-copilot-assets.mjs"],
+  ["packages/paperclip-runner", "bun scripts/install-copilot-assets.mjs"],
 ]);
 
 export function cachePlan({ files, read, scope, packageDirs }) {
   const dependencyInputs = files.filter((file) =>
     /(^|\/)package\.json$/.test(file)
-    || ["pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs", "pnpmfile.cjs"].includes(file)
+    || ["bun.lock", "bunfig.toml", ".npmrc"].includes(file)
     || file.startsWith("scripts/")
     || file.startsWith("server/scripts/")
     || file.startsWith("packages/paperclip-runner/scripts/")
@@ -47,22 +47,26 @@ export function cachePlan({ files, read, scope, packageDirs }) {
     cacheable,
     dependencyKey,
     buildKey: `ci-build-dependencies-v1-${digest(buildInputs, dependencyKey)}`,
-    dependencyPaths: [...new Set(packageDirs.map((directory) => {
-      if (path.isAbsolute(directory) || directory.split('/').includes('..')) throw new Error('Package directory escapes the checkout');
-      return path.posix.join(directory, 'node_modules');
-    }))].sort(),
+    dependencyPaths: [...new Set([
+      "node_modules/.bun",
+      ...packageDirs.map((directory) => {
+        if (path.isAbsolute(directory) || directory.split('/').includes('..')) throw new Error('Package directory escapes the checkout');
+        return path.posix.join(directory, 'node_modules');
+      }),
+    ])].sort(),
   };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const files = execFileSync("git", ["ls-files", "-z"], { cwd: root }).toString().split("\0").filter(Boolean);
-  const command = (args) => execFileSync("pnpm", args, { cwd: root, encoding: "utf8" }).trim();
-  const workspaces = JSON.parse(command(['-r', 'list', '--depth=-1', '--json']));
-  const packageDirs = ['.',
-    ...workspaces.map((workspace) => path.relative(root, workspace.path).split(path.sep).join('/') || '.'),
+  const packageDirs = [...new Set([
+    '.',
+    ...files.filter((file) => file.endsWith('/package.json') && !file.includes('/node_modules/')).map((file) => path.posix.dirname(file)),
     ...readPluginsUnder(path.join(root, 'packages/plugins/sandbox-providers')).map((directory) => path.relative(root, directory).split(path.sep).join('/')),
     'packages/plugins/examples/plugin-orchestration-smoke-example',
-  ];
+  ])].sort();
+  const bunVersion = execFileSync("bun", ["--version"], { cwd: root, encoding: "utf8" }).trim();
+  const bunCache = execFileSync("bun", ["pm", "cache"], { cwd: root, encoding: "utf8" }).trim();
   const plan = cachePlan({
     files,
     read: (file) => existsSync(path.join(root, file)) ? readFileSync(path.join(root, file)) : null,
@@ -71,7 +75,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       root: realpathSync(root), node: process.version, abi: process.versions.modules,
       platform: process.platform, arch: process.arch,
       libc: process.report.getReport().header.glibcVersionRuntime ?? null,
-      pnpm: command(["--version"]), store: command(["store", "path", "--silent"]),
+      bun: bunVersion, cache: bunCache,
     },
   });
   const output = [

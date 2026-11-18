@@ -9,7 +9,7 @@ timeout only when the test explicitly arms a marker inside its repository.
 From a development worktree, start the foreground instance:
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/e2e/workspace-bootstrap/launch.ts
+bun tests/e2e/workspace-bootstrap/launch.ts
 ```
 
 The launcher creates an isolated test-drive, installs the Git shim, and sets a
@@ -25,7 +25,7 @@ Use the ready URL printed by test-drive:
 
 ```sh
 WORKSPACE_BOOTSTRAP_TEST_URL=http://127.0.0.1:3100 \
-pnpm exec playwright test --config tests/e2e/workspace-bootstrap/playwright.config.ts
+bun x playwright test --config tests/e2e/workspace-bootstrap/playwright.config.ts
 ```
 
 The tests prove that one timeout schedules a retry and completes without manual

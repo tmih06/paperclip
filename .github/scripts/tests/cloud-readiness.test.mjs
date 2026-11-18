@@ -52,7 +52,7 @@ test("standard image provenance and independent exact-source migrators remain av
   const docker = readFileSync(new URL("../../workflows/docker.yml", import.meta.url), "utf8");
   assert.match(docker, /target: production/);
   assert.match(docker, /type=raw,value=sha-\$\{\{ github.sha \}\}/);
-  assert.match(docker, /run: node scripts\/standard-image-contract.mjs --resolve "\$GITHUB_SHA"/);
+  assert.match(docker, /run: bun scripts\/standard-image-contract.mjs --resolve "\$GITHUB_SHA"/);
   assert.match(docker, /subject-digest: \$\{\{ steps.standard.outputs.digest \}\}/);
   const migrator = readFileSync(new URL("../../workflows/cloud-migrator-artifacts.yml", import.meta.url), "utf8");
   assert.match(migrator, /push:\s*\n\s*branches: \[master\]/);

@@ -53,7 +53,7 @@ export async function decideGrokAuthMerge(
   options: DecideGrokAuthMergeOptions,
 ): Promise<number> {
   try {
-    await execFile("node", [DECISION_SCRIPT_PATH, sourcePath, destinationPath]);
+    await execFile("bun", [DECISION_SCRIPT_PATH, sourcePath, destinationPath]);
   } catch (error) {
     const code = (error as { code?: unknown }).code;
     if (typeof code === "number" && KNOWN_EXIT_CODES.has(code)) {
@@ -61,7 +61,7 @@ export async function decideGrokAuthMerge(
     }
     const detail =
       typeof code === "string"
-        ? `node could not be executed (${code})`
+        ? `bun could not be executed (${code})`
         : typeof code === "number"
           ? `unexpected predicate exit code ${code}`
           : error instanceof Error

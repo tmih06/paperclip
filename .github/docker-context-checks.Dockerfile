@@ -16,16 +16,13 @@
 # installs the locked dependency tree; the existence assertions below keep
 # their committed inputs and outputs covered by this probe regardless.
 #
-# node:24-slim — the runner requires Node >= 24.11 and the production
-# image builds on Node 24; the digest pin keeps the security gate's own
-# runtime immutable.
-FROM node:24-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
+FROM oven/bun:1.4.4-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e
 WORKDIR /context
 COPY . .
 # Verify ACPX release declarations against the exact Docker context.
-RUN node packages/paperclip-runner/scripts/generate-acpx-profiles.mjs --check
+RUN bun packages/paperclip-runner/scripts/generate-acpx-profiles.mjs --check
 # The provider-pack builder imports this offline smoke helper during image builds.
-RUN node -e 'import("./packages/paperclip-runner/scripts/kimi-provider-pack-smoke.mjs")'
+RUN bun -e 'import("./packages/paperclip-runner/scripts/kimi-provider-pack-smoke.mjs")'
 # Committed artifacts the image build reads whose drift checks cannot run
 # here (they need the locked dependency tree or compiled dist/). Existence
 # in the context is the property this probe guards; content correctness is
@@ -41,7 +38,7 @@ RUN test -f packages/paperclip-runner/generated/capability/semantic-tool-contrac
 # needs a hand-maintained path list. (2026-09-04, second unmasking: the
 # *.test.ts ignore rule stripped src/contracts/native-execution.test.ts
 # and the image build failed there once the capability checks were fixed.)
-RUN node -e ' \
+RUN bun -e ' \
   const manifest = require("/context/packages/paperclip-runner/spec/evals/stress-workflow-traceability.json"); \
   const { accessSync } = require("node:fs"); \
   const { resolve } = require("node:path"); \
@@ -55,10 +52,10 @@ RUN node -e ' \
 # ajv is installed in an isolated directory (the runner's own package.json
 # uses workspace: ranges npm cannot install from) and symlinked in so ESM
 # resolution finds it from the scripts' location.
-RUN AJV_RANGE="$(node -p "require('/context/packages/paperclip-runner/package.json').dependencies.ajv")" \
- && mkdir /probe-deps && cd /probe-deps && npm init -y >/dev/null \
- && npm install --ignore-scripts --no-audit --no-fund "ajv@${AJV_RANGE}" \
+RUN AJV_RANGE="$(bun -p "require('/context/packages/paperclip-runner/package.json').dependencies.ajv")" \
+ && mkdir /probe-deps && cd /probe-deps && printf '{"private":true}\n' > package.json \
+ && bun add --ignore-scripts "ajv@${AJV_RANGE}" \
  && ln -s /probe-deps/node_modules /context/packages/paperclip-runner/node_modules \
  && cd /context/packages/paperclip-runner \
- && node scripts/generate-capability-contract.mjs --check \
- && node scripts/check-capability-inventory.mjs
+ && bun scripts/generate-capability-contract.mjs --check \
+ && bun scripts/check-capability-inventory.mjs

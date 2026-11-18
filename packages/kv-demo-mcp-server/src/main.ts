@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { readConfigFromEnv } from "./config.js";
 import { createKvDemoHttpServer } from "./http.js";
 

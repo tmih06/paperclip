@@ -21,7 +21,7 @@ function exists(pid: number): boolean {
 
 it.skipIf(!embeddedSupported).each(["exit", "SIGTERM"])("stops the owned PostgreSQL process when its worker receives %s", async (mode) => {
   const child = fork(fileURLToPath(new URL("./__fixtures__/test-postgres-exit.mjs", import.meta.url)), [mode], {
-    execArgv: ["--import", fileURLToPath(new URL("../node_modules/tsx/dist/loader.mjs", import.meta.url))],
+    execArgv: [],
     stdio: ["ignore", "pipe", "pipe", "ipc"],
   });
   let output = "";

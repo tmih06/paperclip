@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Controlled provider executable, NOT the real Codex model or service.
 const assert = require("node:assert/strict"), fs = require("node:fs");
 require("./scoped-cli-prewire.cjs");

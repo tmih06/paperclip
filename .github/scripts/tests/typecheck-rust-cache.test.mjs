@@ -54,6 +54,6 @@ test("the typecheck pin step is identical to the Runner writer's", () => {
   assert.ok(theirs, "the Runner writer must pin the Runner Rust workspace path");
   assert.ok(mine, "the typecheck job must pin the Runner Rust workspace path");
   assert.equal(mine[0], theirs[0], "the typecheck pin step drifted from the Runner writer's");
-  assert.match(typecheck, /run: pnpm -r typecheck/);
+  assert.match(typecheck, /run: bun run --workspaces --if-present typecheck/);
   assert.match(workflow, /shared-key: release-runner-v2/);
 });

@@ -19,29 +19,15 @@ const daysAgo = days => new Date(now.getTime() - days * DAY_MS);
 const REGISTRY = '{integrity: sha512-x}';
 
 // Each entry is a key, or [key, resolution] for a non-registry resolution.
-const lockfile = entries => [
-  "lockfileVersion: '9.0'",
-  '',
-  'importers:',
-  '',
-  '  .:',
-  '    dependencies:',
-  '      left-pad:',
-  '        specifier: ^1.3.0',
-  '        version: 1.3.0',
-  '',
-  'packages:',
-  '',
-  ...entries.flatMap(entry => {
-    const [key, resolution] = Array.isArray(entry) ? entry : [entry, REGISTRY];
-    return [`  ${key}:`, `    resolution: ${resolution}`, '    engines: {node: \'>=18\'}', ''];
-  }),
-  'snapshots:',
-  '',
-  '  snapshot-only@9.9.9:',
-  '    dependencies: {}',
-  '',
-].join('\n');
+const lockfile = entries => JSON.stringify({
+  lockfileVersion: 1,
+  workspaces: { '': { dependencies: { 'workspace-only': '9.9.9' } } },
+  packages: Object.fromEntries(entries.map((entry, index) => {
+    const [rawKey, resolution] = Array.isArray(entry) ? entry : [entry, REGISTRY];
+    const key = rawKey.replace(/^'(.*)'$/, '$1');
+    return [`package-${index}`, resolution === REGISTRY ? [key, '', {}, 'sha512-x'] : [key, resolution, {}]];
+  })),
+});
 
 const timesFrom = table => async (name, version) => {
   const value = table[`${name}@${version}`];
@@ -49,7 +35,7 @@ const timesFrom = table => async (name, version) => {
   return value ?? null;
 };
 
-test('parses plain, quoted and scoped package keys from the packages section only', () => {
+test('parses resolved Bun package identities without workspace declarations', () => {
   const packages = parseLockfilePackages(lockfile([
     "'@scope/pkg@2.0.0'",
     'left-pad@1.3.0',
@@ -82,7 +68,7 @@ test('lists the versions each lockfile adds, once', () => {
 test('the CLI rejects unpaired lockfiles before any registry lookup', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'release-age-cli-'));
   try {
-    const file = path.join(root, 'pnpm-lock.yaml');
+    const file = path.join(root, 'bun.lock');
     writeFileSync(file, lockfile([]));
     const result = spawnSync(process.execPath, [
       path.resolve('.github/scripts/check-lockfile-release-age.mjs'),

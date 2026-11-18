@@ -73,12 +73,12 @@ describe("provider artifact transfer step", () => {
     execute: vi.fn(async () => ({ exitCode: 0, signal: null, timedOut: false, stdout: "", stderr: "", pid: null, startedAt: null })),
     syncOut: vi.fn(async () => ({ operations: [] })),
   } as unknown as CommandManagedRuntimeRunner;
-  const manifest = { payload: { artifacts: Object.fromEntries(["nodeCommand", "opencodeProxy", "opencodeExecutable"]
+  const manifest = { payload: { artifacts: Object.fromEntries(["bunCommand", "opencodeProxy", "opencodeExecutable"]
     .map(name => [name, { path: name }])) } } as NativeProviderArtifactSource["manifest"];
   const capture = (publish: (source: NativeProviderArtifactSource) => Promise<string>) => captureRemoteNativeProviderArtifacts({
     runner, remoteCwd: "/workspace", manifest, signal: new AbortController().signal,
     launch: { root: "/owned/qualified", accountUid: 1000,
-      paths: { nodeCommand: "/qualified/node", opencodeProxy: "/qualified/proxy", opencodeExecutable: "/qualified/opencode" } },
+      paths: { bunCommand: "/qualified/node", opencodeProxy: "/qualified/proxy", opencodeExecutable: "/qualified/opencode" } },
   }, publish);
 
   it("retries a timed-out transfer without copying the launch files out of the sandbox again", async () => {

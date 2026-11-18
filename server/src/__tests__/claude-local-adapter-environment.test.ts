@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 async function writeHelpWithoutEffortClaudeCommand(commandPath: string): Promise<void> {
-  const script = `#!/usr/bin/env node
+  const script = `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 const argv = process.argv.slice(2);
 if (argv.includes("--help")) {
@@ -380,7 +380,7 @@ describe("claude_local environment diagnostics", () => {
     await fs.writeFile(path.join(sourceConfigDir, "CLAUDE.md"), "seed instructions", "utf8");
     await fs.writeFile(path.join(sourceConfigDir, "credentials.json"), JSON.stringify({ token: "local" }), "utf8");
     await fs.writeFile(path.join(remoteHome, ".claude", ".credentials.json"), JSON.stringify({ token: "remote" }), "utf8");
-    await fs.writeFile(commandPath, `#!/usr/bin/env node
+    await fs.writeFile(commandPath, `#!/usr/bin/env bun
 if (process.argv.includes("--version")) { console.log("2.1.286 (Claude Code)"); process.exit(0); }
 const fs = require("fs");
 const path = require("path");

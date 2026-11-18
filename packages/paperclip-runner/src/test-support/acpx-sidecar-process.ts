@@ -26,8 +26,8 @@ export class SidecarProcess {
 
   constructor(options: {loader?:string;environment?:Record<string,string>} = {}) {
     this.#child = spawn(
-      options.loader ? process.execPath : fileURLToPath(new URL("../../node_modules/.bin/tsx", import.meta.url)),
-      [...(options.loader ? ["--import","tsx","--import",options.loader] : []), fileURLToPath(new URL("../cli/acpx-runtime-sidecar.ts", import.meta.url))],
+      process.execPath,
+      [...(options.loader ? ["--import",options.loader] : []), fileURLToPath(new URL("../cli/acpx-runtime-sidecar.ts", import.meta.url))],
       { stdio: ["pipe", "pipe", "pipe"], env: { PATH: process.env.PATH, LANG: "C.UTF-8", ...options.environment } },
     );
     this.#exit = new Promise(resolve => this.#child.once("exit", (code, signal) => resolve({code,signal})));

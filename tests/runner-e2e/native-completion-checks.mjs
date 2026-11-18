@@ -229,7 +229,7 @@ export function main(args = process.argv.slice(2)) {
   }
   const sdk = runCommand(process.execPath, [join(root, "scripts/ensure-plugin-build-deps.mjs")], env, 5 * 60_000);
   report.setup.sdkExitCode = sdk.status; report.setup.evidence.push(capture(output, "setup-sdk", sdk));
-  const runner = sdk.status === 0 ? runCommand("pnpm", ["--filter", "@paperclipai/paperclip-runner", "build:typescript"], env) : null;
+  const runner = sdk.status === 0 ? runCommand("bun", ["run", "--filter", "@paperclipai/paperclip-runner", "build:typescript"], env) : null;
   report.setup.runnerTypeScriptExitCode = runner?.status ?? null;
   report.setup.evidence.push(capture(output, "setup-runner-typescript", runner));
   const hosted = env.GITHUB_ACTIONS === "true";
@@ -264,7 +264,7 @@ export function main(args = process.argv.slice(2)) {
       ...(!hosted ? [{ id: "NC-rust-carrier", command: "cargo", args: ["test", "--locked", "--offline",
         "-p", "paperclip-runner-core", "--lib", "provider_events::tests::preserves_closed_compatibility_terminal_tool_identity", "--", "--exact"],
         cwd: join(root, "packages/paperclip-runner/runner") }] : []),
-      { id: "NC-discovery", command: process.execPath, args: ["--import", "./server/node_modules/tsx/dist/loader.mjs", "tests/runner-e2e/launch.ts", "--list", "--suite", "native-completion"] },
+      { id: "NC-discovery", command: process.execPath, args: ["tests/runner-e2e/launch.ts", "--list", "--suite", "native-completion"] },
     ];
     for (const command of commands) {
       console.log(`Checking ${command.id}`);

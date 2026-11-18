@@ -45,8 +45,8 @@ That gives you an outside-repo local development path before the SDK is publishe
 
 ```bash
 cd my-plugin
-pnpm install
+bun install
 pnpm dev       # watch worker + manifest + ui bundles
 pnpm dev:ui    # local UI preview server with hot-reload events
-pnpm test
+bun run test
 ```

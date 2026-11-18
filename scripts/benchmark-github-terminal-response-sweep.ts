@@ -10,7 +10,7 @@ import { captureReviewWaitQueries, type CapturedReviewWaitQuery } from "../serve
 // Measures the GitHub terminal-response discovery page against a synthetic
 // history: many agent runs with incompressible legacy contexts and a set of
 // acknowledged (processed, non-final) response comments.
-//   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-github-terminal-response-sweep.ts --baseline-ref=<pre-fix commit>
+//   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-github-terminal-response-sweep.ts --baseline-ref=<pre-fix commit>
 const baselineRef = process.argv.find(arg => arg.startsWith("--baseline-ref="))?.slice(15);
 assert.ok(baselineRef, "Pass an explicit pre-fix --baseline-ref=<commit>");
 const number = (name: string, fallback: number) => Number(process.env[name] ?? fallback);

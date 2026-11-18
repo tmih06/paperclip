@@ -12,7 +12,7 @@
     },
     "rootDir": "..",
     "types": ["node"],
-    "typeRoots": ["../server/node_modules/@types"]
+    "typeRoots": ["../node_modules/@types"]
   },
   "include": [
     "ai-connections-app/**/*.ts",

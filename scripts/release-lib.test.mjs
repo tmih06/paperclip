@@ -20,11 +20,11 @@ function writeExecutable(path, body) {
 }
 
 function runPublishHelper({
-  pnpmMode,
+  publishMode,
   npmVersionExists = false,
   distTag = "canary",
   callerPipefail = true,
-  publishTool = "pnpm",
+  publishTool = "bun",
   waitForRegistry = false,
   npmVersionExistsAfterChecks = 0,
   verifyAttempts = 1,
@@ -38,48 +38,6 @@ function runPublishHelper({
   mkdirSync(binDir);
   mkdirSync(stateDir);
   writeFileSync(callLog, "");
-
-  writeExecutable(
-    join(binDir, "pnpm"),
-    `#!/usr/bin/env bash
-set -euo pipefail
-printf 'pnpm %s\\n' "$*" >> "$FAKE_CALL_LOG"
-case "$PNPM_MODE" in
-  success)
-    echo "published"
-    exit 0
-    ;;
-  tlog-then-success)
-    if [ ! -f "$FAKE_STATE_DIR/pnpm-called" ]; then
-      touch "$FAKE_STATE_DIR/pnpm-called"
-      echo "npm error code TLOG_CREATE_ENTRY_ERROR"
-      echo "npm error error creating tlog entry - (409) an equivalent entry already exists in the transparency log with UUID abc"
-      exit 1
-    fi
-    case " $* " in
-      *" --provenance=false "*)
-        echo "published without provenance"
-        exit 0
-        ;;
-      *)
-        echo "retry did not disable provenance"
-        exit 1
-        ;;
-    esac
-    ;;
-  tlog-always-fails)
-    echo "npm error code TLOG_CREATE_ENTRY_ERROR"
-    echo "npm error error creating tlog entry - (409) an equivalent entry already exists in the transparency log with UUID abc"
-    exit 1
-    ;;
-  non-tlog-failure)
-    echo "npm error code E500"
-    exit 1
-    ;;
-esac
-exit 1
-`,
-  );
 
   writeExecutable(
     join(binDir, "npm"),
@@ -120,7 +78,7 @@ if [ "$1" = "view" ]; then
   fi
 fi
 if [ "$1" = "publish" ]; then
-  case "$PNPM_MODE" in
+  case "$PUBLISH_MODE" in
     success)
       echo "published"
       exit 0
@@ -155,15 +113,20 @@ exit 1
   );
 
   writeExecutable(
-    join(binDir, "npx"),
+    join(binDir, "bun"),
     `#!/usr/bin/env bash
 set -euo pipefail
-printf 'npx %s\n' "$*" >> "$FAKE_CALL_LOG"
-[ "$1" = "--yes" ] && shift
-case "$1" in
-  npm@10.9.7|npm@11.18.0) shift ;;
-esac
-exec npm "$@"
+printf 'bun %s\n' "$*" >> "$FAKE_CALL_LOG"
+if [ "$1" = "pm" ] && [ "$2" = "view" ]; then
+  shift 2
+  exec "$FAKE_BIN_DIR/npm" view "$@"
+fi
+if [ "$1" = "x" ] && [ "$2" = "--yes" ] && [ "$3" = "npm@11.18.0" ]; then
+  shift 3
+  exec "$FAKE_BIN_DIR/npm" "$@"
+fi
+echo "unexpected Bun invocation: $*" >&2
+exit 97
 `,
   );
 
@@ -205,6 +168,7 @@ wait_for_npm_package_versions "$VERIFY_ATTEMPTS" "$VERIFY_DELAY_SECONDS" "$PACKA
         ...process.env,
         PATH: `${binDir}:${process.env.PATH}`,
         FAKE_CALL_LOG: callLog,
+        FAKE_BIN_DIR: binDir,
         FAKE_STATE_DIR: stateDir,
         NPM_VERSION_EXISTS: npmVersionExists ? "true" : "false",
         NPM_VERSION_EXISTS_AFTER_CHECKS: String(npmVersionExistsAfterChecks),
@@ -212,7 +176,7 @@ wait_for_npm_package_versions "$VERIFY_ATTEMPTS" "$VERIFY_DELAY_SECONDS" "$PACKA
         VERIFY_DELAY_SECONDS: String(verifyDelaySeconds),
         NPM_VIEW_CROSS: visibilityPackages ? "true" : "false",
         CROSS_PACKAGES: (visibilityPackages ?? []).join(" "),
-        PNPM_MODE: pnpmMode,
+        PUBLISH_MODE: publishMode,
         REPO_ROOT: fixtureDir,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -229,33 +193,33 @@ wait_for_npm_package_versions "$VERIFY_ATTEMPTS" "$VERIFY_DELAY_SECONDS" "$PACKA
   };
 }
 
-test("publish_package_to_npm returns after a successful pnpm publish", () => {
-  const result = runPublishHelper({ pnpmMode: "success" });
+test("publish_package_to_npm returns after a successful npm publish", () => {
+  const result = runPublishHelper({ publishMode: "success" });
 
   assert.equal(result.status, 0);
-  assert.match(result.calls, /^pnpm publish --no-git-checks --tag canary --access public$/m);
+  assert.match(result.calls, /^npm publish --tag canary --access public --ignore-scripts --loglevel verbose$/m);
   assert.doesNotMatch(result.calls, /npm view/);
   assert.doesNotMatch(result.calls, /--provenance=false/);
 });
 
 test("publish_package_to_npm uses trusted publishing from the bundled staging directory", () => {
-  const result = runPublishHelper({ pnpmMode: "success", publishTool: "npm" });
+  const result = runPublishHelper({ publishMode: "success", publishTool: "npm" });
 
   assert.equal(result.status, 0);
   assert.match(
     result.calls,
-    /^npx --yes npm@11\.18\.0 publish --tag canary --access public --ignore-scripts --loglevel verbose$/m,
+    /^bun x --yes npm@11\.18\.0 publish --tag canary --access public --ignore-scripts --loglevel verbose$/m,
   );
   assert.match(
     result.calls,
     /^npm publish --tag canary --access public --ignore-scripts --loglevel verbose$/m,
   );
   assert.doesNotMatch(result.calls, / pack /);
-  assert.doesNotMatch(result.calls, /^pnpm publish/m);
+  assert.doesNotMatch(result.calls, /^bun publish/m);
 });
 
 test("publish_package_to_npm retries bundled directory tlog failures without provenance", () => {
-  const result = runPublishHelper({ pnpmMode: "tlog-then-success", publishTool: "npm" });
+  const result = runPublishHelper({ publishMode: "tlog-then-success", publishTool: "npm" });
 
   assert.equal(result.status, 0);
   assert.match(result.calls, /^npm view @paperclipai\/example@1\.2\.3 version$/m);
@@ -266,18 +230,18 @@ test("publish_package_to_npm retries bundled directory tlog failures without pro
 });
 
 test("publish_package_to_npm retries duplicate tlog failures without provenance", () => {
-  const result = runPublishHelper({ pnpmMode: "tlog-then-success" });
+  const result = runPublishHelper({ publishMode: "tlog-then-success" });
 
   assert.equal(result.status, 0);
   assert.match(result.calls, /^npm view @paperclipai\/example@1\.2\.3 version$/m);
   assert.match(
     result.calls,
-    /^pnpm publish --no-git-checks --tag canary --access public --provenance=false$/m,
+    /^npm publish --tag canary --access public --provenance=false --ignore-scripts --loglevel verbose$/m,
   );
 });
 
 test("publish_package_to_npm treats a duplicate tlog failure as complete when npm exposes the version", () => {
-  const result = runPublishHelper({ pnpmMode: "tlog-always-fails", npmVersionExists: true });
+  const result = runPublishHelper({ publishMode: "tlog-always-fails", npmVersionExists: true });
 
   assert.equal(result.status, 0);
   assert.match(result.calls, /^npm view @paperclipai\/example@1\.2\.3 version$/m);
@@ -285,7 +249,7 @@ test("publish_package_to_npm treats a duplicate tlog failure as complete when np
 });
 
 test("publish_package_to_npm does not retry unrelated publish failures", () => {
-  const result = runPublishHelper({ pnpmMode: "non-tlog-failure" });
+  const result = runPublishHelper({ publishMode: "non-tlog-failure" });
 
   assert.notEqual(result.status, 0);
   assert.doesNotMatch(result.calls, /npm view/);
@@ -293,7 +257,7 @@ test("publish_package_to_npm does not retry unrelated publish failures", () => {
 });
 
 test("publish_package_to_npm does not mask failures when caller has no pipefail", () => {
-  const result = runPublishHelper({ pnpmMode: "non-tlog-failure", callerPipefail: false });
+  const result = runPublishHelper({ publishMode: "non-tlog-failure", callerPipefail: false });
 
   assert.notEqual(result.status, 0);
   assert.doesNotMatch(result.calls, /npm view/);
@@ -301,7 +265,7 @@ test("publish_package_to_npm does not mask failures when caller has no pipefail"
 });
 
 test("publish_package_to_npm does not retry stable publishes without provenance", () => {
-  const result = runPublishHelper({ pnpmMode: "tlog-then-success", distTag: "latest" });
+  const result = runPublishHelper({ publishMode: "tlog-then-success", distTag: "latest" });
 
   assert.notEqual(result.status, 0);
   assert.match(result.calls, /^npm view @paperclipai\/example@1\.2\.3 version$/m);
@@ -310,18 +274,18 @@ test("publish_package_to_npm does not retry stable publishes without provenance"
 
 test("wait_for_npm_package_versions confirms registry visibility after a publish", () => {
   const result = runPublishHelper({
-    pnpmMode: "success",
+    publishMode: "success",
     npmVersionExists: true,
     waitForRegistry: true,
   });
 
   assert.equal(result.status, 0);
-  assert.match(result.calls, /^pnpm publish --no-git-checks --tag canary --access public$/m);
+  assert.match(result.calls, /^npm publish --tag canary --access public --ignore-scripts --loglevel verbose$/m);
   assert.match(result.calls, /^npm view @paperclipai\/example@1\.2\.3 version$/m);
 });
 
 test("wait_for_npm_package_versions blocks the release and names the straggler", () => {
-  const result = runPublishHelper({ pnpmMode: "success", waitForRegistry: true });
+  const result = runPublishHelper({ publishMode: "success", waitForRegistry: true });
 
   assert.notEqual(result.status, 0);
   assert.match(result.calls, /^npm view @paperclipai\/example@1\.2\.3 version$/m);
@@ -334,7 +298,7 @@ test("wait_for_npm_package_versions polls every package concurrently", () => {
   // budget before polling the next can never satisfy the first package;
   // only concurrent polling converges.
   const result = runPublishHelper({
-    pnpmMode: "success",
+    publishMode: "success",
     visibilityPackages: ["@paperclipai/alpha", "@paperclipai/beta"],
     verifyAttempts: 50,
     verifyDelaySeconds: 0.2,
@@ -350,14 +314,14 @@ test("the workflow budget tolerates the observed 15-minute 20-second registry de
   assert.ok(budget.verifyDelaySeconds > 0);
   const delayedCheck = Math.ceil((15 * 60 + 20) / budget.verifyDelaySeconds) + 1;
   const result = runPublishHelper({
-    pnpmMode: "success",
+    publishMode: "success",
     waitForRegistry: true,
     npmVersionExistsAfterChecks: delayedCheck,
     ...budget,
   });
 
   assert.equal(result.status, 0, result.output);
-  assert.equal(result.calls.match(/^pnpm publish /gm)?.length, 1);
+  assert.equal(result.calls.match(/^npm publish /gm)?.length, 1);
   assert.equal(result.calls.match(/^npm view /gm)?.length, delayedCheck);
   assert.deepEqual(
     result.calls.split("\n").filter((call) => call.startsWith("sleep ")),
@@ -367,7 +331,7 @@ test("the workflow budget tolerates the observed 15-minute 20-second registry de
 
 test("the workflow budget does not delay an immediately visible publish", () => {
   const result = runPublishHelper({
-    pnpmMode: "success",
+    publishMode: "success",
     npmVersionExists: true,
     waitForRegistry: true,
     ...workflowVerifyBudget(),
@@ -382,7 +346,7 @@ test("the workflow budget fails closed after the last registry check", () => {
   const budget = workflowVerifyBudget();
   assert.ok(budget.verifyAttempts > 0);
   const result = runPublishHelper({
-    pnpmMode: "success",
+    publishMode: "success",
     waitForRegistry: true,
     npmVersionExistsAfterChecks: budget.verifyAttempts + 1,
     ...budget,
@@ -390,7 +354,7 @@ test("the workflow budget fails closed after the last registry check", () => {
 
   assert.notEqual(result.status, 0);
   assert.match(result.output, /did not become registry-visible/);
-  assert.equal(result.calls.match(/^pnpm publish /gm)?.length, 1);
+  assert.equal(result.calls.match(/^npm publish /gm)?.length, 1);
   assert.equal(result.calls.match(/^npm view /gm)?.length, budget.verifyAttempts);
   assert.equal(result.calls.match(/^sleep /gm)?.length, budget.verifyAttempts - 1);
 });

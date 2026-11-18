@@ -7,7 +7,7 @@ import { expect, it, vi } from "vitest";
 import { DurablePrpControlPlane, type DurablePrpControlPlaneStore } from "./durable-prp-control-plane.js";
 
 // Opt in explicitly. Run from packages/paperclip-runner:
-// PAPERCLIP_CHECKPOINT_FLUSH_BENCHMARK=1 pnpm exec vitest run src/control-plane/durable-prp-checkpoint.benchmark.test.ts
+// PAPERCLIP_CHECKPOINT_FLUSH_BENCHMARK=1 bun x vitest run src/control-plane/durable-prp-checkpoint.benchmark.test.ts
 // Each case commits one new event and flushes the journal checkpoint with a
 // no-op persistence callback, so it measures only the controller's own work.
 // CPU time shares the host's background load; the serialised byte and call

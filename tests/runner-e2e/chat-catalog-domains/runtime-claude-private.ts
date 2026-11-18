@@ -34,9 +34,9 @@ export async function privateClaudeOperation(input: ClaudePrivateRequest & { com
   const directory = await mkdtemp(path.join(tmpdir(), "paperclip-claude-private-"));
   try {
     const request = path.join(directory, "request.json"); await writeFile(request, JSON.stringify(input), { mode: 0o600 });
-    const loader = fileURLToPath(new URL("../../../server/node_modules/tsx/dist/loader.mjs", import.meta.url)), worker = fileURLToPath(new URL("./runtime-claude-private-worker.ts", import.meta.url));
+    const worker = fileURLToPath(new URL("./runtime-claude-private-worker.ts", import.meta.url));
     let output: string;
-    try { output = (await promisify(execFile)(process.execPath, ["--import", loader, worker, request], { timeout: 180000, maxBuffer: 32768,
+    try { output = (await promisify(execFile)(process.execPath, [worker, request], { timeout: 180000, maxBuffer: 32768,
       env: { PATH: process.env.PATH ?? "", HOME: directory, TMPDIR: directory, NODE_ENV: "test", DO_NOT_TRACK: "1" } })).stdout; }
     catch { throw new Error("Selected Claude public setup/validation failed; private request and child diagnostics withheld"); }
     if ([scanSecret, encodeURIComponent(scanSecret), Buffer.from(scanSecret).toString("base64")].some(value => output.includes(value))) throw new Error("Claude private child exceeded its secret-free receipt boundary; output withheld");

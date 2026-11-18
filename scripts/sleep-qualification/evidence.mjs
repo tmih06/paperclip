@@ -223,7 +223,7 @@ export function evaluateSleepQualification(receipt, expected) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [receiptPath, expectedPath, outputPath] = process.argv.slice(2);
-  if (!receiptPath || !expectedPath || !outputPath) throw new Error('Usage: node scripts/sleep-qualification/evidence.mjs receipt.json expected.json output.json');
+  if (!receiptPath || !expectedPath || !outputPath) throw new Error('Usage: bun scripts/sleep-qualification/evidence.mjs receipt.json expected.json output.json');
   const report = evaluateSleepQualification(JSON.parse(await readFile(receiptPath, 'utf8')), JSON.parse(await readFile(expectedPath, 'utf8')));
   await writeFile(outputPath, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
   process.stdout.write(JSON.stringify(report) + '\n');

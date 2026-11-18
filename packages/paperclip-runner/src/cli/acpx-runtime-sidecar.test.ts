@@ -698,7 +698,7 @@ describe("qualified ACPX runtime sidecar", () => {
         }
         return next(specifier, context);
       } });`);
-    const child = spawn(process.execPath, ["--import", "tsx", "--import", loader,
+    const child = spawn(process.execPath, ["--import", loader,
       fileURLToPath(new URL("./acpx-runtime-sidecar.ts", import.meta.url))],
     { stdio: ["pipe", "pipe", "pipe"], env: { PATH: process.env.PATH, PAPERCLIP_TEST_OUTPUT_ROOT: root } });
     const exited = once(child, "exit");

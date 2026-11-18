@@ -17,7 +17,7 @@ export function runStep(label, command, args, { cwd, env = {} }) {
 
 export function verificationSteps(ctx, { noBuild = false } = {}) {
   const steps = [
-    { label: "storybook catalog", command: "node", args: ["scripts/storybook-catalog.mjs", "--check"], cwd: "." },
+    { label: "storybook catalog", command: "bun", args: ["scripts/storybook-catalog.mjs", "--check"], cwd: "." },
     { label: "lab vitest", command: "npx", args: ["vitest", "run", `src/${ctx.slug}-directions`], cwd: "ui" },
   ];
   if (!noBuild) {

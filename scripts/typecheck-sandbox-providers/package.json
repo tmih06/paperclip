@@ -2,7 +2,18 @@
   "name": "@paperclipai/typecheck-sandbox-providers",
   "private": true,
   "description": "Installs sandbox provider dependencies for scripts/typecheck-test-programs.mjs. See doc/DEVELOPING.md.",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "bun@1.4.4",
+  "workspaces": [
+    "../../packages/plugins/sandbox-providers/boxd",
+    "../../packages/plugins/sandbox-providers/cloudflare",
+    "../../packages/plugins/sandbox-providers/cloudflare/bridge-template",
+    "../../packages/plugins/sandbox-providers/createos",
+    "../../packages/plugins/sandbox-providers/e2b",
+    "../../packages/plugins/sandbox-providers/exe-dev",
+    "../../packages/plugins/sandbox-providers/kubernetes",
+    "../../packages/plugins/sandbox-providers/modal",
+    "../../packages/plugins/sandbox-providers/novita"
+  ],
   "engines": {
     "node": ">=24.11.0"
   }

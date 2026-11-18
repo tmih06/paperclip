@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * codemod-extract-colors.mjs
  *
@@ -24,7 +24,7 @@
  * re-running the script is a no-op (each replace() call only fires if the
  * exact original substring is still present).
  *
- * Usage: node scripts/codemod-extract-colors.mjs [--check]
+ * Usage: bun scripts/codemod-extract-colors.mjs [--check]
  *   --check   Report what WOULD change without writing files (dry run).
  */
 

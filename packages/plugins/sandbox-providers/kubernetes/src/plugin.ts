@@ -119,10 +119,9 @@ const readySandboxesByLease = new Set<string>();
 const RESUME_READY_TIMEOUT_MS = 30_000;
 const RESUME_READY_POLL_MS = 1_000;
 
-// The workspace remote dir is the confinement root for native file sync. It is
-// recorded on the lease metadata at realizeWorkspace time (`remoteCwd`); require
-// it so a sync can never run without a concrete root to confine every sandbox
-// path against.
+// Record the pod's mounted workspace root on acquisition: workspace realization
+// returns separate metadata and does not update the lease passed to native sync.
+// Missing roots still fail closed rather than deriving one from sync operations.
 function resolveSyncRemoteDir(lease: PluginEnvironmentLease): string {
   const remoteCwd = lease.metadata?.remoteCwd;
   if (typeof remoteCwd === "string" && remoteCwd.trim().length > 0) {
@@ -174,10 +173,7 @@ async function resolveSyncPodExec(
   // Ensure the Sandbox pod is Ready (wait only the first time for this lease),
   // then resolve the pod name — mirrors the onEnvironmentExecute resolution.
   if (!readySandboxesByLease.has(lease.providerLeaseId)) {
-    await sandboxCrOrchestrator.waitForCompletion(clients, namespace, lease.providerLeaseId, {
-      timeoutMs,
-      pollMs: 2000,
-    });
+    await sandboxCrOrchestrator.waitForCompletion(clients, namespace, lease.providerLeaseId, { timeoutMs });
     readySandboxesByLease.add(lease.providerLeaseId);
   }
 
@@ -451,6 +447,7 @@ const plugin = definePlugin({
       namespace,
       jobName,
       podName,
+      remoteCwd: "/workspace",
       secretName,
       phase: "Pending",
       backend: config.backend,
@@ -526,6 +523,9 @@ const plugin = definePlugin({
       namespace,
       jobName: params.providerLeaseId,
       podName: check.podName,
+      remoteCwd: typeof params.leaseMetadata?.remoteCwd === "string" && params.leaseMetadata.remoteCwd.trim()
+        ? params.leaseMetadata.remoteCwd.trim()
+        : "/workspace",
       secretName,
       phase: check.phase,
       backend: leaseBackend,
@@ -720,7 +720,7 @@ const plugin = definePlugin({
             clients,
             namespace,
             lease.providerLeaseId,
-            { timeoutMs: effectiveTimeoutMs, pollMs: 2000 },
+            { timeoutMs: effectiveTimeoutMs },
           );
           readySandboxesByLease.add(lease.providerLeaseId);
         } catch (err) {

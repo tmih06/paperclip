@@ -128,7 +128,7 @@ export const runTranscriptFixtureEntries: TranscriptEntry[] = [
     name: "command_execution",
     toolUseId: "item_4",
     input: {
-      command: "pnpm -r typecheck",
+      command: "bun run --workspaces --if-present typecheck",
       cwd: "/workspace/paperclip",
     },
   },
@@ -136,7 +136,7 @@ export const runTranscriptFixtureEntries: TranscriptEntry[] = [
     kind: "tool_result",
     ts: "2026-03-11T15:23:26.903Z",
     toolUseId: "item_4",
-    content: "command: pnpm -r typecheck\nstatus: completed\nexit_code: 0\n\npackages/adapter-utils typecheck: Done\nserver typecheck: Done\nui typecheck: Done\ncli typecheck: Done",
+    content: "command: bun run --workspaces --if-present typecheck\nstatus: completed\nexit_code: 0\n\npackages/adapter-utils typecheck: Done\nserver typecheck: Done\nui typecheck: Done\ncli typecheck: Done",
     isError: false,
   },
   {
@@ -150,7 +150,7 @@ export const runTranscriptFixtureEntries: TranscriptEntry[] = [
     name: "command_execution",
     toolUseId: "item_5",
     input: {
-      command: "pnpm test:run",
+      command: "bun run test:run",
       cwd: "/workspace/paperclip",
     },
   },
@@ -158,7 +158,7 @@ export const runTranscriptFixtureEntries: TranscriptEntry[] = [
     kind: "tool_result",
     ts: "2026-03-11T15:23:56.944Z",
     toolUseId: "item_5",
-    content: "command: pnpm test:run\nstatus: failed\nexit_code: 1\n\nFAIL packages/db/src/runtime-config.test.ts\nFAIL src/__tests__/worktree.test.ts\n\nAll transcript-adapter tests passed after snapshot updates.",
+    content: "command: bun run test:run\nstatus: failed\nexit_code: 1\n\nFAIL packages/db/src/runtime-config.test.ts\nFAIL src/__tests__/worktree.test.ts\n\nAll transcript-adapter tests passed after snapshot updates.",
     isError: true,
   },
   {
@@ -177,7 +177,7 @@ export const runTranscriptFixtureEntries: TranscriptEntry[] = [
     name: "command_execution",
     toolUseId: "item_6",
     input: {
-      command: "pnpm build",
+      command: "bun run build",
       cwd: "/workspace/paperclip",
     },
   },
@@ -185,7 +185,7 @@ export const runTranscriptFixtureEntries: TranscriptEntry[] = [
     kind: "tool_result",
     ts: "2026-03-11T15:24:44.030Z",
     toolUseId: "item_6",
-    content: "command: pnpm build\nstatus: completed\nexit_code: 0\n\nui build: built successfully\ncli build: Done",
+    content: "command: bun run build\nstatus: completed\nexit_code: 0\n\nui build: built successfully\ncli build: Done",
     isError: false,
   },
   {

@@ -251,9 +251,9 @@ Save this credential-free local target config outside the repository:
 ```
 
 ```sh
-pnpm test:e2e:runner -- --suite product-journeys --list
-pnpm test:e2e:runner -- --target-config /private/target.json --preview
-pnpm test:e2e:runner -- --target-config /private/target.json --output /private/new-campaign
+bun run test:e2e:runner -- --suite product-journeys --list
+bun run test:e2e:runner -- --target-config /private/target.json --preview
+bun run test:e2e:runner -- --target-config /private/target.json --output /private/new-campaign
 ```
 
 Preview resolves selections and declared changes without loading the private

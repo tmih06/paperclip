@@ -22,7 +22,7 @@ while IFS= read -r line; do
   pid=$(echo "$line" | awk '{print $2}')
   pids+=("$pid")
   lines+=("$line")
-done < <(ps aux | grep -E '(^|/)(vitest|node .*/vitest)( |$)|/\.bin/vitest|vitest/dist|vitest\.mjs' | grep -v grep || true)
+done < <(ps aux | grep -E '(^|/)(vitest|(bun|node) .*/vitest)( |$)|/\.bin/vitest|vitest/dist|vitest\.mjs' | grep -v grep || true)
 
 if [[ ${#pids[@]} -eq 0 ]]; then
   echo "No vitest processes found."

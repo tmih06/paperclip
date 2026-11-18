@@ -70,8 +70,8 @@ redactor. Mock actor discovery also omits capability and budget internals.
 Generate and verify the checked-in contracts with:
 
 ```sh
-pnpm --dir packages/paperclip-runner generate:semantic-contracts
-pnpm --dir packages/paperclip-runner check:semantic-contracts
+bun run --cwd packages/paperclip-runner generate:semantic-contracts
+bun run --cwd packages/paperclip-runner check:semantic-contracts
 ```
 
 The generated contract is

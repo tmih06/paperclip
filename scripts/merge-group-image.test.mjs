@@ -200,11 +200,11 @@ test("master promotes only after proof and otherwise builds exactly as before", 
     assert.match(step(name), /git show "\$BEFORE:scripts\/merge-group-image.mjs" > "\$trusted"/);
     assert.doesNotMatch(step(name), /node scripts\/merge-group-image\.mjs/);
   }
-  assert.match(promote, /node "\$trusted" verify --arch "\$ARCH" --dir "\$DIRECTORY" --since "\$BEFORE"/);
+  assert.match(promote, /bun "\$trusted" verify --arch "\$ARCH" --dir "\$DIRECTORY" --since "\$BEFORE"/);
   assert.ok(promote.indexOf('"$trusted" verify') < promote.indexOf("skopeo copy"));
   assert.ok(promote.indexOf("skopeo copy --all --preserve-digests") < promote.indexOf('echo "digest=$digest" >> "$GITHUB_OUTPUT"'),
     "the promoted digest becomes an output only after the exact bytes are pushed");
-  assert.match(promote, /GITHUB_OUTPUT='' node "\$trusted" verify/);
+  assert.match(promote, /GITHUB_OUTPUT='' bun "\$trusted" verify/);
   assert.ok(promote.indexOf("command -v skopeo") < promote.indexOf('"$trusted" verify'),
     "a runner without skopeo reports that promotion is unavailable before it tries");
   for (const name of ["Set up Docker Buildx", "Compute schema migration labels", "Docker meta", "Build and push by digest"]) {

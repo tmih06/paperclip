@@ -7,7 +7,7 @@
  * that the complete service result and the complete positional SQL rows are
  * equal before timing anything.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-comment-wake-check.ts --baseline-ref=<commit>
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-comment-wake-check.ts --baseline-ref=<commit>
  *
  * Options: --fixture=<name> (repeatable), --samples=<n>.
  */
@@ -32,7 +32,7 @@ const samplesPerArm = Number(process.argv.find(value => value.startsWith("--samp
 const sourcePath = "server/src/services/recovery/ownership-invariant-report.ts";
 // Every helper the check imports must be unchanged, or the baseline is contaminated.
 const changedRuntime = execFileSync("git", ["diff", "--name-only", baselineRevision, "--",
-  "server/src/services", "packages/db/src", "packages/shared/src", "pnpm-lock.yaml"], { encoding: "utf8", cwd: root })
+  "server/src/services", "packages/db/src", "packages/shared/src", "bun.lock"], { encoding: "utf8", cwd: root })
   .trim().split("\n").filter(Boolean);
 assert.deepEqual(changedRuntime.filter(file => file !== sourcePath), [], "The baseline must not import changed runtime helpers");
 

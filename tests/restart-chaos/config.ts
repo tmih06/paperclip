@@ -437,5 +437,5 @@ export function waveIdFor(seed: number, at = new Date()): string {
 }
 
 export function replayCommand(waveId: string, taskId: string): string {
-  return `node cli/node_modules/tsx/dist/cli.mjs tests/restart-chaos/main.ts --replay ${waveId}/${taskId}`;
+  return `bun tests/restart-chaos/main.ts --replay ${waveId}/${taskId}`;
 }

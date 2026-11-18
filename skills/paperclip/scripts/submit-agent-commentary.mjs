@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // One bounded, nonfatal submission. Feedback comes from stdin, never shell arguments.
 import { randomUUID } from "node:crypto";
 

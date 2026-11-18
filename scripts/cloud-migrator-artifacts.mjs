@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // The build job has no publish credential. The publisher only validates and
 // uploads fixed data files; it never installs or executes package code.
 import { createHash } from "node:crypto";

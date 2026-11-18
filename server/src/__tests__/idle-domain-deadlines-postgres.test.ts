@@ -252,7 +252,7 @@ const support = external ? { supported: true } : await getEmbeddedPostgresTestSu
     try {
       await manager.startWorker(pluginId, { manifest, apiVersion: 1, config: {}, instanceInfo: { instanceId: "fixture", hostVersion: "1.0.0" },
         entrypointPath: fileURLToPath(new URL("./fixtures/plugin-worker-deadline.cjs", import.meta.url)),
-        execArgv: ["--import", createRequire(import.meta.url).resolve("tsx")],
+        execArgv: [],
         hostHandlers: { "state.set": async input => {
           if (input.scopeKind !== "instance") throw new Error("Fixture job must publish instance-scoped state");
           await state.set(pluginId, { ...input, scopeKind: "instance" });

@@ -2,7 +2,7 @@
  * Times migration 0458 through the normal migration runner on a large
  * synthetic chat_actions table, including a rerun after the history row is removed.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-admission-index-migration.ts
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-chat-admission-index-migration.ts
  *
  * Optional sizes: OTHER_ACTIONS (default 300000), OTHER_PAYLOAD_KIB (4),
  * WAKEUPS (300000), WAKEUP_PAYLOAD_KIB (2).

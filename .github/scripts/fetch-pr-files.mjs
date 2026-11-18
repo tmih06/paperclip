@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * fetch-pr-files.mjs
  * Fetches the full changed-file list for a PR across GitHub pagination.

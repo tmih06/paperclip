@@ -39,8 +39,8 @@ describe("Codex security configuration", () => {
 
   it("resolves usable installed Codex commands and an absent-package PATH fallback while rejecting malformed or escaped dependencies", () => {
     // Vitest adds its dependency directories to global module lookup paths.
-    // Use the existing Node/tsx boundary so an absent fixture dependency cannot
-    // be supplied by the test runner's installed bridge instead.
+    // Use a fresh Bun process so an absent fixture dependency cannot be
+    // supplied by the test runner's installed bridge instead.
     const source = `
       import assert from "node:assert/strict";
       import { execFileSync } from "node:child_process";
@@ -157,7 +157,7 @@ describe("Codex security configuration", () => {
         rmSync(executable);
         assert.throws(() => resolveCodexCommand(issuer, commandEnvironment), /runtime unavailable/);
         rmSync(codex, { recursive: true });
-        // Use the existing fresh-process boundary: Node caches earlier module
+        // Use the existing fresh-process boundary: Bun caches earlier module
         // paths, whereas a genuinely absent installed graph must use PATH.
         const resolverModule = ${JSON.stringify(new URL("./codex-command.ts", import.meta.url).href)};
         const freshAbsence = [
@@ -166,7 +166,7 @@ describe("Codex security configuration", () => {
           'assert.equal(resolveCodexCommand(' + JSON.stringify(issuer) + ',' + JSON.stringify(commandEnvironment) + '),' + JSON.stringify(pathCommand) + ');',
           'assert.throws(() => resolveCodexCommand(' + JSON.stringify(issuer) + ', { PATH: "/missing-codex-command" }), /runtime unavailable.*No installed Codex dependency or executable on PATH/);',
         ].join("\\n");
-        execFileSync(process.execPath, ['--no-global-search-paths', '--import', createRequire(resolverModule).resolve('tsx'),
+        execFileSync(process.execPath, ['--no-global-search-paths',
           '--input-type=module', '--eval', freshAbsence], { env: commandEnvironment, encoding: 'utf8', timeout: 5_000 });
 
         // npm installs the host alias declared by the published server while
@@ -254,8 +254,7 @@ describe("Codex security configuration", () => {
       process.stdout.write("PINNED_CODEX_ISOLATION_VERIFIED");
     `;
     expect(execFileSync(process.execPath, [
-      "--no-global-search-paths", "--import", createRequire(import.meta.url).resolve("tsx"),
-      "--input-type=module", "--eval", source,
+      "--no-global-search-paths", "--input-type=module", "--eval", source,
     ], { env: { ...process.env, NODE_PATH: "", NODE_OPTIONS: "" }, encoding: "utf8", timeout: 10_000,
       maxBuffer: 32 * 1024 })).toBe("PINNED_CODEX_ISOLATION_VERIFIED");
   });

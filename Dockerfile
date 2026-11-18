@@ -2,10 +2,11 @@
 FROM node:24-trixie-slim AS base
 ARG USER_UID=1000
 ARG USER_GID=1000
+# Bun is the package manager and runtime for application scripts.
+COPY --from=oven/bun:1.4.4-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e /usr/local/bin/bun /usr/local/bin/bun
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates gosu curl gh git wget ripgrep python3 tini \
-  && rm -rf /var/lib/apt/lists/* \
-  && corepack enable
+  && rm -rf /var/lib/apt/lists/*
 
 # Modify the existing node user/group to have the specified UID/GID to match host user
 RUN usermod -u $USER_UID --non-unique node \
@@ -32,22 +33,31 @@ COPY docker/tailscale.LICENSE /out/LICENSE
 
 FROM base AS runner-lockfile
 WORKDIR /runner-lockfile
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY package.json bunfig.toml bun.lock .npmrc ./
 COPY packages/paperclip-eval-kernel/package.json packages/paperclip-eval-kernel/
 COPY packages/paperclip-runner/package.json packages/paperclip-runner/
 COPY patches/ patches/
-RUN pnpm install --frozen-lockfile --lockfile-only --offline --ignore-scripts --filter '@paperclipai/paperclip-runner...' > /tmp/runner-lockfile.log 2>&1 \
+# Ask Bun the question the release and publication checks ask: does the
+# committed bun.lock already satisfy the manifests the Runner is installed
+# from? Bun has no --filter-scoped lockfile check — `--filter` narrows which
+# workspaces get *installed*, never which manifests the lockfile is compared
+# against — and `--offline` is wrong here: with a cold cache an out-of-date
+# manifest fails as an uncached manifest instead of the lockfile drift it is.
+# `--frozen-lockfile --lockfile-only` compares every manifest in the tree,
+# writes nothing, and prints the drift reason, so the stage carries exactly
+# the manifests Bun will compare.
+RUN bun install --frozen-lockfile --lockfile-only --ignore-scripts > /tmp/runner-lockfile.log 2>&1 \
   || { cat /tmp/runner-lockfile.log >&2; \
-    if grep -Eq 'ERR_PNPM_OUTDATED_LOCKFILE|ERR_PNPM_LOCKFILE_CONFIG_MISMATCH' /tmp/runner-lockfile.log; then \
-      echo "ERROR: pnpm-lock.yaml is behind the manifests the Runner is installed from: package.json, pnpm-workspace.yaml, patches, packages/paperclip-runner/package.json or packages/paperclip-eval-kernel/package.json. The image build installs the Runner with a frozen lockfile, so it stops here. Run this command in the checkout, then build again: pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile" >&2; \
+    if grep -Eq 'lockfile had changes, but lockfile is frozen|dependencies in package.json changed since bun.lock was saved' /tmp/runner-lockfile.log; then \
+      echo "ERROR: bun.lock is behind the manifests the Runner is installed from: package.json, bunfig.toml, patches, packages/paperclip-runner/package.json or packages/paperclip-eval-kernel/package.json. The image build installs the Runner with a frozen lockfile, so it stops here. Run this command in the checkout, then build again: bun install --no-save" >&2; \
     else \
-      echo "ERROR: pnpm could not check pnpm-lock.yaml against the manifests the Runner is installed from. Its output is above." >&2; \
+      echo "ERROR: Bun could not check bun.lock against the manifests the Runner is installed from. Its output is above." >&2; \
     fi; \
     exit 1; }
 
 FROM runner-lockfile AS deps
 WORKDIR /app
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY package.json bunfig.toml bun.lock .npmrc ./
 COPY cli/package.json cli/
 COPY server/package.json server/
 COPY ui/package.json ui/
@@ -74,6 +84,7 @@ COPY packages/adapters/hermes-gateway/package.json packages/adapters/hermes-gate
 COPY packages/adapters/openclaw-gateway/package.json packages/adapters/openclaw-gateway/
 COPY packages/adapters/opencode-local/package.json packages/adapters/opencode-local/
 COPY packages/adapters/pi-local/package.json packages/adapters/pi-local/
+COPY packages/adapters/ompig-slim/package.json packages/adapters/ompig-slim/
 COPY packages/plugins/sdk/package.json packages/plugins/sdk/
 COPY --parents packages/plugins/sandbox-providers/./*/package.json packages/plugins/sandbox-providers/
 COPY packages/plugins/paperclip-plugin-fake-sandbox/package.json packages/plugins/paperclip-plugin-fake-sandbox/
@@ -86,9 +97,12 @@ COPY packages/paperclip-runner/src/drivers/acpx/copilot-installation.ts packages
 COPY server/scripts/install-copilot-assets.mjs server/scripts/
 COPY server/src/services/copilot-connection-probe.ts server/src/services/
 
-# CI owns repository lock updates. Resolve manifest changes in the image's
-# private build tree, then install from that exact generated lock.
-RUN pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile && pnpm install --frozen-lockfile
+# Do not resolve here, and do not `--no-save` first: Bun's --no-save installs
+# without writing the lockfile, so the following frozen install compares the
+# same stale lockfile and fails again. --lockfile-only rewrites bun.lock from
+# the manifests in this private tree and installs nothing, so the frozen
+# install below then installs exactly the tree this tree resolved.
+RUN bun install --lockfile-only --ignore-scripts && bun install --frozen-lockfile
 
 # Runner image (`--target runner-artifacts`).
 #
@@ -121,7 +135,7 @@ RUN pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile && pnpm
 # .dockerignore). Later stages copy from here, so each one is keyed by the
 # content of the paths it reads and by nothing else in the repository.
 FROM scratch AS runner-artifacts-context
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json /
+COPY package.json bun.lock bunfig.toml .npmrc tsconfig.base.json /
 COPY patches /patches
 COPY scripts/create-provider-pack-archive.mjs scripts/link-plugin-dev-sdk.mjs scripts/runner-image-identity.mjs scripts/runner-image-layout.mjs /scripts/
 COPY packages/paperclip-eval-kernel /packages/paperclip-eval-kernel
@@ -135,7 +149,7 @@ COPY packages/shared/src/provider-failure.generated.ts /packages/shared/src/
 # interpreter, which is why the exact Node release is pinned and part of the
 # image identity. The digest is the multi-platform index (amd64 and arm64).
 FROM node:24.22.3-bookworm@sha256:9d266751ca3d7fdbe651c878ffd5ad0a42fed49a18c283509267c97f025b7496 AS runner-artifacts-node
-RUN corepack enable
+RUN npm install --global --no-fund --no-audit bun@1.4.4
 
 # The image identity, computed inside the build from the files the build
 # actually receives. `--target runner-artifacts-identity` exports it alone, so
@@ -145,7 +159,7 @@ FROM runner-artifacts-node AS runner-artifacts-identity-compute
 WORKDIR /workspace
 COPY --from=runner-artifacts-context / ./
 COPY Dockerfile ./
-RUN node scripts/runner-image-identity.mjs --json > /runner-image-identity.json
+RUN bun scripts/runner-image-identity.mjs --json > /runner-image-identity.json
 
 FROM scratch AS runner-artifacts-identity
 COPY --from=runner-artifacts-identity-compute /runner-image-identity.json /runner-image-identity.json
@@ -222,7 +236,7 @@ ARG PAPERCLIP_RUNNER_IMAGE_PUBLICATION=""
 # them on every pull request. A test fails when `build` gains a step, so that
 # a new output step cannot be missed here.
 #
-# The install is frozen: the identity above covers pnpm-lock.yaml as the build
+# The install is frozen: the identity above covers bun.lock as the build
 # received it, and resolving again here would build from a lockfile the
 # identity never saw.
 #
@@ -238,38 +252,38 @@ RUN set -eu; \
     if [ -n "$publication" ] && [ -z "$revision" ]; then echo "ERROR: a publication build needs PAPERCLIP_RUNNER_SOURCE_REVISION" >&2; exit 1; fi; \
     find packages/paperclip-runner/runner packages/paperclip-runner/protocol -type f -exec touch -d @0 {} +; \
     touch -d @0 packages/paperclip-runner/rust-toolchain.toml packages/paperclip-runner/acpx-profiles.json packages/paperclip-runner/antigravity-distributions.json; \
-    pnpm install --frozen-lockfile --filter '@paperclipai/paperclip-runner...' || { \
-      echo "ERROR: the frozen install failed. If pnpm reported ERR_PNPM_OUTDATED_LOCKFILE, the committed pnpm-lock.yaml is behind the Runner's manifests. The repository's lockfile refresh fixes that on master. For a local build only, resolve it first: pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile" >&2; \
+    bun install --frozen-lockfile --filter '@paperclipai/paperclip-runner...' || { \
+      echo "ERROR: the frozen install failed. If Bun reported that the lockfile had changes, the committed bun.lock is behind the Runner's manifests. The repository's lockfile refresh fixes that on master. For a local build only, resolve it first: bun install --no-save" >&2; \
       exit 1; \
     }; \
     cd packages/paperclip-runner; \
-    node scripts/record-build-inputs.mjs --begin; \
-    pnpm run build:typescript; \
-    pnpm run build:binary; \
-    node scripts/record-build-inputs.mjs --finish; \
+    bun scripts/record-build-inputs.mjs --begin; \
+    bun run build:typescript; \
+    bun run build:binary; \
+    bun scripts/record-build-inputs.mjs --finish; \
     cd /workspace; \
     mkdir -p /out /out-large /out-archives /out-transport; \
     if [ -n "$revision" ]; then \
       if [ -n "$publication" ]; then \
-        PAPERCLIP_RUNNER_INPUTS_DIGEST="$(node -p 'require("/runner-image-identity.json").digest')"; \
+        PAPERCLIP_RUNNER_INPUTS_DIGEST="$(bun -p 'require("/runner-image-identity.json").digest')"; \
         export PAPERCLIP_RUNNER_INPUTS_DIGEST; \
       fi; \
       PAPERCLIP_RUNNER_SOURCE_REVISION="$revision" node packages/paperclip-runner/scripts/build-provider-pack.mjs /out/provider-pack; \
       find /out/provider-pack -path /out/provider-pack/dist -prune -o -type f -size +1048575c -exec touch -d @0 {} +; \
-      node scripts/create-provider-pack-archive.mjs /out/provider-pack; \
+      bun scripts/create-provider-pack-archive.mjs /out/provider-pack; \
       node_modules/.bin/esbuild /out/provider-pack/dist/live/runnerd-codex-transport.js \
         --bundle --platform=node --format=esm --log-level=warning \
         --banner:js='import { createRequire as paperclipCreateRequire } from "node:module"; const require = paperclipCreateRequire(import.meta.url);' \
         --outfile=/out/bundles/runnerd-codex-transport.mjs; \
-      node scripts/runner-image-layout.mjs write --out /out --workspace /workspace --identity /runner-image-identity.json --source-revision "$revision" ${publication:+--publication}; \
+      bun scripts/runner-image-layout.mjs write --out /out --workspace /workspace --identity /runner-image-identity.json --source-revision "$revision" ${publication:+--publication}; \
       chmod -R a+rX /out; \
-      node scripts/runner-image-layout.mjs check /out --variant full --expect-source-revision "$revision" ${publication:+--expect-inputs-digest "$PAPERCLIP_RUNNER_INPUTS_DIGEST"}; \
-      cd / && /out/provider-pack/node_modules/node/bin/node --input-type=module -e 'const transport = await import("/out/bundles/runnerd-codex-transport.mjs"); if (typeof transport.createCapabilityRunnerdCodexTransport !== "function") process.exit(1);'; \
+      bun scripts/runner-image-layout.mjs check /out --variant full --expect-source-revision "$revision" ${publication:+--expect-inputs-digest "$PAPERCLIP_RUNNER_INPUTS_DIGEST"}; \
+      cd / && /out/provider-pack/node_modules/node/bin/bun --input-type=module -e 'const transport = await import("/out/bundles/runnerd-codex-transport.mjs"); if (typeof transport.createCapabilityRunnerdCodexTransport !== "function") process.exit(1);'; \
     else \
       echo "Skipping the provider pack: supply a full PAPERCLIP_RUNNER_SOURCE_REVISION or PAPERCLIP_BUILD_COMMIT to build a complete Runner image"; \
-      node scripts/runner-image-layout.mjs write --out /out --workspace /workspace --identity /runner-image-identity.json; \
+      bun scripts/runner-image-layout.mjs write --out /out --workspace /workspace --identity /runner-image-identity.json; \
       chmod -R a+rX /out; \
-      node scripts/runner-image-layout.mjs check /out --variant full --allow-unstamped; \
+      bun scripts/runner-image-layout.mjs check /out --variant full --allow-unstamped; \
     fi; \
     /out/paperclip-runnerd --build-metadata > /dev/null; \
     cd /out; \
@@ -277,7 +291,7 @@ RUN set -eu; \
       -exec sh -c 'mkdir -p "/out-large/$(dirname "$1")" && mv "$1" "/out-large/$1"' _ {} \; ; \
     if [ -f provider-pack.archive.json ]; then \
       mkdir -p /out-archives/provider-pack.archives /out-transport; \
-      node -e 'for (const [index, file] of require("/out/provider-pack.archive.json").files.entries()) if (!file.path.startsWith("dist/")) console.log(index)' > /tmp/stable-archives; \
+      bun -e 'for (const [index, file] of require("/out/provider-pack.archive.json").files.entries()) if (!file.path.startsWith("dist/")) console.log(index)' > /tmp/stable-archives; \
       while read -r index; do mv "provider-pack.archives/$index.tar.zst" /out-archives/provider-pack.archives/; done < /tmp/stable-archives; \
       rm /tmp/stable-archives; \
       mv provider-pack.archives provider-pack.archive.json /out-transport/; \
@@ -319,14 +333,14 @@ COPY --from=runner-artifacts /runner-package/dist /app/packages/paperclip-runner
 COPY --from=runner-artifacts /runner-package/node_modules/.cache/paperclip-runner-build-inputs.json /app/packages/paperclip-runner/node_modules/.cache/paperclip-runner-build-inputs.json
 ARG PAPERCLIP_RUNNER_EXPECT_INPUTS_DIGEST=""
 RUN --mount=type=bind,from=runner-artifacts,source=/runner-image.json,target=/tmp/runner-image.json \
-  node scripts/check-runner-image-expectation.mjs /tmp/runner-image.json
+  bun scripts/check-runner-image-expectation.mjs /tmp/runner-image.json
 ENV PAPERCLIP_RUNNER_VENDOR_REQUIRE_CURRENT=1
-RUN node server/scripts/prepare-runner-vendor.mjs
+RUN bun server/scripts/prepare-runner-vendor.mjs
 # Both the browser bundle and server stamp need the source commit. Declare it
 # after the stable dependency layers, before either application build.
 ARG PAPERCLIP_BUILD_COMMIT=""
-RUN pnpm --filter @paperclipai/ui build
-RUN pnpm --filter @paperclipai/plugin-sdk build
+RUN bun run --filter @paperclipai/ui build
+RUN bun run --filter @paperclipai/plugin-sdk build
 # The server build runs scripts/write-build-stamp.mjs, which stamps the built
 # commit into dist/build-info.json. The build context has no .git, so the
 # script reads PAPERCLIP_BUILD_COMMIT instead. Docker exposes an ARG to the
@@ -337,9 +351,9 @@ RUN pnpm --filter @paperclipai/plugin-sdk build
 ENV NODE_OPTIONS=--max-old-space-size=4096
 # The image needs no declarations, and CI type-checks this source separately.
 # Emitting without either cuts the tsc step from more than 10 GiB to about 2.5 GiB.
-RUN PAPERCLIP_TSC_EMIT_ONLY=1 pnpm --filter @paperclipai/server build
+RUN PAPERCLIP_TSC_EMIT_ONLY=1 bun run --filter @paperclipai/server build
 RUN test -f server/dist/index.js || (echo "ERROR: server build output missing" && exit 1)
-RUN pnpm --filter @paperclipai/server build:runtime \
+RUN bun run --filter @paperclipai/server build:runtime \
   && test -f server/dist-runtime/index.mjs || (echo "ERROR: server runtime bundle missing" && exit 1)
 
 # Remote OpenCode and ACPX runs require a controller-owned provider pack to
@@ -412,7 +426,7 @@ COPY --from=runner-provider-pack /provider-pack-transport/ /opt/paperclip-runner
 # COPY preserves modes.
 # Keep it root-owned and verify access as an unrelated unprivileged UID.
 RUN if [ -f /opt/paperclip-runner/provider-pack/provider-pack.json ]; then \
-    gosu 65534:65534 node -e 'const fs = require("node:fs"); const path = require("node:path"); const root = "/opt/paperclip-runner/provider-pack"; const manifest = JSON.parse(fs.readFileSync(path.join(root, "provider-pack.json"), "utf8")); for (const artifact of Object.values(manifest.payload.artifacts)) fs.readFileSync(path.join(root, artifact.path)); fs.accessSync(path.join(root, manifest.payload.artifacts.nodeCommand.path), fs.constants.X_OK);'; \
+    gosu 65534:65534 bun -e 'const fs = require("node:fs"); const path = require("node:path"); const root = "/opt/paperclip-runner/provider-pack"; const manifest = JSON.parse(fs.readFileSync(path.join(root, "provider-pack.json"), "utf8")); for (const artifact of Object.values(manifest.payload.artifacts)) fs.readFileSync(path.join(root, artifact.path)); fs.accessSync(path.join(root, manifest.payload.artifacts.nodeCommand.path), fs.constants.X_OK);'; \
   fi
 ENV PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH=/opt/paperclip-runner/provider-pack
 
@@ -450,7 +464,7 @@ EXPOSE 3100
 # tini reaps adopted orphans and forwards signals, so the exec chain below and
 # graceful shutdown are unchanged. Mirrors docker/agent-runtime/Dockerfile.base.
 ENTRYPOINT ["/usr/bin/tini", "-s", "--", "docker-entrypoint.sh"]
-CMD ["node", "server/dist-runtime/index.mjs"]
+CMD ["bun", "server/dist-runtime/index.mjs"]
 
 # Cloud image variant (build with `--target cloud`): the production image
 # plus built bundled sandbox-provider plugins. Managed instances receive a
@@ -463,11 +477,15 @@ CMD ["node", "server/dist-runtime/index.mjs"]
 # lean; CI pins the default build to `--target production`. Both targets
 # inherit the build-owned remote provider pack from the standard image.
 #
-# The sandbox providers are intentionally excluded from the pnpm workspace
-# (see pnpm-workspace.yaml), so each installs standalone exactly as its
-# README prescribes. Installing in a `build`-based stage (not `production`)
-# keeps devDependencies available for tsc: `production` sets
-# NODE_ENV=production, which would make pnpm skip them.
+# The sandbox providers are intentionally excluded from the Bun workspace
+# (see bunfig.toml), so each installs standalone exactly as its
+# README prescribes. `bun install --cwd <dir>` runs with that directory as the
+# project root, so the root workspace is not involved and no lockfile is
+# written (`--no-save`). Installing in a `build`-based stage keeps the app's
+# toolchain available to the plugin's `build` script. Note that Bun does not
+# skip devDependencies for NODE_ENV=production — only --production/--omit=dev
+# does — so `production` would work too; `build` keeps the stage's inputs and
+# cache behaviour unchanged.
 #
 # CLOUD_BUNDLED_PLUGINS is the space-separated list of sandbox-provider
 # directory names to build into the variant. Only what managed deployments
@@ -479,8 +497,8 @@ RUN set -eu; \
   for name in $CLOUD_BUNDLED_PLUGINS; do \
     dir="packages/plugins/sandbox-providers/$name"; \
     test -d "$dir" || { echo "ERROR: unknown sandbox provider '$name'" >&2; exit 1; }; \
-    pnpm -C "$dir" install --ignore-workspace --no-lockfile; \
-    pnpm -C "$dir" build; \
+    bun install --cwd "$dir" --no-save; \
+    bun run --cwd "$dir" build; \
     test -f "$dir/dist/manifest.js" || { echo "ERROR: $dir is missing dist/manifest.js after build" >&2; exit 1; }; \
   done
 
@@ -508,12 +526,11 @@ RUN set -eu; \
 # The install happens in its own isolated directory, not inside
 # `server`'s own workspace install. The self-hosted target above never
 # gains these packages this way. The directory sits under `/app`, not
-# `server/`, and `--ignore-workspace` below excludes it from the pnpm
-# workspace. From that directory, pnpm still finds the `packageManager`
-# pin in the repo's own `package.json` by walking up — the same pnpm
-# version the rest of the build uses.
+# `server/`, and the root `workspaces` globs do not match it, so Bun treats it
+# as its own project: `bun add --no-save` there resolves these packages alone
+# and leaves the repository's bun.lock untouched.
 #
-# The install writes no lock file (`--no-lockfile`, the same flag the
+# The install writes no lock file (`--no-save`, the same flag the
 # `cloud-plugins` stage above uses). Two builds of the same commit can
 # therefore install different transitive versions of a named package.
 # Three facts make this an accepted trade-off:
@@ -533,13 +550,12 @@ RUN set -eu; \
   echo '{"name":"paperclip-cloud-server-deps","private":true}' > package.json; \
   specifiers=""; \
   for name in $CLOUD_BUNDLED_SERVER_DEPS; do \
-    version="$(node -e "const pkg=require('/app/server/package.json'); const name=process.argv[1]; const version=(pkg.peerDependencies||{})[name]; if(!version){console.error('ERROR: server/package.json declares no peerDependencies version for '+JSON.stringify(name));process.exit(1);} const meta=(pkg.peerDependenciesMeta||{})[name]; if(!meta||meta.optional!==true){console.error('ERROR: '+JSON.stringify(name)+' is not declared as an optional peer dependency in server/package.json; CLOUD_BUNDLED_SERVER_DEPS may name only optional peer packages');process.exit(1);} process.stdout.write(version);" "$name")"; \
+    version="$(bun -e "const pkg=require('/app/server/package.json'); const name=process.argv[1]; const version=(pkg.peerDependencies||{})[name]; if(!version){console.error('ERROR: server/package.json declares no peerDependencies version for '+JSON.stringify(name));process.exit(1);} const meta=(pkg.peerDependenciesMeta||{})[name]; if(!meta||meta.optional!==true){console.error('ERROR: '+JSON.stringify(name)+' is not declared as an optional peer dependency in server/package.json; CLOUD_BUNDLED_SERVER_DEPS may name only optional peer packages');process.exit(1);} process.stdout.write(version);" "$name")"; \
     test -n "$version" || { echo "ERROR: could not resolve a version for '$name'" >&2; exit 1; }; \
     specifiers="$specifiers ${name}@${version}"; \
   done; \
   test -n "$specifiers" || { echo "ERROR: CLOUD_BUNDLED_SERVER_DEPS names no package" >&2; exit 1; }; \
-  pnpm add --ignore-workspace --no-lockfile $specifiers
-
+  bun add --no-save $specifiers
 FROM production AS cloud
 COPY --chown=node:node --from=cloud-plugins /app/packages/plugins/sandbox-providers /app/packages/plugins/sandbox-providers
 # Land the isolated install inside the server's own `node_modules`, the

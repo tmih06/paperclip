@@ -178,7 +178,6 @@ function createRegisteredRepairFixture(
   const configDir = path.join(workspaceCwd, ".paperclip");
   const sourceConfigPath = path.join(baseCwd, ".paperclip", "config.json");
   const targetInstanceId = options.targetInstanceId ?? "repair-target";
-  const cliRunner = path.join(baseCwd, "cli", "node_modules", "tsx", "dist", "cli.mjs");
   const cliEntry = path.join(baseCwd, "cli", "src", "index.ts");
   fs.mkdirSync(configDir, { recursive: true });
   fs.mkdirSync(path.dirname(sourceConfigPath), { recursive: true });
@@ -187,9 +186,7 @@ function createRegisteredRepairFixture(
   fs.writeFileSync(path.join(configDir, "config.json"), "{}\n");
   fs.writeFileSync(path.join(configDir, ".env"), `PAPERCLIP_INSTANCE_ID=${targetInstanceId}\n`);
   if (options.withCli !== false) {
-    fs.mkdirSync(path.dirname(cliRunner), { recursive: true });
     fs.mkdirSync(path.dirname(cliEntry), { recursive: true });
-    fs.writeFileSync(cliRunner, "// test runner\n");
     fs.writeFileSync(cliEntry, "// test entry\n");
   }
   fs.writeFileSync(path.join(configDir, "seed-manifest.json"), JSON.stringify({

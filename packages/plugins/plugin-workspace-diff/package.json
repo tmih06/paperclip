@@ -42,12 +42,12 @@
     "diff"
   ],
   "scripts": {
-    "prebuild": "pnpm --filter @paperclipai/plugin-sdk ensure-build-deps",
-    "build": "tsc && node ./scripts/build-ui.mjs",
+    "prebuild": "bun run --filter @paperclipai/plugin-sdk ensure-build-deps",
+    "build": "bun x --bun --no-install tsc && bun ./scripts/build-ui.mjs",
     "clean": "rm -rf dist",
-    "typecheck": "pnpm --filter @paperclipai/plugin-sdk ensure-build-deps && tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
-    "test": "vitest run",
-    "prepack": "rm -f package.dev.json && cp package.json package.dev.json && node ../../../scripts/generate-plugin-package-json.mjs",
+    "typecheck": "bun run --filter @paperclipai/plugin-sdk ensure-build-deps && bun x --bun --no-install tsc --noEmit && bun x --bun --no-install tsc --noEmit -p tsconfig.test.json",
+    "test": "bun x --bun --no-install vitest run",
+    "prepack": "rm -f package.dev.json && cp package.json package.dev.json && bun ../../../scripts/generate-plugin-package-json.mjs",
     "postpack": "if [ -f package.dev.json ]; then mv package.dev.json package.json; fi"
   },
   "dependencies": {
@@ -62,7 +62,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "5.1.0"
   },
   "peerDependencies": {
     "react": ">=18",

@@ -3053,7 +3053,7 @@ it.each([false, true])("binds a vendored source server to its pnpm dependency ro
   await mkdir(join(workspace, "node_modules", ".pnpm"), { recursive: true });
   await mkdir(join(server, "node_modules", ...(selfRooted ? [".pnpm"] : [])), { recursive: true });
   await writeFile(join(workspace, "package.json"), JSON.stringify({ name: "paperclip", private: true }));
-  await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages:\n  - server\n");
+  await writeFile(join(workspace, "bunfig.toml"), "packages:\n  - server\n");
   await writeFile(join(server, "package.json"), JSON.stringify({ name: "@paperclipai/server" }));
   try {
     expect(runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
@@ -3102,63 +3102,195 @@ it.each((["cursor", "copilot", "pi", "kimi", "antigravity"] as const).flatMap(ag
   },
 );
 
-it("keeps a self-rooted pnpm deployment inside its dependency authority", async () => {
-  const deploymentRoot = await mkdtemp(
-    join(tmpdir(), "paperclip-deployed-provider-root-"),
-  );
-  const deployedPackageRoot = deploymentRoot;
-  await mkdir(join(deployedPackageRoot, "dist", "cli"), { recursive: true });
-  await mkdir(join(deploymentRoot, "node_modules", ".pnpm"), {
-    recursive: true,
-  });
+// A copied provider pack (the Bun-built shape) owns its dependencies directly:
+// node_modules holds real packages and there is no package-manager store, so the
+// package itself must be its own authority rather than yielding a parent.
+it("keeps a copied provider pack as its own authority without a package-manager store", async () => {
+  // The Bun-built pack has a plain hoisted node_modules and no .pnpm at all.
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "paperclip-copied-pack-")));
+  const packageRoot = directory;
+  await mkdir(join(packageRoot, "dist", "cli"), { recursive: true });
+  await writeFile(join(packageRoot, "package.json"), JSON.stringify({ name: "@paperclipai/paperclip-runner" }));
+  await mkdir(join(packageRoot, "node_modules", "acpx"), { recursive: true });
+  await writeFile(join(packageRoot, "node_modules", "acpx", "package.json"), JSON.stringify({ name: "acpx", version: "0.22.0" }));
   try {
     expect(
       runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
-        join(
-          deployedPackageRoot,
-          "dist",
-          "cli",
-          "acpx-runtime-sidecar.cjs",
-        ),
+        join(packageRoot, "dist", "cli", "acpx-runtime-sidecar.cjs"),
+        packageRoot,
+      ),
+    ).toEqual({ root: packageRoot, manifest: join(packageRoot, "package.json") });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("does not treat an empty stale node_modules beside a source package as a deployment", async () => {
+  // A checked-out source tree can leave an empty packages/paperclip-runner/node_modules
+  // behind. Only the workspace above it has real dependencies, so that is the root.
+  const workspace = await realpath(await mkdtemp(join(tmpdir(), "paperclip-source-stale-")));
+  const packageRoot = join(workspace, "packages", "paperclip-runner");
+  await mkdir(join(packageRoot, "dist", "cli"), { recursive: true });
+  await mkdir(join(packageRoot, "node_modules"), { recursive: true });
+  await writeFile(join(packageRoot, "package.json"), JSON.stringify({ name: "@paperclipai/paperclip-runner" }));
+  await writeFile(join(workspace, "package.json"), JSON.stringify({ name: "paperclip", private: true }));
+  await mkdir(join(workspace, "node_modules", "acpx"), { recursive: true });
+  await writeFile(join(workspace, "node_modules", "acpx", "package.json"), JSON.stringify({ name: "acpx" }));
+  try {
+    expect(
+      runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
+        join(packageRoot, "dist", "cli", "acpx-runtime-sidecar.cjs"),
+        packageRoot,
+      ),
+    ).toEqual({ root: workspace, manifest: join(packageRoot, "package.json") });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+it("fails closed when no installed package identifies the dependency root", async () => {
+  // Nothing is installed and no manifest describes the parent, so the bound root
+  // cannot be explained and the launch must refuse rather than guess.
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "paperclip-no-authority-")));
+  const packageRoot = directory;
+  await mkdir(join(packageRoot, "dist", "cli"), { recursive: true });
+  try {
+    expect(
+      () => runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
+        join(packageRoot, "dist", "cli", "acpx-runtime-sidecar.cjs"),
+        packageRoot,
+      ),
+    ).toThrow("provider dependency root has no package manifest");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("refuses a copied pack whose only node_modules content is an unrelated scope", async () => {
+  // A scope directory alone is not an installed dependency: nothing resolves
+  // from it, so the pack must not be treated as owning a dependency tree.
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "paperclip-empty-scope-")));
+  const packageRoot = directory;
+  await mkdir(join(packageRoot, "dist", "cli"), { recursive: true });
+  await writeFile(join(packageRoot, "package.json"), JSON.stringify({ name: "@paperclipai/paperclip-runner" }));
+  await mkdir(join(packageRoot, "node_modules", "@paperclipai"), { recursive: true });
+  await writeFile(join(packageRoot, "node_modules", "@paperclipai", ".keep"), "");
+  try {
+    expect(
+      runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
+        join(packageRoot, "dist", "cli", "acpx-runtime-sidecar.cjs"),
+        packageRoot,
+      ),
+    ).toEqual({ root: packageRoot, manifest: join(packageRoot, "package.json") });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("keeps a scoped npm-installed package inside its portable dependency root", async () => {
+  const deploymentRoot = await realpath(await mkdtemp(join(tmpdir(), "paperclip-npm-provider-root-")));
+  const deployedPackageRoot = join(deploymentRoot, "node_modules", "@paperclipai", "paperclip-runner");
+  await mkdir(join(deployedPackageRoot, "dist", "cli"), { recursive: true });
+  await writeFile(join(deployedPackageRoot, "package.json"), JSON.stringify({ name: "@paperclipai/paperclip-runner" }));
+  // npm hoists dependencies to the deploy root beside the scoped package.
+  await writeFile(join(deploymentRoot, "package.json"), JSON.stringify({ name: "@paperclipai/paperclip-runner-deploy" }));
+  await mkdir(join(deploymentRoot, "node_modules", "acpx"), { recursive: true });
+  await writeFile(join(deploymentRoot, "node_modules", "acpx", "package.json"), JSON.stringify({ name: "acpx" }));
+  try {
+    expect(
+      runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
+        join(deployedPackageRoot, "dist", "cli", "acpx-runtime-sidecar.cjs"),
         deployedPackageRoot,
       ),
-    ).toEqual({
-      root: deploymentRoot,
-      manifest: join(deployedPackageRoot, "package.json"),
-    });
+    ).toEqual({ root: deploymentRoot, manifest: join(deployedPackageRoot, "package.json") });
   } finally {
     await rm(deploymentRoot, { recursive: true, force: true });
   }
 });
 
-it("keeps a scoped npm-installed package inside its portable dependency root", async () => {
-  const deploymentRoot = await mkdtemp(
-    join(tmpdir(), "paperclip-npm-provider-root-"),
-  );
-  const deployedPackageRoot = join(
-    deploymentRoot,
-    "node_modules",
-    "@paperclipai",
-    "paperclip-runner",
-  );
-  await mkdir(join(deployedPackageRoot, "dist", "cli"), { recursive: true });
+it("an unowned node_modules above an installed pack cannot capture the authority", async () => {
+  // A copied pack that owns its dependencies stays its own authority even when
+  // an unrelated install sits above it: nothing may widen the bound root.
+  const outer = await realpath(await mkdtemp(join(tmpdir(), "paperclip-unowned-parent-")));
+  const packageRoot = join(outer, "deploy", "pack");
+  await mkdir(join(packageRoot, "dist", "cli"), { recursive: true });
+  await writeFile(join(packageRoot, "package.json"), JSON.stringify({ name: "@paperclipai/paperclip-runner" }));
+  await mkdir(join(packageRoot, "node_modules", "acpx"), { recursive: true });
+  await writeFile(join(packageRoot, "node_modules", "acpx", "package.json"), JSON.stringify({ name: "acpx" }));
+  // The outer tree has real packages and a manifest of its own, so only the
+  // "the pack owns its dependencies" rule keeps the authority from escaping.
+  await writeFile(join(outer, "package.json"), JSON.stringify({ name: "unrelated" }));
+  await mkdir(join(outer, "node_modules", "other"), { recursive: true });
+  await writeFile(join(outer, "node_modules", "other", "package.json"), JSON.stringify({ name: "other" }));
   try {
     expect(
       runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
-        join(
-          deployedPackageRoot,
-          "dist",
-          "cli",
-          "acpx-runtime-sidecar.cjs",
-        ),
-        deployedPackageRoot,
+        join(packageRoot, "dist", "cli", "acpx-runtime-sidecar.cjs"),
+        packageRoot,
       ),
-    ).toEqual({
-      root: deploymentRoot,
-      manifest: join(deployedPackageRoot, "package.json"),
-    });
+    ).toEqual({ root: packageRoot, manifest: join(packageRoot, "package.json") });
   } finally {
-    await rm(deploymentRoot, { recursive: true, force: true });
+    await rm(outer, { recursive: true, force: true });
+  }
+});
+
+it("never binds a dependency root outside the package's own ancestry", async () => {
+  // The reported root is always the package or a strict ancestor of it, so a
+  // sibling tree can never become the authority merely by holding packages.
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "paperclip-sibling-root-")));
+  const packageRoot = join(directory, "pack");
+  await mkdir(join(packageRoot, "dist", "cli"), { recursive: true });
+  await writeFile(join(packageRoot, "package.json"), JSON.stringify({ name: "@paperclipai/paperclip-runner" }));
+  await mkdir(join(directory, "sibling", "node_modules", "acpx"), { recursive: true });
+  await writeFile(join(directory, "sibling", "package.json"), JSON.stringify({ name: "sibling" }));
+  await writeFile(join(directory, "sibling", "node_modules", "acpx", "package.json"), JSON.stringify({ name: "acpx" }));
+  try {
+    const authority = runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
+      join(packageRoot, "dist", "cli", "acpx-runtime-sidecar.cjs"),
+      packageRoot,
+    );
+    expect(authority.root).toBe(packageRoot);
+    expect(authority.root).not.toContain("sibling");
+    // The manifest always belongs to the package the sidecar came from.
+    expect(authority.manifest).toBe(join(packageRoot, "package.json"));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("a source checkout is not mistaken for a self-rooted deployment", async () => {
+  // Both trees can carry real dependencies. Only a workspace that describes
+  // itself as the private paperclip root may supply the source authority, and the
+  // package's own node_modules keeps it self-rooted when it has one.
+  const workspace = await realpath(await mkdtemp(join(tmpdir(), "paperclip-source-vs-deploy-")));
+  const packageRoot = join(workspace, "packages", "paperclip-runner");
+  await mkdir(join(packageRoot, "dist", "cli"), { recursive: true });
+  await writeFile(join(packageRoot, "package.json"), JSON.stringify({ name: "@paperclipai/paperclip-runner" }));
+  await writeFile(join(workspace, "package.json"), JSON.stringify({ name: "paperclip", private: true }));
+  for (const [root, names] of [[workspace, ["acpx"]], [packageRoot, ["acpx"]]] as const) {
+    for (const name of names) {
+      await mkdir(join(root, "node_modules", name), { recursive: true });
+      await writeFile(join(root, "node_modules", name, "package.json"), JSON.stringify({ name }));
+    }
+  }
+  try {
+    // Self-rooted: the package's own install wins over the workspace above it.
+    expect(
+      runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
+        join(packageRoot, "dist", "cli", "acpx-runtime-sidecar.cjs"),
+        packageRoot,
+      ),
+    ).toEqual({ root: packageRoot, manifest: join(packageRoot, "package.json") });
+    // Remove the package's install and the source workspace supplies the root.
+    await rm(join(packageRoot, "node_modules"), { recursive: true, force: true });
+    expect(
+      runnerdLaunchProfileInternals.acpxProviderPackageAuthority(
+        join(packageRoot, "dist", "cli", "acpx-runtime-sidecar.cjs"),
+        packageRoot,
+      ),
+    ).toEqual({ root: workspace, manifest: join(packageRoot, "package.json") });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
   }
 });
 

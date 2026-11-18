@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Batched npm registry version queries for the release tooling.
 //
 // The release flow needs published-version data for every public workspace
@@ -8,12 +8,12 @@
 // bounded concurrency instead.
 //
 // Usage:
-//   node scripts/release-registry-versions.mjs fetch <pkg...>
+//   bun scripts/release-registry-versions.mjs fetch <pkg...>
 //     Prints a JSON object mapping each package name to its published
 //     versions array. Packages that are missing from the registry (or fail
 //     to resolve) map to [].
 //
-//   node scripts/release-registry-versions.mjs assert-absent <version> <pkg...>
+//   bun scripts/release-registry-versions.mjs assert-absent <version> <pkg...>
 //     Freshly checks that <version> is not published for any <pkg>. Exits 0
 //     when absent everywhere; prints the offending package@version pairs to
 //     stderr and exits 1 otherwise.

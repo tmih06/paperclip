@@ -177,6 +177,6 @@ export async function materializeKimiDistribution(options) {
 
 if (import.meta.url.endsWith("/materialize-kimi-distribution.mjs") && process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
   const args = process.argv.slice(2);
-  if (args.length !== 1) throw new Error("Usage: node scripts/materialize-kimi-distribution.mjs /absolute/output-directory");
+  if (args.length !== 1) throw new Error("Usage: bun scripts/materialize-kimi-distribution.mjs /absolute/output-directory");
   materializeKimiDistribution({ outputRoot: args[0] }).then(result => console.log(JSON.stringify(result))).catch(error => { console.error(error.message); process.exitCode = 1; });
 }

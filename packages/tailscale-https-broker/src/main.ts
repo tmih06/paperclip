@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Broker host entrypoint. Wires the tested BrokerCore to the live Tailscale
  * CLI, /proc listener-ownership check, file registry, file audit sink, and the

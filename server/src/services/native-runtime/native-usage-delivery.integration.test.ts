@@ -190,7 +190,7 @@ describe("producer-owned native usage", () => {
       await db.execute(sql`CREATE FUNCTION fail_native_usage_receipt() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'receipt database unavailable'; END $$`);
       await db.execute(sql`CREATE TRIGGER fail_native_usage BEFORE INSERT ON run_usage_receipts FOR EACH ROW EXECUTE FUNCTION fail_native_usage_receipt()`);
       const startReceiver = () => new Promise<ChildProcess>((resolve, reject) => {
-        const process = spawn(globalThis.process.execPath, ["--import", fileURLToPath(new URL("../../../node_modules/tsx/dist/loader.mjs", import.meta.url)), fileURLToPath(new URL("./__fixtures__/usage-receiver.ts", import.meta.url))], {
+        const process = spawn(globalThis.process.execPath, [fileURLToPath(new URL("./__fixtures__/usage-receiver.ts", import.meta.url))], {
           cwd: fileURLToPath(new URL("../../../../", import.meta.url)), stdio: ["ignore", "ignore", "pipe", "ipc"], env: { ...globalThis.process.env },
         });
         let diagnostics = "";

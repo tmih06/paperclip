@@ -1147,7 +1147,7 @@ function copilotFilePrompt(nonce: string): string {
   const filename = `extended-${nonce}.txt`;
   const expectedHex = Buffer.from(`verified-${nonce}\n`).toString("hex");
   const marker = `COPILOT-VALIDATED-${nonce}`;
-  const command = `node -e 'const b=require("node:fs").readFileSync(${JSON.stringify(filename)});if(!b.equals(Buffer.from("${expectedHex}","hex")))process.exit(1);console.log(${JSON.stringify(marker)})'`;
+  const command = `bun -e 'const b=require("node:fs").readFileSync(${JSON.stringify(filename)});if(!b.equals(Buffer.from("${expectedHex}","hex")))process.exit(1);console.log(${JSON.stringify(marker)})'`;
   return [
     extendedHarnessFileTask.buildPrompt(nonce),
     "Use the exact read-only validation command below after editing. It must exit with code 0 and print the validation marker before registration or completion. A failed check requires correcting the file; do not claim success from a failed command or change the check.",

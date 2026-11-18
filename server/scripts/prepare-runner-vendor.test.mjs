@@ -21,7 +21,8 @@ import {
   TIMING_SCHEMA,
   decideRunnerVendorAction,
   prepareRunnerVendor,
-  resolvePnpmInvocation,
+  resolveBunInvocation,
+  resolveBuildInvocation,
 } from "./prepare-runner-vendor.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -47,8 +48,8 @@ function makeRepo() {
   roots.push(repoRoot);
   writeTree(repoRoot, {
     "package.json": "{}\n",
-    "pnpm-lock.yaml": "lockfileVersion: 9\n",
-    "pnpm-workspace.yaml": "packages:\n  - packages/*\n  - server\n",
+    "bun.lock": "lockfileVersion: 9\n",
+    "bunfig.toml": "packages:\n  - packages/*\n  - server\n",
     "tsconfig.base.json": "{}\n",
     "patches/acpx@0.22.0.patch": "--- a\n+++ b\n",
     "server/package.json": '{"name":"@paperclipai/server"}\n',
@@ -73,6 +74,38 @@ function recordCurrentBuild({ repoRoot, packageRoot }) {
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+describe("resolveBuildInvocation", () => {
+  it("uses the invoking Bun binary for workspace builds", () => {
+    expect(resolveBuildInvocation("bun run --filter @paperclipai/paperclip-runner build", {
+      npm_execpath: "/opt/bun/bin/bun",
+    })).toEqual({
+      command: "/opt/bun/bin/bun",
+      argsPrefix: ["--filter", "@paperclipai/paperclip-runner", "build"],
+    });
+  });
+
+  it("resolves Bun from the running runtime and then from PATH, never from another manager", () => {
+    // `bun scripts/prepare-runner-vendor.mjs`, the Dockerfile's form, leaves
+    // npm_execpath unset; the Bun that loaded the module still wins.
+    expect(resolveBuildInvocation("bun run --filter @paperclipai/paperclip-runner build", {}, "/opt/bun/bin/bun", true))
+      .toEqual({ command: "/opt/bun/bin/bun", argsPrefix: ["--filter", "@paperclipai/paperclip-runner", "build"] });
+    // A non-Bun parent (the Vitest suite) has only PATH to go on.
+    expect(resolveBuildInvocation("bun run --filter @paperclipai/paperclip-runner build", {}, "/usr/bin/node", false))
+      .toEqual({ command: "bun", argsPrefix: ["--filter", "@paperclipai/paperclip-runner", "build"] });
+    // npm_execpath pointing at a different manager is not a Bun handle.
+    expect(resolveBuildInvocation("bun run --filter @paperclipai/paperclip-runner build", {
+      npm_execpath: "/usr/lib/node_modules/npm/bin/npm-cli.js",
+    }, "/usr/bin/node", false)).toEqual({
+      command: "bun",
+      argsPrefix: ["--filter", "@paperclipai/paperclip-runner", "build"],
+    });
+  });
+
+  it("refuses a build command that names another package manager", () => {
+    expect(() => resolveBuildInvocation("pnpm run build", {})).toThrow(/unexpected build command/);
+  });
 });
 
 describe("decideRunnerVendorAction", () => {
@@ -128,27 +161,27 @@ describe("decideRunnerVendorAction when the build must be current", () => {
   });
 });
 
-describe("resolvePnpmInvocation", () => {
-  it("runs the pnpm that is running the script, through Node for a JavaScript entry", () => {
-    expect(resolvePnpmInvocation({ npm_execpath: "/corepack/pnpm/9.15.4/bin/pnpm.cjs" }, "/usr/bin/node")).toEqual({
-      command: "/usr/bin/node",
-      argsPrefix: ["/corepack/pnpm/9.15.4/bin/pnpm.cjs"],
-    });
-    expect(resolvePnpmInvocation({ npm_execpath: "/opt/pnpm/pnpm" }, "/usr/bin/node")).toEqual({
-      command: "/opt/pnpm/pnpm",
+describe("resolveBunInvocation", () => {
+  it("runs the Bun that is running the script, from npm_execpath or from the running runtime", () => {
+    expect(resolveBunInvocation({ npm_execpath: "/opt/bun/bin/bun" }, "/usr/bin/node", false)).toEqual({
+      command: "/opt/bun/bin/bun",
       argsPrefix: [],
     });
-    expect(resolvePnpmInvocation({ npm_execpath: "C:\\pnpm\\pnpm.exe" }, "node.exe")).toEqual({
-      command: "C:\\pnpm\\pnpm.exe",
+    expect(resolveBunInvocation({ npm_execpath: "C:\\bun\\bun.exe" }, "node.exe", false)).toEqual({
+      command: "C:\\bun\\bun.exe",
+      argsPrefix: [],
+    });
+    expect(resolveBunInvocation({}, "/opt/bun/bin/bun", true)).toEqual({
+      command: "/opt/bun/bin/bun",
       argsPrefix: [],
     });
   });
 
-  it("falls back to pnpm on PATH outside a pnpm script or under another package manager", () => {
-    expect(resolvePnpmInvocation({}, "/usr/bin/node")).toEqual({ command: "pnpm", argsPrefix: [] });
-    expect(resolvePnpmInvocation({ npm_execpath: "" }, "/usr/bin/node")).toEqual({ command: "pnpm", argsPrefix: [] });
-    expect(resolvePnpmInvocation({ npm_execpath: "/usr/lib/node_modules/npm/bin/npm-cli.js" }, "/usr/bin/node")).toEqual({
-      command: "pnpm",
+  it("falls back to bun on PATH outside a Bun script or under another package manager", () => {
+    expect(resolveBunInvocation({}, "/usr/bin/node", false)).toEqual({ command: "bun", argsPrefix: [] });
+    expect(resolveBunInvocation({ npm_execpath: "" }, "/usr/bin/node", false)).toEqual({ command: "bun", argsPrefix: [] });
+    expect(resolveBunInvocation({ npm_execpath: "/usr/lib/node_modules/npm/bin/npm-cli.js" }, "/usr/bin/node", false)).toEqual({
+      command: "bun",
       argsPrefix: [],
     });
   });
@@ -156,9 +189,9 @@ describe("resolvePnpmInvocation", () => {
 
 describe("prepareRunnerVendor", () => {
   it("still runs the Runner build the server build has always run", () => {
-    // The Dockerfile's standalone `pnpm --filter @paperclipai/server build`
+    // The Dockerfile's standalone `bun run --filter @paperclipai/server build`
     // depends on this exact command producing a current vendored Runner.
-    expect(RUNNER_VENDOR_BUILD_COMMAND).toBe("pnpm --filter @paperclipai/paperclip-runner build");
+    expect(RUNNER_VENDOR_BUILD_COMMAND).toBe("bun run --filter @paperclipai/paperclip-runner build");
   });
 
   it("skips the rebuild when the recorded build is current and reports the check time", () => {
@@ -193,7 +226,7 @@ describe("prepareRunnerVendor", () => {
     const stampPath = buildInputsStampPath(packageRoot);
     const observed = [];
     const lines = [];
-    const env = { npm_execpath: "/corepack/pnpm.cjs" };
+    const env = { npm_execpath: "/opt/bun/bin/bun" };
 
     const status = prepareRunnerVendor({
       repoRoot,
@@ -326,11 +359,11 @@ describe("prepareRunnerVendor", () => {
       "",
     ].join("\n");
     const built = makeRepo();
-    writeFileSync(path.join(built.repoRoot, "pnpm-lock.yaml"), committed);
+    writeFileSync(path.join(built.repoRoot, "bun.lock"), committed);
     recordCurrentBuild(built);
 
     const { repoRoot, packageRoot } = makeRepo();
-    writeFileSync(path.join(repoRoot, "pnpm-lock.yaml"), committed);
+    writeFileSync(path.join(repoRoot, "bun.lock"), committed);
     writeTree(repoRoot, {
       "packages/paperclip-runner/node_modules/.cache/paperclip-runner-build-inputs.json": readFileSync(buildInputsStampPath(built.packageRoot), "utf8"),
     });
@@ -342,13 +375,13 @@ describe("prepareRunnerVendor", () => {
     expect(prepare(reused)).toBe(0);
     expect(reused[1]).toMatch(/,action:reuse,reason:inputs_unchanged,/);
 
-    writeFileSync(path.join(repoRoot, "pnpm-lock.yaml"), committed.replace("specifier: ^19.2.7", "specifier: ^19.2.8"));
+    writeFileSync(path.join(repoRoot, "bun.lock"), committed.replace("specifier: ^19.2.7", "specifier: ^19.2.8"));
     const refused = [];
     expect(prepare(refused)).toBe(1);
-    expect(refused[0]).toContain("pnpm-lock.yaml included");
+    expect(refused[0]).toContain("bun.lock included");
     expect(refused[1]).toMatch(/,action:fail,reason:inputs_changed,/);
 
-    writeFileSync(path.join(repoRoot, "pnpm-lock.yaml"), committed);
+    writeFileSync(path.join(repoRoot, "bun.lock"), committed);
     expect(prepare([])).toBe(0);
     expect(runs).toBe(0);
     expect(readBuildInputsStamp(buildInputsStampPath(packageRoot))).not.toBeNull();
@@ -358,15 +391,15 @@ describe("prepareRunnerVendor", () => {
     "end to end: the first server build rebuilds the Runner, the second reuses it, a change or a lost output rebuilds again",
     async () => {
       const { repoRoot, packageRoot } = makeRepo();
-      // A stand-in pnpm that behaves like the Runner build: it records how it
+      // A stand-in bun that behaves like the Runner build: it records how it
       // was called, then brackets its (empty) step list with the same two
       // record-build-inputs.mjs calls the real build makes.
       const binDir = path.join(repoRoot, "bin");
-      const argvLog = path.join(repoRoot, "pnpm-argv.log");
+      const argvLog = path.join(repoRoot, "bun-argv.log");
       mkdirSync(binDir);
-      const pnpm = path.join(binDir, "pnpm");
+      const bun = path.join(binDir, "bun");
       writeFileSync(
-        pnpm,
+        bun,
         `${[
           "#!/bin/sh",
           "set -e",
@@ -375,12 +408,13 @@ describe("prepareRunnerVendor", () => {
           `"${process.execPath}" "${recordScript}" --finish --package-root "${packageRoot}" > /dev/null`,
         ].join("\n")}\n`,
       );
-      chmodSync(pnpm, 0o755);
+      chmodSync(bun, 0o755);
       const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}` };
       delete env[FORCE_REBUILD_VARIABLE];
       delete env[REQUIRE_CURRENT_VARIABLE];
-      // The suite itself may run under pnpm; the script must then take the
-      // PATH fallback so the stand-in, not the real pnpm, receives the build.
+      // This suite runs under Node, so the script takes the PATH fallback and
+      // the stand-in, not the real bun, receives the build. Clear any Bun
+      // handle the runner may have left behind.
       delete env.npm_execpath;
       const run = () => execFileAsync(process.execPath, [prepareScript, "--repo-root", repoRoot], { env });
       const calls = () => readFileSync(argvLog, "utf8").split("\n").filter(Boolean);
@@ -409,7 +443,7 @@ describe("prepareRunnerVendor", () => {
       expect(calls()).toHaveLength(3);
       expect(fifth.stdout).toMatch(/action:reuse,reason:inputs_unchanged,/);
 
-      // Required to be current: a stale build fails the step and pnpm is not called.
+      // Required to be current: a stale build fails the step and bun is not called.
       writeFileSync(path.join(packageRoot, "src", "index.ts"), "export const one = 3;\n");
       const required = { ...env, [REQUIRE_CURRENT_VARIABLE]: "1" };
       await expect(execFileAsync(process.execPath, [prepareScript, "--repo-root", repoRoot], { env: required })).rejects.toMatchObject({

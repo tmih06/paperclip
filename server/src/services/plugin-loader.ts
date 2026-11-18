@@ -1,4 +1,3 @@
-import { resolveBundledPluginRuntimeLoader } from "./bundled-plugin-runtime.js";
 import { finishServiceShutdown } from "../shutdown.js";
 /**
  * PluginLoader — discovery, installation, and runtime activation of plugins.
@@ -89,8 +88,6 @@ export const DEFAULT_LOCAL_PLUGIN_DIR = path.join(
   ".paperclip",
   "plugins",
 );
-
-const DEV_TSX_LOADER_PATH = path.resolve(__dirname, "../../../cli/node_modules/tsx/dist/loader.mjs");
 
 /**
  * Model-provider API keys that sandbox-provider plugins (e.g.
@@ -748,7 +745,7 @@ async function readPackageJson(
 function buildLocalPluginBuildCommand(pkgJson: Record<string, unknown>): string | null {
   const packageName = pkgJson["name"];
   if (typeof packageName !== "string" || packageName.trim().length === 0) return null;
-  return `pnpm --filter ${packageName} build`;
+  return `bun run --filter ${packageName} build`;
 }
 
 function readPackageDependencyNames(
@@ -858,11 +855,11 @@ function formatLocalPluginManualBuildHint(
 function buildStandaloneBundledPluginInstallArgs(
   packageRoot: string,
 ): string[] {
-  const packageLockfilePath = path.join(packageRoot, "pnpm-lock.yaml");
+  const packageLockfilePath = path.join(packageRoot, "bun.lock");
   // Never let plugin-supplied workspace settings broaden dependency resolution
   // or script execution. When a plugin declares a local install policy, disable
   // dependency lifecycle scripts instead of loading that workspace configuration.
-  const scriptArgs = existsSync(path.join(packageRoot, "pnpm-workspace.yaml")) ? ["--ignore-scripts"] : [];
+  const scriptArgs = existsSync(path.join(packageRoot, "bunfig.toml")) ? ["--ignore-scripts"] : [];
   return ["install", "--ignore-workspace", ...scriptArgs, existsSync(packageLockfilePath) ? "--frozen-lockfile" : "--no-lockfile"];
 }
 
@@ -881,7 +878,7 @@ function buildLocalPluginRecoveryCommand(
     const repoRoot = options.repoRoot ?? REPO_ROOT;
     const relativePath = path.relative(repoRoot, packageRoot) || ".";
     const installCommand = buildStandaloneBundledPluginInstallCommand(packageRoot);
-    return `cd ${relativePath} && ${installCommand} && pnpm build`;
+    return `cd ${relativePath} && ${installCommand} && bun run build`;
   }
 
   return buildLocalPluginBuildCommand(pkgJson);
@@ -2446,6 +2443,8 @@ export function pluginLoader(
         databaseNamespace,
         hostHandlers,
         autoRestart: true,
+        // Bun runs both source and prebuilt workers without inherited watchers or loaders.
+        execArgv: [],
         env: buildPluginWorkerEnv({
           manifest,
           packageName: activePlugin.packageName,
@@ -2461,12 +2460,6 @@ export function pluginLoader(
         // never reaches an unconfigured company.
         proactiveCompanyScopes: configRows.map((row) => row.companyId),
       };
-
-      if (prebuiltOnly) {
-        workerOptions.execArgv = ["--import", resolveBundledPluginRuntimeLoader()];
-      } else if (activePlugin.packagePath && existsSync(DEV_TSX_LOADER_PATH)) {
-        workerOptions.execArgv = ["--import", DEV_TSX_LOADER_PATH];
-      }
 
       await workerManager.startWorker(pluginId, workerOptions);
       registered.worker = true;

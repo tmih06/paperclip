@@ -139,12 +139,12 @@ export async function stageProviderPackLayers(input: {
   // Respect the per-argument Linux limit; unusual packs retain directory staging.
   if (spec === null) return false;
   const capability = await measure("provider_pack.archive.probe", () => runner.execute({
-    command: "sh", args: ["-c", `${providerPackExtractionProbe} && node -e 'process.exit(Number(process.versions.node.split(".")[0])>=18?0:1)'`],
+    command: "sh", args: ["-c", `${providerPackExtractionProbe} && bun -e 'process.exit(process.versions.bun ? 0 : 1)'`],
     bypassSession: true, timeoutMs: 10_000,
   }));
   if (capability.exitCode !== 0 || capability.timedOut) return false;
   const reused = await measure("provider_pack.archive.reuse", () => runner.execute({
-    command: "node", args: ["-e", reuseScript, spec], bypassSession: true, timeoutMs: 60_000,
+    command: "bun", args: ["-e", reuseScript, spec], bypassSession: true, timeoutMs: 60_000,
   }));
   if (reused.exitCode !== 0 || reused.timedOut) throw Error("runner_remote_provider_archive_reuse_failed");
   let missing: number[];

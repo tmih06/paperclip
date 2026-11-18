@@ -35,6 +35,8 @@ export function writePortableCopilotShims(packRoot) {
     // point it at that asset and drop the second ~160 MB copy from node_modules.
     const asset = join(packRoot, "provider-assets", "copilot", platform, "copilot");
     if (existsSync(asset) && sha256(asset) === sha256(executable)) {
+      // The install layout names the package differently per package manager;
+      // remove the copy by whatever key resolves to it in this pack.
       const entry = pnpmStoreEntryOf(packRoot, executable);
       writePortableExecutableShim(packRoot, name, relative(nodeModules, realpathSync(asset)));
       removePnpmStoreEntries(packRoot, [entry]);

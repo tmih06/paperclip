@@ -373,16 +373,16 @@ describe("TaskChatRunnerActivityGroup", () => {
     ], { summary: "node --test" });
     const failed = providerItem("check-2", "verification", "failed", [
       { label: "Status", value: "failed" },
-    ], { summary: "pnpm typecheck" });
+    ], { summary: "bun run typecheck" });
     const skipped = providerItem("check-3", "verification", "informational", [
       { label: "Status", value: "not_run" },
       { label: "Reason Code", value: "policy_restricted" },
-    ], { summary: "pnpm test:e2e" });
+    ], { summary: "bun run test:e2e" });
     const longFailure = "x".repeat(300);
     const failedLong = providerItem("check-4", "verification", "failed", [
       { label: "Status", value: "failed" },
       { label: "Detail", value: longFailure },
-    ], { summary: "pnpm typecheck" });
+    ], { summary: "bun run typecheck" });
     const wait = providerItem("wait", "wait", "running", [
       { label: "Planned Duration Ms", value: "30000" },
     ], { startedAt: new Date(Date.now() - 12_000).toISOString() });
@@ -407,7 +407,7 @@ describe("TaskChatRunnerActivityGroup", () => {
     const longRow = container.querySelector<HTMLButtonElement>('[data-activity-item-id="check-4"] button')!;
     act(() => longRow.click());
     const detail = container.querySelector('[data-activity-item-id="check-4"] [data-testid="task-chat-verification-details"]');
-    expect(detail?.textContent).toContain("pnpm typecheck");
+    expect(detail?.textContent).toContain("bun run typecheck");
     expect(detail?.textContent).toContain(longFailure);
 
     expect(container.querySelector('[data-activity-row="wait"]')?.textContent).toContain("Waiting 30s");

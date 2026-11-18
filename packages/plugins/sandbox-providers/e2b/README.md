@@ -26,10 +26,10 @@ Configure E2B from `Instance Settings -> Environments`, not from the plugin's pl
 
 ```bash
 cd packages/plugins/sandbox-providers/e2b
-pnpm install --ignore-workspace --no-lockfile
-pnpm build
-pnpm test
-pnpm typecheck
+bun install --no-save
+bun run build
+bun run test
+bun run typecheck
 ```
 
 These commands assume the repo root has already been installed once so the local `@paperclipai/plugin-sdk` workspace package is available to the compiler during development.

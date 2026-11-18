@@ -177,6 +177,15 @@ describe("Sidebar", () => {
     vi.clearAllMocks();
   });
 
+  it("places Network directly below Inbox", async () => {
+    mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableIsolatedWorkspaces: false });
+    const root = await renderSidebar();
+    const links = [...container.querySelectorAll("nav a")];
+    const inboxIndex = links.findIndex(link => link.getAttribute("href") === "/inbox");
+    expect(links[inboxIndex + 1]?.getAttribute("href")).toBe("/network");
+    flushSync(() => root.unmount());
+  });
+
   it("keeps the default sidebar edge borderless", async () => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableIsolatedWorkspaces: false });
     const root = await renderSidebar();

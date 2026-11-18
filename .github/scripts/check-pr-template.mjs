@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-pr-template.mjs
  * Checks that a PR body contains all required sections from the PR template.

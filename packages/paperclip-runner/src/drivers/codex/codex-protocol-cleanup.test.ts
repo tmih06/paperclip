@@ -1,14 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
-
-const resolveTsxLoader = createRequire(import.meta.url).resolve("tsx");
 
 describe("protocol-failure cleanup", () => {
   it.each(["immediate", "delayed", "successful"])(
     "contains %s background cleanup without hiding its outcome from the owner",
     (outcome) => {
-      // Use Node's fatal unhandled-rejection policy in a separate process.
+      // Use Bun's fatal unhandled-rejection policy in a separate process.
       // A test-runner rejection listener would conceal the controller crash.
       const source = `
         import assert from "node:assert/strict";
@@ -57,7 +54,7 @@ describe("protocol-failure cleanup", () => {
         process.stdout.write("HOST_ALIVE_CLEANUP_OUTCOME_PRESERVED");
       `;
       expect(execFileSync(process.execPath, [
-        "--unhandled-rejections=strict", "--import", resolveTsxLoader,
+        "--unhandled-rejections=strict",
         "--input-type=module", "--eval", source,
       ], { encoding: "utf8", timeout: 10_000 })).toBe("HOST_ALIVE_CLEANUP_OUTCOME_PRESERVED");
     },

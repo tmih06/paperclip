@@ -1,4 +1,4 @@
-/** Isolated, repeatable preparation benchmark. Run with pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-skill-preparation.ts. */
+/** Isolated, repeatable preparation benchmark. Run with bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-skill-preparation.ts. */
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
@@ -89,7 +89,7 @@ try {
     const samples = [await measure("cold")];
     for (let index = 0; index < 9; index++) samples.push(await measure(`warm-${index + 1}`));
     const childOutput = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(process.execPath, ["--import", fileURLToPath(new URL("../server/node_modules/tsx/dist/loader.mjs", import.meta.url)), fileURLToPath(import.meta.url), "--warm-child"], {
+      const proc = spawn(process.execPath, [fileURLToPath(import.meta.url), "--warm-child"], {
         env: { ...process.env, SKILL_BENCH_DATABASE_URL: database!.connectionString, SKILL_BENCH_COMPANY_ID: companyId },
         stdio: ["ignore", "pipe", "inherit"],
       });

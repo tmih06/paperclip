@@ -95,7 +95,7 @@ export function createRemoteAttachmentStager(
     let identity: { dev: string; ino: string } | undefined;
     const run = async (phase: "stage" | "cleanup") => {
       const result = await runner.execute({
-        command: "node", args: ["--input-type=commonjs", "-e", STAGE,
+        command: "bun", args: ["--input-type=commonjs", "-e", STAGE,
           JSON.stringify({ root: workspaceRoot, slot, filename, size: body.length, sha256, phase, identity })],
         cwd: workspaceRoot, env: { NODE_OPTIONS: "", NODE_PATH: "" },
         stdin: phase === "stage" ? body.toString("base64") : undefined,

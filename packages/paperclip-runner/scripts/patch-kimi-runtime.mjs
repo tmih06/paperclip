@@ -20,7 +20,7 @@ export function patchKimiRuntimeSource(input) {
   if (sha256(input) !== KIMI_RUNTIME_PATCH.vendorSha256) throw new Error("Kimi runtime patch input digest mismatch");
   let source = input;
   const replace = (before, after) => { source = replaceKimiPatchAnchor(source, before, after); };
-  replace("#!/usr/bin/env node\n", `#!/usr/bin/env node
+  replace("#!/usr/bin/env bun\n", `#!/usr/bin/env bun
 import { createHash as paperclipKimiCreateHash } from "node:crypto";
 let paperclipKimiInstructionSnapshot;
 function paperclipKimiInstructionState() {

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Refresh only Arcade's public support claim; never update Composio verification dates.
 import { readFile, writeFile } from "node:fs/promises";
 const source = "https://docs.arcade.dev/en/resources/integrations";

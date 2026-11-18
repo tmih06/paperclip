@@ -26,7 +26,7 @@ env \
   npm_config_cache="$PC_CACHE" \
   npm_config_userconfig="$PC_HOME/.npmrc" \
   PATH="$PC_HOME/.local/bin:$PATH" \
-  pnpm --dir "$REPO_ROOT" paperclipai install --yes
+  bun run --cwd "$REPO_ROOT" paperclipai install --yes
 
 test -x "$PC_HOME/.local/bin/paperclipai"
 test -L "$PC_HOME/.paperclip/cli/current"
@@ -40,7 +40,7 @@ env \
   HOME="$PC_HOME" \
   PAPERCLIP_HOME="$PC_HOME/.paperclip" \
   PATH="$PC_HOME/.local/bin:$PATH" \
-  pnpm --dir "$REPO_ROOT" paperclipai uninstall
+  bun run --cwd "$REPO_ROOT" paperclipai uninstall
 
 test ! -e "$PC_HOME/.paperclip/cli"
 test ! -e "$PC_HOME/.local/bin/paperclipai"

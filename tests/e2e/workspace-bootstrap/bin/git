@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Test-only executable boundary: real Git and the real scheduler still run.
 // Only a repository explicitly armed by the test can inject a timeout.
 import fs from "node:fs";

@@ -16,7 +16,7 @@ export default defineConfig({
     cwd: path.resolve(import.meta.dirname, "../.."),
     gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
     command:
-      "node --import ./cli/node_modules/tsx/dist/loader.mjs tests/e2e/connection-reviews-server.ts",
+      "bun tests/e2e/connection-reviews-server.ts",
     env: {
       ...(base.webServer as { env: Record<string, string> }).env,
       PAPERCLIP_REVIEW_RESTART_FILE: controlPath,

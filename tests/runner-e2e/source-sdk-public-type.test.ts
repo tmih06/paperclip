@@ -21,7 +21,7 @@ beforeAll(async () => {
   reviewedRoot=await realpath(await mkdtemp(path.join(os.tmpdir(),"sdk-public-reviewed-reference-")));
   await prepareReviewedSdkReference(originalRoot,reviewedRoot);
   for(const relative of Object.keys(pins.inputs))fixtureInputs[relative]=blob(await readFile(path.join(root,relative)));
-  fixtureLockSha256=hash(await readFile(path.join(root,"pnpm-lock.yaml")));
+  fixtureLockSha256=hash(await readFile(path.join(root,"bun.lock")));
 
 });
 afterAll(async () => { for(const directory of [root,reviewedRoot])if(directory)await rm(directory,{recursive:true,force:true}); });
@@ -34,12 +34,12 @@ it("default public proof accepts the reviewed build lock and still rejects a cha
   try {
     await prepareReviewedSdkReference(originalRoot,directory);
     const reviewed = JSON.parse(await readFile(path.join(originalRoot, "tests/runner-e2e/report-lock.json"), "utf8"));
-    const lock = await readFile(path.join(directory, "pnpm-lock.yaml"));
+    const lock = await readFile(path.join(directory, "bun.lock"));
     expect(hash(lock)).toBe(reviewed.outputSha256);
     // Use the real default registry, without injecting alternate expected pins.
     const proof = await verifySdkPublicSource(directory);
     expect(proof.identity.lockSha256).toBe(hash(lock));
-    await writeFile(path.join(directory, "pnpm-lock.yaml"), Buffer.concat([lock, Buffer.from("\n# changed owning runtime input\n")]));
+    await writeFile(path.join(directory, "bun.lock"), Buffer.concat([lock, Buffer.from("\n# changed owning runtime input\n")]));
     await expect(verifySdkPublicSource(directory)).rejects.toThrow("SDK public source proof unavailable");
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

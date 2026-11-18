@@ -7,6 +7,14 @@ import {
 } from "./company-routes";
 
 describe("company routes", () => {
+  it("keeps Network navigation scoped to the active company", () => {
+    expect(isBoardPathWithoutPrefix("/network")).toBe(true);
+    expect(extractCompanyPrefixFromPath("/network")).toBeNull();
+    expect(applyCompanyPrefix("/network", "TMI")).toBe("/TMI/network");
+    expect(applyCompanyPrefix("/network?view=pods#node", "TMI")).toBe("/TMI/network?view=pods#node");
+    expect(applyCompanyPrefix("/TMI/network", "OTHER")).toBe("/TMI/network");
+    expect(toCompanyRelativePath("/TMI/network")).toBe("/network");
+  });
   it("keeps public Dot consent outside company-prefixed routes", () => {
     const path = `/dot-connect/pcmcp_request_${"a".repeat(43)}`;
     expect(extractCompanyPrefixFromPath(path)).toBeNull();

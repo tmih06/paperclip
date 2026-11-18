@@ -101,7 +101,7 @@ credential exchanges also need separate cost attribution.
 For authenticated retrieval, set the bucket variable and AWS profile, then run:
 
 ```sh
-node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/private-history.ts download report RUN_ID /tmp/eval-RUN_ID
+bun tests/runner-e2e/private-history.ts download report RUN_ID /tmp/eval-RUN_ID
 ```
 
 Use `evidence` instead of `report` for the original staged accounting and diagnostics.
@@ -556,7 +556,7 @@ Collect retained GitHub usage after the workflow completes, including failed or
 cancelled workflows, without dispatching or retrying anything:
 
 ```sh
-node --import tsx tests/runner-e2e/operating-receipts.ts github RUN_ID /private/path/github-usage.json
+bun tests/runner-e2e/operating-receipts.ts github RUN_ID /private/path/github-usage.json
 ```
 
 The collector uses the existing `gh` authentication and only reads
@@ -578,7 +578,7 @@ Import a reviewed cost receipt and its exact source evidence into an existing
 campaign's declared overhead reservation:
 
 ```sh
-node --import tsx tests/runner-e2e/operating-receipts.ts import /private/path/ledger.jsonl /private/path/receipt.json /private/path/source-evidence.json
+bun tests/runner-e2e/operating-receipts.ts import /private/path/ledger.jsonl /private/path/receipt.json /private/path/source-evidence.json
 ```
 
 The receipt contains `version: 2`, `costBasis: "component_cumulative"`,
@@ -784,7 +784,7 @@ the selected result's revision must not be assigned to older attempts.
 
 ```sh
 PAPERCLIP_E2E_BRAINTRUST_PROJECT_ID=PROJECT_UUID \
-node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/braintrust-experiment-import.ts \
+bun tests/runner-e2e/braintrust-experiment-import.ts \
   /private/campaign/normalized-results.json /private/campaign/original-result-paths.json \
   /private/campaign/experiment-plan.json --dry-run
 ```
@@ -898,7 +898,7 @@ Create a private JSON audit with these fields:
 - `maxAttemptsPerExecution`: the finite cap to adopt, including past attempts.
 - `priorAttempts`: an array of `{ "executionId": "...", "attemptId": "..." }`.
 
-Run `node cli/node_modules/tsx/dist/cli.mjs tests/runner-e2e/ledger-attempt-policy.ts /absolute/private-audit.json`.
+Run `bun tests/runner-e2e/ledger-attempt-policy.ts /absolute/private-audit.json`.
 The command checks evidence and journal hashes, takes the normal exclusive writer
 lock, and appends one fsynced policy record. It refuses unfinished requests,
 omitted recorded request identities, duplicate attempts, or an existing attempt

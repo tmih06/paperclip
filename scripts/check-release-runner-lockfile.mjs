@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { RUNNER_IMAGE_CONTEXT_INPUTS } from "./runner-image-identity.mjs";
 import { runnerLockState } from "./runner-image-publish.mjs";
 
-export const LOCKFILE_REFRESH_COMMAND = "pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile";
+export const LOCKFILE_REFRESH_COMMAND = "bun install --no-save";
 
 export function runnerLockStateAtCommit({ repoRoot, commit = "HEAD", run = spawnSync, lockState = runnerLockState }) {
   const scratch = mkdtempSync(path.join(tmpdir(), "paperclip-release-runner-lockfile-"));
@@ -45,10 +45,10 @@ export function runReleaseRunnerLockfileCheck(argv, {
   const commit = argv[1] ?? "HEAD";
   const result = check({ repoRoot, commit });
   if (result.state === "current") {
-    log(`pnpm-lock.yaml at ${commit} matches the Runner's manifests.`);
+    log(`bun.lock at ${commit} matches the Runner's manifests.`);
     return 0;
   }
-  log(`pnpm-lock.yaml at ${commit} is behind the Runner's manifests (${result.detail}). `
+  log(`bun.lock at ${commit} is behind the Runner's manifests (${result.detail}). `
     + "An image build from this commit installs the Runner with a frozen lockfile and fails. "
     + `Release a commit that includes the lockfile refresh, which is the result of: ${LOCKFILE_REFRESH_COMMAND}`);
   return 1;

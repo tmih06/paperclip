@@ -146,7 +146,7 @@
     "profileDigest": "sha256:2324d9b47650c12b16f8e2c44dc33637d52f1b22ba8e914623eac4049e7e1991",
     "model": "openrouter/deepseek/deepseek-v4-flash-0731",
     "mode": "0555",
-    "build": "pnpm build (release runnerd)"
+    "build": "bun run build (release runnerd)"
   },
   "runnerStartup": {
     "schema": "paperclip.pi-session-open-diagnostic.v1",

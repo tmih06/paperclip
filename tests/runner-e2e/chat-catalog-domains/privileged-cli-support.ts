@@ -27,10 +27,9 @@ export async function runOwnedCli(ctx: ChatCatalogContext, args: string[]) {
   const env: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: path.join(actor.directory, "home"),
     PAPERCLIP_HOME: path.join(actor.directory, "home"), PAPERCLIP_CONTEXT: path.join(actor.directory, "context.json"), PAPERCLIP_API_KEY: actor.token,
     PAPERCLIP_API_URL: ctx.input.api.baseURL, PAPERCLIP_TELEMETRY_DISABLED: "1", NO_COLOR: "1" };
-  const loader = fileURLToPath(new URL("../../../cli/node_modules/tsx/dist/loader.mjs", import.meta.url));
   const entry = fileURLToPath(new URL("../../../cli/src/index.ts", import.meta.url));
   try {
-    const result = await execute(process.execPath, ["--import", loader, entry, ...args], { cwd: actor.directory, env, timeout: 45_000, maxBuffer: 1_048_576 });
+    const result = await execute(process.execPath, [entry, ...args], { cwd: actor.directory, env, timeout: 45_000, maxBuffer: 1_048_576 });
     if (result.stdout.includes(actor.token) || result.stderr.includes(actor.token)) throw new Error("Private CLI credential appeared in output");
     return result.stdout;
   } catch { throw new Error("Owned CLI command failed; private subprocess output withheld"); }

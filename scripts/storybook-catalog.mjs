@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -201,7 +201,7 @@ export function generateStorybook(root = defaultRoot, { write = true } = {}) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   const args = process.argv.slice(2);
-  if (args.some(arg => !["--write", "--check"].includes(arg)) || args.length > 1) throw new Error("Usage: node scripts/storybook-catalog.mjs [--write | --check]");
+  if (args.some(arg => !["--write", "--check"].includes(arg)) || args.length > 1) throw new Error("Usage: bun scripts/storybook-catalog.mjs [--write | --check]");
   const { stories } = generateStorybook(defaultRoot, { write: !args.includes("--check") });
   console.log(`Storybook map: ${stories.length} files, ${stories.reduce((n, story) => n + story.ids.length, 0)} stories. Structure only; no runtime proof.`);
 }

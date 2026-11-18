@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { execFile, execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
@@ -9,69 +9,15 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { linkSdkInto } from "./link-plugin-dev-sdk.mjs";
+import { isWorkspacePackage, readWorkspaceEntries } from "./lib/workspace-packages.mjs";
 
 const execFileAsync = promisify(execFile);
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
-const workspacePath = path.join(repoRoot, "pnpm-workspace.yaml");
 const releasePackageMapPath = path.join(repoRoot, "scripts", "release-package-map.mjs");
 
-export function parseWorkspaceEntries(workspaceText) {
-  // Keep this aligned with the repo's block-sequence `packages:` format in
-  // pnpm-workspace.yaml. If that file moves to a more complex YAML shape,
-  // switch this parser to a real YAML parser instead of line matching.
-  return workspaceText
-    .split("\n")
-    .map((line) => line.match(/^\s*-\s+(.+)\s*$/)?.[1]?.trim() ?? null)
-    .map((entry) => {
-      if (!entry) return entry;
-      return entry.replace(/^(['"])(.*)\1$/, "$2");
-    })
-    .filter(Boolean)
-    .map((entry) => ({
-      pattern: entry.startsWith("!") ? entry.slice(1) : entry,
-      negated: entry.startsWith("!"),
-    }));
-}
-
-function globToRegExp(pattern) {
-  let regex = "";
-
-  for (let index = 0; index < pattern.length; index += 1) {
-    const char = pattern[index];
-    const next = pattern[index + 1];
-
-    if (char === "*" && next === "*") {
-      regex += ".*";
-      index += 1;
-      continue;
-    }
-    if (char === "*") {
-      regex += "[^/]*";
-      continue;
-    }
-    if (char === "?") {
-      regex += "[^/]";
-      continue;
-    }
-    regex += /[|\\{}()[\]^$+?.]/.test(char) ? `\\${char}` : char;
-  }
-
-  return new RegExp(`^${regex}$`);
-}
-
-export function isWorkspacePackage(pkgDir, workspaceEntries) {
-  let included = false;
-
-  for (const entry of workspaceEntries) {
-    if (globToRegExp(entry.pattern).test(pkgDir)) {
-      included = !entry.negated;
-    }
-  }
-
-  return included;
-}
+export { isWorkspacePackage, parseWorkspaceEntries } from "./lib/workspace-packages.mjs";
 
 function listPublicPackages() {
   const output = execFileSync(
@@ -116,25 +62,27 @@ async function runCaptured(command, args, cwd, log) {
 }
 
 const FROZEN_INSTALL_ARGS = ["install", "--ignore-workspace", "--frozen-lockfile"];
-export const RESOLVE_LOCKFILE_ARGS = ["install", "--ignore-workspace", "--resolution-only", "--ignore-scripts", "--no-frozen-lockfile"];
+// Bun replaces pnpm's `--resolution-only` with `--lockfile-only`, which rewrites the lockfile
+// without installing anything.
+export const RESOLVE_LOCKFILE_ARGS = ["install", "--ignore-workspace", "--lockfile-only", "--ignore-scripts", "--no-frozen-lockfile"];
 
 /**
  * Install a standalone package. A package with a committed lockfile installs it frozen. Contributors
  * do not commit that lockfile: the lockfile refresh workflow regenerates it after a manifest change
- * merges. Until then it can be stale, so resolve it in place and install frozen again, like the
+ * merges. Until then it can be stale, so rewrite it in place and install frozen again, like the
  * root install. release.sh restores tracked files when it exits.
  */
 export async function installStandalonePackage({ hasLockfile, lockfile, run, log }) {
   if (!hasLockfile) {
     // Standalone packages intentionally avoid committed lockfile churn in the repo.
-    await run(["install", "--ignore-workspace", "--no-lockfile"]);
+    await run(["install", "--ignore-workspace", "--no-save"]);
     return;
   }
   try {
     await run(FROZEN_INSTALL_ARGS);
     return;
   } catch {
-    log(`    i ${lockfile} does not match its package.json; resolving it in place`);
+    log(`    i ${lockfile} does not match its package.json; rewriting it in place`);
   }
   await run(RESOLVE_LOCKFILE_ARGS);
   await run(FROZEN_INSTALL_ARGS);
@@ -142,9 +90,9 @@ export async function installStandalonePackage({ hasLockfile, lockfile, run, log
 
 // Each standalone package installs into its own directory (`--ignore-workspace`)
 // and builds into its own `dist`, so there is no shared mutable state between
-// packages beyond pnpm's content-addressable global store, which is safe for
-// concurrent access. Buffer each package's output and flush it as one block so
-// interleaved parallel logs stay readable.
+// packages beyond Bun's global install cache, which is safe for concurrent
+// access. Buffer each package's output and flush it as one block so interleaved
+// parallel logs stay readable.
 async function prepareAndBuildPackage(pkg) {
   const logs = [];
   const log = (line) => logs.push(line);
@@ -152,7 +100,7 @@ async function prepareAndBuildPackage(pkg) {
   const pkgDir = path.join(repoRoot, pkg.dir);
   const pkgJson = readPackageJson(pkg.dir);
   const nodeModulesDir = path.join(pkgDir, "node_modules");
-  const packageLockfilePath = path.join(pkgDir, "pnpm-lock.yaml");
+  const packageLockfilePath = path.join(pkgDir, "bun.lock");
 
   log(`  Preparing standalone package ${pkg.name} (${pkg.dir})`);
   try {
@@ -162,8 +110,8 @@ async function prepareAndBuildPackage(pkg) {
 
     await installStandalonePackage({
       hasLockfile: existsSync(packageLockfilePath),
-      lockfile: path.join(pkg.dir, "pnpm-lock.yaml"),
-      run: (args) => runCaptured("pnpm", args, pkgDir, log),
+      lockfile: path.join(pkg.dir, "bun.lock"),
+      run: (args) => runCaptured("bun", args, pkgDir, log),
       log,
     });
 
@@ -173,7 +121,7 @@ async function prepareAndBuildPackage(pkg) {
     linkSdkInto(pkgDir);
 
     if (pkgJson.scripts?.build) {
-      await runCaptured("pnpm", ["run", "build"], pkgDir, log);
+      await runCaptured("bun", ["run", "build"], pkgDir, log);
     } else {
       log("    i No build script; skipped build");
     }
@@ -242,12 +190,12 @@ export async function runWithConcurrency(items, limit, worker) {
 }
 
 async function main() {
-  const workspaceEntries = parseWorkspaceEntries(readFileSync(workspacePath, "utf8"));
+  const workspaceEntries = readWorkspaceEntries(repoRoot);
   const standalonePackages = listPublicPackages()
     .filter(({ dir }) => !isWorkspacePackage(dir, workspaceEntries));
 
   if (standalonePackages.length === 0) {
-    console.log("  i No standalone public packages detected outside the pnpm workspace");
+    console.log("  i No standalone public packages detected outside the workspace");
     return;
   }
 

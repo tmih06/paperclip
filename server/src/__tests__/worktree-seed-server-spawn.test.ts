@@ -108,7 +108,7 @@ describe("managed worktree seed source through the server spawn path", () => {
       await worktreeInitCommand({ empty: true, fromConfig: sourceConfigPath, home: path.join(tempRoot, "instances") });
       const configPath = path.join(cwd, ".paperclip", "config.json");
       const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
-      const startup = await execFileAsync(process.execPath, [path.join(repoRoot, "cli/node_modules/tsx/dist/cli.mjs"), "--eval", `
+      const startup = await execFileAsync(process.execPath, ["--eval", `
         void (async () => {
           const fs = await import('node:fs');
           const dotenv = (await import(${JSON.stringify(pathToFileURL(path.join(repoRoot, "server/node_modules/dotenv/lib/main.js")).href)})).default;
@@ -191,7 +191,7 @@ describe("managed worktree seed source through the server spawn path", () => {
     const hookPath = path.join(hooksDir, "post-checkout");
     await fs.writeFile(
       hookPath,
-      `#!/usr/bin/env node
+      `#!/usr/bin/env bun
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");

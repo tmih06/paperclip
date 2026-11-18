@@ -27,7 +27,6 @@ it.skipIf(!supported).each(["SIGTERM", "SIGINT"] as const)("drains the test comm
   delete env.PAPERCLIP_TEST_POSTGRES_ADMIN_URL;
   delete env.PAPERCLIP_TEST_POSTGRES_TEMPLATE;
   const wrapper = spawn(process.execPath, [
-    "--import", fileURLToPath(new URL("../node_modules/tsx/dist/loader.mjs", import.meta.url)),
     fileURLToPath(new URL("./test-postgres-command.ts", import.meta.url)), "--", process.execPath,
     fileURLToPath(new URL("./__fixtures__/test-command-tree.mjs", import.meta.url)), "root",
   ], { env, stdio: ["ignore", "pipe", "pipe"] });

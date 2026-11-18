@@ -113,7 +113,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { pathToFileURL } from "node:url";
 import type { Request as ExpressRequest, RequestHandler } from "express";
-import { warnIfUnsupportedNodeVersion } from "@paperclipai/shared/node-version";
+import { warnIfUnsupportedBunVersion } from "@paperclipai/shared/bun-version";
 import { and, eq } from "drizzle-orm";
 import {
   createDb,
@@ -326,7 +326,9 @@ async function startServerWithDatabaseTeardown(
   startupDatabase: StartupDatabaseTeardown,
 ): Promise<StartedServer> {
   setStartupRecoveryPhase("starting");
-  warnIfUnsupportedNodeVersion(process.versions.node, (message) => logger.warn(message));
+  // Paperclip runs on Bun; this warns about the Bun that actually runs this
+  // process, never about the Node.js API level Bun advertises.
+  warnIfUnsupportedBunVersion((message) => logger.warn(message));
 
   // Tracing must be active (or have failed and logged) before the first DB
   // connection or the HTTP server exists — see instrumentation.ts.

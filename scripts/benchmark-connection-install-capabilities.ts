@@ -29,7 +29,7 @@ const runtimeChanges = git("diff", baselineRevision, "--name-only", "--", "serve
   .split("\n").filter(Boolean).filter(name => !name.includes("/__tests__/") && !/\.test\.[cm]?ts$/.test(name));
 assert.deepEqual(runtimeChanges.filter(name => name !== servicePath && name !== routePath), [],
   "Baseline imports current dependencies: isolate any additional changed runtime dependencies first");
-assert.equal(git("diff", baselineRevision, "--", "pnpm-lock.yaml"), "", "Dependency lock must match the pinned baseline");
+assert.equal(git("diff", baselineRevision, "--", "bun.lock"), "", "Dependency lock must match the pinned baseline");
 const oldSource = execFileSync("git", ["show", `${baselineRevision}:${servicePath}`], { cwd: repository, encoding: "utf8" });
 const requireFromServer = createRequire(new URL("../server/package.json", import.meta.url));
 const serviceUrl = new URL(`../${servicePath}`, import.meta.url);
@@ -167,7 +167,7 @@ try {
     benchmarkSourceSha256: createHash("sha256").update(await readFile(fileURLToPath(import.meta.url))).digest("hex"),
     treatmentSourceSha256: createHash("sha256").update(await readFile(new URL(`../${servicePath}`, import.meta.url))).digest("hex"),
     uncommittedDiffSha256: createHash("sha256").update(git("diff", "HEAD")).digest("hex"),
-    dependencyLockfileSha256: createHash("sha256").update(await readFile(new URL("../pnpm-lock.yaml", import.meta.url))).digest("hex"),
+    dependencyLockfileSha256: createHash("sha256").update(await readFile(new URL("../bun.lock", import.meta.url))).digest("hex"),
     baselineIsolation: { copiedModule: servicePath, imports: "Absolute current paths; all other server/shared/db runtime sources and lockfile verified unchanged from baseline", runtimeChanges },
     node: process.version, postgres: version.version, settings, warmups: 2, samples: 5, alternatingOrder: true,
     measurement: "Real service evaluation with real local PostgreSQL; select statement executions and returned Drizzle rows; no simulated transport latency",

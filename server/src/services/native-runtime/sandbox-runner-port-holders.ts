@@ -153,7 +153,8 @@ export async function inspectSandboxSessionRunner(input: {
 }): Promise<SandboxSessionRunnerInspection | null> {
   const result = await input.runner.execute({
     command: "sh",
-    args: ["-c", 'exec node -e "$1" "$2"', "paperclip-runner-session-inspect", SANDBOX_SESSION_RUNNER_INSPECT_SCRIPT,
+    args: ["-c", 'runtime=node; if command -v bun >/dev/null 2>&1; then runtime=bun; fi; exec "$runtime" -e "$1" -- "$2"',
+      "paperclip-runner-session-inspect", SANDBOX_SESSION_RUNNER_INSPECT_SCRIPT,
       input.stateDirectory],
     bypassSession: true,
     timeoutMs: 5_000,

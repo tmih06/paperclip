@@ -48,7 +48,7 @@ export async function uploadVerifiedProviderPack(input: {
       throw Error("runner_remote_provider_archive_transport_unavailable");
     }
     const capability = await measure("provider_pack.archive.probe", () => input.runner.execute({
-      command: "sh", args: ["-c", `${providerPackExtractionProbe}${"kind" in archive ? " && node -e 'process.exit(Number(process.versions.node.split(\".\")[0])>=18?0:1)'" : ""}`],
+      command: "sh", args: ["-c", `${providerPackExtractionProbe}${"kind" in archive ? " && bun -e 'process.exit(process.versions.bun ? 0 : 1)'" : ""}`],
       bypassSession: true, timeoutMs: 10_000,
     }));
     if (capability.exitCode !== 0 || capability.timedOut) throw Error("runner_remote_provider_archive_transport_unavailable");

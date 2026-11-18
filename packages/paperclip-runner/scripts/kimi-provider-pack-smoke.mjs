@@ -126,6 +126,6 @@ export async function smokeKimiProviderPack(directory) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  if (process.argv.length !== 3) throw new Error("Usage: node scripts/kimi-provider-pack-smoke.mjs /absolute/installed-provider-pack");
+  if (process.argv.length !== 3) throw new Error("Usage: bun scripts/kimi-provider-pack-smoke.mjs /absolute/installed-provider-pack");
   smokeKimiProviderPack(process.argv[2]).then(result => console.log(JSON.stringify(result))).catch(error => { console.error(error.message); process.exitCode = 1; });
 }

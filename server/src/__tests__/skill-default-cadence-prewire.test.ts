@@ -130,7 +130,6 @@ it('joins an admitted deferred wake and closes its real child listener before br
   const bridgeSource = process.env.PAPERCLIP_SKILL_BRIDGE_CONTROL_SOURCE
     ?? fileURLToPath(new URL('./helpers/maintenance/default-cadence-bridge.ts', import.meta.url));
   const networkSource = fileURLToPath(new URL('./helpers/maintenance/default-cadence-network.ts', import.meta.url));
-  const loader = fileURLToPath(new URL('../../node_modules/tsx/dist/loader.mjs', import.meta.url));
   const { result, events } = child(String.raw`(async()=>{
     const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
     const {fork}=require('node:child_process'),{pathToFileURL}=require('node:url');
@@ -184,7 +183,7 @@ it('joins an admitted deferred wake and closes its real child listener before br
     }
   })().catch(error=>{console.error(error.stack);process.exitCode=1;});`, {
     BRIDGE_SOURCE: bridgeSource, NETWORK_SOURCE: networkSource, GUARD_SOURCE: guard,
-  }, ['--import', loader]);
+  }, []);
   const diagnostics = JSON.stringify({ stdout: result.stdout, stderr: result.stderr, events });
   expect(result.error, diagnostics).toBeUndefined(); expect(result.status, diagnostics).toBe(0);
   const observation = result.stdout.trim().split('\n').at(-1)!;

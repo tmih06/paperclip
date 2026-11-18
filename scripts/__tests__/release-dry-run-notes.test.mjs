@@ -43,7 +43,8 @@ list_public_package_info() {
     printf 'cli\\tpaperclipai\\t0.0.0\\n'
   fi
 }
-package_publish_tool() { printf 'pnpm\\n'; }
+package_publish_tool() { printf 'bun\\n'; }
+stage_publish_package() { mkdir -p "$2"; printf '%s\n' "$1" > "$2/.source"; }
 next_stable_version() { printf '2026.710.0\\n'; }
 next_prerelease_version() { printf '2026.710.0-%s.0\\n' "$1"; }
 next_canary_version_from_source() { next_prerelease_version canary "$3"; }
@@ -68,7 +69,7 @@ require_on_master_branch() { :; }
 require_clean_worktree() { :; }
 require_runner_lockfile_current() {
   if [ "\${FAKE_RUNNER_LOCKFILE_BEHIND:-}" = "1" ]; then
-    echo "Error: a beta or stable release needs a pnpm-lock.yaml that matches the Runner's manifests at HEAD." >&2
+    echo "Error: a beta or stable release needs a bun.lock that matches the Runner's manifests at HEAD." >&2
     exit 1
   fi
   echo "[fixture] require_runner_lockfile_current"
@@ -83,7 +84,7 @@ set_public_package_version() { :; }
 
   writeExecutable(
     join(scriptsDir, "release-registry-versions.mjs"),
-    `#!/usr/bin/env node
+    `#!/usr/bin/env bun
 const [mode] = process.argv.slice(2);
 if (mode === "fetch") {
   process.stdout.write('{"paperclipai":[]}\\n');
@@ -123,27 +124,26 @@ exit 0
   );
 
   writeExecutable(
-    join(binDir, "pnpm"),
+    join(binDir, "bun"),
     `#!/usr/bin/env bash
 set -euo pipefail
-printf 'pnpm %s\\n' "$*" >> "$FAKE_CALL_LOG"
-if [ "$*" = "build" ]; then
-  if [ "\${FAKE_BUILD_OK:-}" = "1" ]; then
-    exit 0
-  fi
-  echo "fixture stopped at workspace build"
-  exit 42
+printf 'bun %s\n' "$*" >> "$FAKE_CALL_LOG"
+if [ "$*" = "run build" ]; then
+  if [ "\${FAKE_BUILD_OK:-}" = "1" ]; then exit 0; fi
+  echo "fixture stopped at workspace build"; exit 42
 fi
-if [ "$1" = "publish" ]; then
-  echo "fixture publish preview in $PWD"
-  case "$PWD" in
-    *"\${FAKE_FAIL_PUBLISH_DIR:-__none__}")
-      echo "fixture preview failure" >&2
-      exit 3
-      ;;
+if [ "$*" = "pm pack --dry-run --ignore-scripts" ]; then
+  source_dir="$(cat .source)"
+  echo "fixture publish preview in $source_dir"
+  case "$source_dir" in
+    *"\${FAKE_FAIL_PUBLISH_DIR:-__none__}") echo "fixture preview failure" >&2; exit 3 ;;
   esac
+  exit 0
 fi
-exit 0
+case "$1" in
+  *.mjs|-e) exec "$FAKE_BUN_EXECUTABLE" "$@" ;;
+  *) echo "unexpected Bun invocation: $*" >&2; exit 98 ;;
+esac
 `,
   );
 
@@ -162,6 +162,7 @@ function runRelease(args, extraEnv = {}, prepare = null) {
       ...process.env,
       PATH: `${fixture.binDir}:${process.env.PATH}`,
       FAKE_CALL_LOG: fixture.callLog,
+      FAKE_BUN_EXECUTABLE: process.execPath,
       ...extraEnv,
     },
   });
@@ -183,7 +184,7 @@ test("stable dry-run preview does not require a pre-authored release notes file"
   assert.match(result.output, /==> Release plan/);
   assert.match(result.output, /==> Step 2\/7: Building workspace artifacts/);
   assert.doesNotMatch(result.output, /stable release notes file is required/);
-  assert.match(result.calls, /^pnpm build$/m);
+  assert.match(result.calls, /^bun run build$/m);
 });
 
 test("stable publish still requires release notes before publish work starts", () => {
@@ -202,7 +203,7 @@ test("beta and stable check the lockfile against the Runner's manifests before a
 
     const behind = runRelease([...args, "--skip-verify", "--dry-run"], { FAKE_RUNNER_LOCKFILE_BEHIND: "1" });
     assert.equal(behind.status, 1, args.join(" "));
-    assert.match(behind.output, /needs a pnpm-lock\.yaml that matches the Runner's manifests at HEAD/);
+    assert.match(behind.output, /needs a bun\.lock that matches the Runner's manifests at HEAD/);
     assert.doesNotMatch(behind.output, /==> Release plan/);
     assert.doesNotMatch(behind.calls, /^pnpm /m);
   }
@@ -230,7 +231,7 @@ test("nightly dry-run publishes under the nightly identity without release notes
   assert.match(result.output, /Dist-tag: nightly/);
   assert.match(result.output, /Git tag: nightly\/v2026\.710\.0-nightly\.0/);
   assert.doesNotMatch(result.output, /stable release notes file is required/);
-  assert.match(result.calls, /^pnpm build$/m);
+  assert.match(result.calls, /^bun run build$/m);
 });
 
 test("nightly refuses commits that never shipped a canary", () => {
@@ -262,7 +263,7 @@ test("beta dry-run publishes under the beta identity without release notes", () 
   assert.match(result.output, /Dist-tag: beta/);
   assert.match(result.output, /Git tag: beta\/v2026\.710\.0-beta\.0/);
   assert.doesNotMatch(result.output, /stable release notes file is required/);
-  assert.match(result.calls, /^pnpm build$/m);
+  assert.match(result.calls, /^bun run build$/m);
 });
 
 test("beta refuses commits that already shipped as a beta", () => {
@@ -284,7 +285,7 @@ test("beta --from-candidate waives the nightly requirement but keeps the duplica
   assert.doesNotMatch(result.output, /require_channel_tag_at_head nightly/);
   assert.match(result.output, /\[fixture\] require_channel_tag_absent_at_head beta/);
   assert.match(result.output, /Beta version: 2026\.710\.0-beta\.0/);
-  assert.match(result.calls, /^pnpm build$/m);
+  assert.match(result.calls, /^bun run build$/m);
 });
 
 test("--from-candidate is rejected outside the beta channel", () => {
@@ -319,7 +320,7 @@ function preparePreviewFixture(fixture) {
   // Step 2 build helpers that live outside the pnpm stub.
   writeExecutable(
     join(fixtureDir, "scripts", "build-standalone-public-packages.mjs"),
-    "#!/usr/bin/env node\nprocess.exit(0);\n",
+    "#!/usr/bin/env bun\nprocess.exit(0);\n",
   );
   writeExecutable(join(fixtureDir, "scripts", "prepare-server-ui-dist.sh"), "#!/usr/bin/env bash\nexit 0\n");
   writeExecutable(join(fixtureDir, "scripts", "build-npm.sh"), "#!/usr/bin/env bash\nexit 0\n");

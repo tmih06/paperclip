@@ -1,6 +1,6 @@
 /** Shared UI asset publication at startup, against storage with a fixed
  * round-trip latency. Local and synthetic; never targets real storage.
- * Run with pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-retained-ui-assets.ts
+ * Run with bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-retained-ui-assets.ts
  * Options (env): RETAINED_UI_BENCH_ASSETS (default 400), RETAINED_UI_BENCH_RTT_MS (default 25),
  * RETAINED_UI_BENCH_MAX_MS: fail when the default re-publication exceeds this budget. */
 import assert from "node:assert/strict";

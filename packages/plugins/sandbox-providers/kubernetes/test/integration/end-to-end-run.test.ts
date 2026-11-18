@@ -13,7 +13,7 @@
  *      And a tini-bearing image pre-loaded (e.g. the same localhost/paperclip-agent:latest
  *      if it includes /usr/bin/tini and /bin/sh).
  *   4. Set the env var and run:
- *        RUN_K8S_INTEGRATION_TESTS=1 pnpm test
+ *        RUN_K8S_INTEGRATION_TESTS=1 bun run test
  *
  * The namespace is derived from companySlug ("spike-e2e") + namespacePrefix
  * ("paperclip-"), resolving to "paperclip-spike-e2e".

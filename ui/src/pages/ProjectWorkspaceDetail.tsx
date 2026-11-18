@@ -627,7 +627,7 @@ export function ProjectWorkspaceDetail() {
                     className="min-h-28 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none"
                     value={form.setupCommand}
                     onChange={(event) => setForm((current) => current ? { ...current, setupCommand: event.target.value } : current)}
-                    placeholder="pnpm install && pnpm dev"
+                    placeholder="bun install && pnpm dev"
                   />
                 </Field>
                 <Field label="Cleanup command" hint="Runs before project-level execution workspace teardown">

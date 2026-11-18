@@ -912,7 +912,7 @@ describe("managed AI connections", () => {
     });
     provider.listen(0, "127.0.0.1"); await once(provider, "listening");
     const address = provider.address() as { port: number };
-    const child = spawn(process.execPath, ["--import", createRequire(import.meta.url).resolve("tsx"), new URL("./helpers/quota-credential-process.ts", import.meta.url).pathname], {
+    const child = spawn(process.execPath, [new URL("./helpers/quota-credential-process.ts", import.meta.url).pathname], {
       env: { ...process.env, CREDENTIAL_TEST_DATABASE_URL: database.connectionString,
         CREDENTIAL_TEST_PROVIDER_URL: `http://127.0.0.1:${address.port}`, CREDENTIAL_TEST_COMPANY_ID: companyId, CREDENTIAL_TEST_OWNER: owner },
       stdio: "ignore",
@@ -1429,7 +1429,7 @@ describe("managed AI connections", () => {
   it("authenticates local Gemini probes and runs with the saved key in an isolated home", async () => {
     const root = await mkdtemp(path.join(home, "gemini-auth-"));
     const command = path.join(root, "gemini");
-    await writeFile(command, `#!/usr/bin/env node
+    await writeFile(command, `#!/usr/bin/env bun
 const fs = require("node:fs");
 const path = require("node:path");
 const settings = JSON.parse(fs.readFileSync(path.join(process.env.HOME, ".gemini/settings.json"), "utf8"));

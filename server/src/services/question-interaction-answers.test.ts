@@ -19,7 +19,7 @@ it("isolates pathological patterns throughout canonical answer validation", () =
     } finally { clearInterval(timer); }
   `;
   // A future synchronous regression must fail this child deadline, not hang Vitest.
-  const child = spawnSync(process.execPath, ["--import", "tsx/esm", "--input-type=module", "-e", script], {
+  const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
     cwd: fileURLToPath(new URL("../..", import.meta.url)), encoding: "utf8", timeout: 10_000,
   });
   expect(child.error).toBeUndefined();

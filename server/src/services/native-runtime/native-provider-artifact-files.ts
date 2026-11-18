@@ -12,7 +12,7 @@ import {
 
 export const schema = "paperclip.native-provider-artifacts.v1";
 export const names = [
-  "nodeCommand",
+  "bunCommand",
   "opencodeProxy",
   "opencodeExecutable",
 ] as const;

@@ -281,7 +281,7 @@ probe_gateway_ws() {
   local url="$1"
   local token="$2"
 
-  node - "$url" "$token" <<'NODE'
+  bun - "$url" "$token" <<'NODE'
 const WebSocket = require("ws");
 const url = process.argv[2];
 const token = process.argv[3];

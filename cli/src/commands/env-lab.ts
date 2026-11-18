@@ -124,22 +124,16 @@ function shellQuoteArgument(value: string): string {
   return "'" + value.replace(/'/g, "'\\''") + "'";
 }
 
-// Describe how to re-run the env-lab CLI to stop the fixture. The bundled build
-// emits one `dist/index.js` file, so node runs that file directly and `tsxBin`
-// is `null`. A source checkout runs `src/index.ts` through the checked-out tsx
-// runner, because the entry is TypeScript.
 interface EnvLabCliInvocation {
   entry: string;
-  tsxBin: string | null;
 }
 
 // Resolve how to re-run the CLI from the running module location. The cleanup
 // hint must run the same CLI that prints it, so it stops the correct version.
 // `import.meta.url` gives the running module. The bundled build runs this module
-// from `<cli>/dist/index.js`, so the hint runs that exact file with node. The
-// published package ships no `src` directory and no tsx runner. A source
+// from `<cli>/dist/index.js`, so the hint runs that exact file with Bun. A source
 // checkout runs this module from `<cli>/src/commands/env-lab.ts`, so the hint
-// runs `<cli>/src/index.ts` through the checked-out tsx runner. This resolver
+// runs `<cli>/src/index.ts` directly with Bun. This resolver
 // reads an absolute path from the module location, so the hint works from any
 // working directory. The `modulePath` parameter is a test seam; production
 // callers use the running module path.
@@ -153,10 +147,9 @@ export function resolveEnvLabCliInvocation(
     const cliRoot = path.resolve(moduleDir, "..", "..");
     return {
       entry: path.join(cliRoot, "src", "index.ts"),
-      tsxBin: path.join(cliRoot, "node_modules", "tsx", "dist", "cli.mjs"),
     };
   }
-  return { entry: modulePath, tsxBin: null };
+  return { entry: modulePath };
 }
 
 // Build the env-lab cleanup hint as a copyable shell command. The hint stops the
@@ -171,10 +164,7 @@ export function buildEnvLabCleanupCommand(
   opts: { instance?: string; invocation?: EnvLabCliInvocation } = {},
 ): string {
   const invocation = opts.invocation ?? resolveEnvLabCliInvocation();
-  const parts = ["node"];
-  if (invocation.tsxBin !== null) {
-    parts.push(shellQuoteArgument(invocation.tsxBin));
-  }
+  const parts = ["bun"];
   parts.push(shellQuoteArgument(invocation.entry), "env-lab down");
   if (opts.instance !== undefined) {
     parts.push("--instance", shellQuoteArgument(opts.instance));
@@ -211,7 +201,7 @@ export async function envLabDoctorCommand(opts: { instance?: string; json?: bool
 
   // The cleanup hint runs the same CLI that prints it, so it stops the correct
   // version. The bundled build runs `dist/index.js`; a source checkout runs
-  // `src/index.ts` through the checked-out tsx runner. The hint uses absolute
+  // `src/index.ts` directly with Bun. The hint uses absolute
   // paths, so it works from any working directory. It passes an inert `argv`
   // value, so no shell reads the argument. See `doc/CLI.md`, "safe invocation".
   //

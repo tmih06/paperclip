@@ -1,0 +1,8 @@
+# Published images only: Paperclip, Bun, and the pinned ompig-slim executable.
+ARG PAPERCLIP_IMAGE=ghcr.io/tmih06/paperclip:2026.1114.1-cloud
+FROM ghcr.io/tmih06/ompig-slim-workspace:0.1.10 AS ompig
+FROM oven/bun:1.4.4-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS bun
+FROM ${PAPERCLIP_IMAGE}
+COPY --from=ompig /usr/local/bin/ompig-slim /usr/local/bin/ompig-slim
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+RUN test -x /usr/local/bin/ompig-slim && bun --version

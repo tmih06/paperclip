@@ -59,6 +59,12 @@ beforeEach(() => {
 });
 
 describe("Coordinator task creation", () => {
+  it("places Network directly below Inbox", async () => {
+    await renderSidebar();
+    const links = [...container.querySelectorAll('nav[aria-label="Workspace navigation"] a')];
+    const inboxIndex = links.findIndex(link => link.getAttribute("href") === "/decisions");
+    expect(links[inboxIndex + 1]?.getAttribute("href")).toBe("/network");
+  });
   it("shows every task once in a four-level recent chain", async () => {
     fixture.recentTasks = ["a", "b", "c", "d"].map((id, index) => ({
       id, companyId: "company", identifier: `TASK-${id}`, title: `Task ${id}`, status: "todo", recordedAt: index,
@@ -211,7 +217,7 @@ describe("Coordinator pinned pages", () => {
     const saved = ["agent-chat:company:cto", "agent-chat:another-company:hidden", "/artifacts", "/dashboard"];
     localStorage.setItem("paperclip.coordinator.pinned-nav.v1:reviewer", JSON.stringify(saved));
     await renderSidebar();
-    const links = [...navigation().querySelectorAll<HTMLAnchorElement>("a")].slice(3);
+    const links = [...navigation().querySelectorAll<HTMLAnchorElement>(".group\\/coordinator-pin a")];
     expect(links.map(link => link.textContent)).toEqual(["CTO", "Artifacts", "Dashboard"]);
     const more = navigation().querySelector('button[aria-label="More workspace pages"]')!;
     expect(links.at(-1)!.compareDocumentPosition(more) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
@@ -311,7 +317,7 @@ describe("Coordinator pinned pages", () => {
     localStorage.setItem("paperclip.coordinator.pinned-nav.v1:reviewer", JSON.stringify(["/routines", "/projects", "/unknown", "https://example.com"]));
     await renderSidebar();
     expect(Array.from(navigation().querySelectorAll("a")).map(link => link.getAttribute("href")))
-      .toEqual(["/chats", "/issues", "/decisions", "/routines", "/projects"]);
+      .toEqual(["/chats", "/issues", "/decisions", "/network", "/routines", "/projects"]);
     fixture.userId = "other-user";
     await renderSidebar();
     expect(pinnedPage("/projects")).toBeNull();

@@ -39,7 +39,7 @@ test("a published selection controls the matrix and the required aggregate", () 
   assert.equal(evaluate(matrix, needs).include.length, 1);
   const aggregate = block("verify");
   const names = aggregate.match(/needs: \[([^\]]+)\]/)[1].split(", ");
-  const code = aggregate.split("          node --input-type=module <<'NODE'\n")[1].split("\n          NODE")[0]
+  const code = aggregate.split("          bun --input-type=module <<'NODE'\n")[1].split("\n          NODE")[0]
     .split("\n").map((line) => line.slice(10)).join("\n");
   const results = Object.fromEntries(names.map((name) => [name, { result:
     ["gate", "policy", "test_selection"].includes(name) || selected.jobs[name]?.run ? "success" : "skipped" }]));
@@ -79,7 +79,7 @@ test("failed-job retries use the original selector artifact, not the retry attem
   const output = path.join(directory, "output");
   const publication = block("test_selection").split("      - name: Publish the executable plan")[1];
   assert.match(publication, /ARTIFACT_ID: \$\{\{ steps.upload_selection.outputs.artifact-id \}\}/);
-  const code = publication.split("          node --input-type=module <<'NODE'\n")[1].split("\n          NODE")[0]
+  const code = publication.split("          bun --input-type=module <<'NODE'\n")[1].split("\n          NODE")[0]
     .split("\n").map((line) => line.slice(10)).join("\n");
   const selected = { ...plan, testSelection: { version: 1, hash: "test" } };
   const run = (value, artifactId) => {

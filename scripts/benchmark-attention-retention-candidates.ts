@@ -1,7 +1,7 @@
 // Measures the attention retention candidate scan before and after it read each
 // source kind in its own bounded branch.
 // Usage (from the repository root):
-//   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-attention-retention-candidates.ts \
+//   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-attention-retention-candidates.ts \
 //     --baseline-ref=<pre-fix commit> [--companies=12] [--issues=12000] [--runs=20000] \
 //     [--events-per-run=20] [--samples=7] [--plans]
 // The script starts a disposable embedded PostgreSQL and loads one large company

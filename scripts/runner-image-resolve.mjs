@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Which Runner an image build uses: the published Runner image of this tree's
 // inputs (ghcr.io/paperclipai/paperclip-runner), or the Runner the build makes
 // itself, inline. See doc/runner-image-contract.md.
@@ -109,7 +109,7 @@ export async function resolveRunnerImage({ consumable, lock, detail: inputsDetai
   });
   if (consumable !== true) return inline("unsupported", inputsDetail ?? "the build of this tree cannot check a Runner it is given");
   assert.ok(lock === "current" || lock === "behind", "The lockfile state must be current or behind");
-  if (lock === "behind") return inline("lock-behind", "pnpm-lock.yaml is behind the Runner's manifests, so no image is published for this tree");
+  if (lock === "behind") return inline("lock-behind", "bun.lock is behind the Runner's manifests, so no image is published for this tree");
   assert.match(inputsDigest ?? "", HEX_64, "A tree with a current lockfile needs an inputs digest");
   try {
     const { full: fullTag } = runnerImageTags(inputsDigest);

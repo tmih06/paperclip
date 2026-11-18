@@ -9,7 +9,7 @@ import {
 } from "./runnerd-codex-transport.js";
 
 // Opt in explicitly. Run from packages/paperclip-runner:
-// PAPERCLIP_TRANSPORT_PUMP_BENCHMARK=1 pnpm exec vitest run src/live/runnerd-transport-pump.benchmark.test.ts
+// PAPERCLIP_TRANSPORT_PUMP_BENCHMARK=1 bun x vitest run src/live/runnerd-transport-pump.benchmark.test.ts
 // PAPERCLIP_TRANSPORT_PUMP_SESSIONS (default 12) sets how many transports stay open.
 // PAPERCLIP_TRANSPORT_PUMP_DELTAS (default 40) sets how many events each turn
 // streams, and so how many committed events each session retains afterwards.

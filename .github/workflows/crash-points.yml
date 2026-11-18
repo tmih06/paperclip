@@ -136,9 +136,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
@@ -147,20 +147,20 @@ jobs:
       # No shared dependency cache and no dependency lifecycle scripts in a
       # secret-bearing job (tests/runner-e2e/SECURITY.md); the repo's own
       # postinstall step runs explicitly.
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: node scripts/link-plugin-dev-sdk.mjs
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun scripts/link-plugin-dev-sdk.mjs
 
       - name: Build native runner
         run: |
           set -euo pipefail
-          pnpm --filter @paperclipai/paperclip-runner build:typescript
-          pnpm --filter @paperclipai/paperclip-runner build:runner-binaries
+          bun run --filter @paperclipai/paperclip-runner build:typescript
+          bun run --filter @paperclipai/paperclip-runner build:runner-binaries
 
       - name: List selected crash points
         env:
           POINTS: ${{ inputs.points }}
           KINDS: ${{ inputs.kinds }}
-        run: node scripts/crash-points.mjs --list ${POINTS:+--points "$POINTS"} ${KINDS:+--kinds "$KINDS"}
+        run: bun scripts/crash-points.mjs --list ${POINTS:+--points "$POINTS"} ${KINDS:+--kinds "$KINDS"}
 
       - name: Run crash-point suite
         env:
@@ -177,7 +177,7 @@ jobs:
           RESTART_CHAOS_RESULTS_DIR: ${{ runner.temp }}/crash-point-results
         run: |
           set -euo pipefail
-          node scripts/crash-points.mjs ${POINTS:+--points "$POINTS"} ${KINDS:+--kinds "$KINDS"} \
+          bun scripts/crash-points.mjs ${POINTS:+--points "$POINTS"} ${KINDS:+--kinds "$KINDS"} \
             --adapters "$ADAPTERS" --workloads "$WORKLOADS" --nth "$NTH" --seed "$((GITHUB_RUN_ID % 2147483647))"
 
       - name: Summarize

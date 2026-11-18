@@ -136,7 +136,6 @@ describe("tool content guards", () => {
   it("shares a durable derived signing key across competing processes and a later restart", async () => {
     const keyFile = isolatedKeyFile();
     const modulePath = fileURLToPath(new URL("../services/tool-content-guards.ts", import.meta.url));
-    const loader = createRequire(import.meta.url).resolve("tsx/esm");
     const script = `import {toolRequestIdentityHash, signToolArguments, readSignedToolArguments, canonicalToolArguments} from ${JSON.stringify(modulePath)};
       const args = {secretValue:'synthetic-process-proof'};
       const input = {invocationId:'fixture',toolName:'fixture',canonicalArguments:canonicalToolArguments(args)};
@@ -144,7 +143,7 @@ describe("tool content guards", () => {
       process.stdout.write(JSON.stringify({identity:toolRequestIdentityHash(args),signed,
         verified:readSignedToolArguments({...input,signedArguments:signed})?.secretValue === args.secretValue}));`;
     const run = (signed?: string) => promisify(execFile)(process.execPath,
-      ["--import", loader, "--input-type=module", "-e", script], {
+      ["--input-type=module", "-e", script], {
         env: { ...process.env, PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "", PAPERCLIP_SECRETS_MASTER_KEY: "",
           PAPERCLIP_SECRETS_MASTER_KEY_FILE: keyFile, VERIFY_PAYLOAD: signed ?? "" },
       }).then(result => JSON.parse(result.stdout) as { identity: string; signed: string; verified: boolean });

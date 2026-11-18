@@ -21,18 +21,18 @@ requires separate approval. See
   22.22.2 and pnpm 9.15.4.
 - No Rust toolchain. Every command in this tutorial is TypeScript/Node only. (A
   full `verify` still builds Rust, but nothing here does.)
-- No network access after `pnpm install`.
+- No network access after `bun install`.
 
 Install the package workspace from the repository root:
 
 ```sh
-pnpm install --filter @paperclipai/paperclip-runner --lockfile=false --offline --ignore-scripts --dev
+bun install --filter @paperclipai/paperclip-runner --lockfile=false --offline --ignore-scripts --dev
 ```
 
 ## 1. Prove the 106-case conformance suite (about 1 minute)
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner test:capability-evals
+bun run --filter @paperclipai/paperclip-runner test:capability-evals
 ```
 
 This runs the eval-derived conformance suite entirely in-process against the
@@ -48,7 +48,7 @@ per-group counts, assertion classes, the fake-agent operation matrix, and the
 bounded Codex binding sample, generate the parity report:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner report:capability-evals
+bun run --filter @paperclipai/paperclip-runner report:capability-evals
 ```
 
 Expected final line:
@@ -60,7 +60,7 @@ Capability eval conformance passed: 106 cases across 16 groups.
 The report is written to
 `.paperclip-local/evidence/capability/eval-parity-report.{json,md}`. It is a
 generated-on-demand artifact, not a committed file; a clean checkout does not
-contain it. Delete it before you run `pnpm --filter @paperclipai/paperclip-runner docs:validate`
+contain it. Delete it before you run `bun run --filter @paperclipai/paperclip-runner docs:validate`
 (the report carries no OKF frontmatter and would otherwise fail the knowledge
 bundle check — see [Known gaps](#known-gaps-and-boundaries)).
 
@@ -76,7 +76,7 @@ The 16 groups and case counts are fixed by the capability contract:
 ## 2. Open the scenario explorer (about 2 minutes)
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner demo:scenarios
+bun run --filter @paperclipai/paperclip-runner demo:scenarios
 ```
 
 Open `http://127.0.0.1:4183/scenario-explorer/`. The explorer is read-only. It
@@ -128,33 +128,33 @@ each one with its purpose and expected result.
 
 ```sh
 # Capability contract: completeness, uniqueness, one-to-one MCP folds, no drift.
-pnpm --filter @paperclipai/paperclip-runner check:capability-inventory
-pnpm --filter @paperclipai/paperclip-runner test:capability-inventory
+bun run --filter @paperclipai/paperclip-runner check:capability-inventory
+bun run --filter @paperclipai/paperclip-runner test:capability-inventory
 
 # Mock control plane adapter and shared ControlPlanePort conformance.
-pnpm --filter @paperclipai/paperclip-runner exec vitest run \
+bun run --filter @paperclipai/paperclip-runner exec vitest run \
   src/conformance/control-plane-port.test.ts \
   src/mock-core/capability-mock-control-plane-adapter.test.ts
 
 # Semantic tool catalog and authorization/redaction engine.
-pnpm --filter @paperclipai/paperclip-runner exec vitest run \
+bun run --filter @paperclipai/paperclip-runner exec vitest run \
   src/tools/capability-semantic-tools.test.ts
 
 # 106-case conformance and the parity/fake-agent/bounded-Codex report.
-pnpm --filter @paperclipai/paperclip-runner test:capability-evals
-pnpm --filter @paperclipai/paperclip-runner report:capability-evals
+bun run --filter @paperclipai/paperclip-runner test:capability-evals
+bun run --filter @paperclipai/paperclip-runner report:capability-evals
 
 # Scenario runtime, explorer components, and route determinism (49 tests).
-pnpm --filter @paperclipai/paperclip-runner test:scenarios
+bun run --filter @paperclipai/paperclip-runner test:scenarios
 
 # Browser information architecture, accessibility, determinism, and boundary.
-pnpm --filter @paperclipai/paperclip-runner test:browser:scenarios
+bun run --filter @paperclipai/paperclip-runner test:browser:scenarios
 
 # Deterministic 24-image screenshot acceptance set.
 # Recorded evidence generation is deferred from this release.
 
 # Documentation links.
-pnpm --filter @paperclipai/paperclip-runner docs:validate
+bun run --filter @paperclipai/paperclip-runner docs:validate
 ```
 
 ## Known gaps and boundaries

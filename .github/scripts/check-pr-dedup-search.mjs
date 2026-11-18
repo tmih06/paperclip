@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-pr-dedup-search.mjs
  * Checks that the PR body affirms the author searched for similar PRs before

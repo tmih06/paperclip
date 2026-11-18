@@ -58,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "$QUALIFICATION_RUN" ]; then
-            node scripts/fork-release-qualification.mjs "$QUALIFICATION_RUN" "$SOURCE_SHA" "$GITHUB_REPOSITORY"
+            bun scripts/fork-release-qualification.mjs "$QUALIFICATION_RUN" "$SOURCE_SHA" "$GITHUB_REPOSITORY"
             git cat-file -e "$SOURCE_SHA^{commit}"
           else
             test -z "$SOURCE_SHA"
@@ -69,9 +69,9 @@ jobs:
         env:
           RELEASE_DATE: ${{ inputs.release_date }}
           RELEASE_PATCH: ${{ inputs.release_patch }}
-        run: node scripts/fork-release.mjs version "$RELEASE_DATE" "$RELEASE_PATCH"
+        run: bun scripts/fork-release.mjs version "$RELEASE_DATE" "$RELEASE_PATCH"
       - name: Test fork publication contract
-        run: node --test scripts/__tests__/fork-release.test.mjs scripts/__tests__/run-vitest-stable-shard.test.mjs
+        run: bun test scripts/__tests__/fork-release.test.mjs scripts/__tests__/run-vitest-stable-shard.test.mjs
 
   verify:
     if: inputs.qualification_run == ''
@@ -101,9 +101,9 @@ jobs:
         with:
           ref: ${{ needs.plan.outputs.source }}
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
@@ -133,24 +133,24 @@ jobs:
           SOURCE: ${{ needs.plan.outputs.source }}
         run: |
           set -euo pipefail
-          pnpm install --no-frozen-lockfile
-          pnpm build
-          node packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs assemble-daemons native-daemons "$SOURCE" native-packs
+          bun install --no-save
+          bun run build
+          bun packages/paperclip-runner/scripts/stage-release-runner-binaries.mjs assemble-daemons native-daemons "$SOURCE" native-packs
           cp -R packages/paperclip-runner/dist/bin/. server/dist/vendor/paperclip-runner/bin/
           cp -R packages/paperclip-runner/dist/remote-provider-packs server/dist/vendor/paperclip-runner/
-          node scripts/build-standalone-public-packages.mjs
+          bun scripts/build-standalone-public-packages.mjs
           PAPERCLIP_RELEASE_REUSE_UI_DIST=1 bash scripts/prepare-server-ui-dist.sh
           for dir in server packages/adapters/claude-local packages/adapters/codex-local; do
             rm -rf "$dir/skills"
             cp -R skills "$dir/skills"
           done
-          node scripts/release-package-map.mjs set-version "$VERSION"
+          bun scripts/release-package-map.mjs set-version "$VERSION"
           bash scripts/build-npm.sh --skip-checks --skip-typecheck
-          node scripts/fork-release.mjs stage "$RUNNER_TEMP/packages" "$GITHUB_REPOSITORY_OWNER" "$VERSION" "$GITHUB_REPOSITORY"
-          node cli/node_modules/tsx/dist/cli.mjs scripts/generate-feature-catalog.ts --version "$VERSION" --out "$RUNNER_TEMP/packages/feature-catalog.json"
+          bun scripts/fork-release.mjs stage "$RUNNER_TEMP/packages" "$GITHUB_REPOSITORY_OWNER" "$VERSION" "$GITHUB_REPOSITORY"
+          bun scripts/generate-feature-catalog.ts --version "$VERSION" --out "$RUNNER_TEMP/packages/feature-catalog.json"
           tar -czf "$RUNNER_TEMP/packages/runner-daemons.tar.gz" -C native-daemons .
           tar -czf "$RUNNER_TEMP/packages/provider-packs.tar.gz" -C native-packs .
-          node scripts/fork-release.mjs smoke-packed "$RUNNER_TEMP/packages"
+          bun scripts/fork-release.mjs smoke-packed "$RUNNER_TEMP/packages"
           rm "$RUNNER_TEMP/packages/registry-packages.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -185,14 +185,14 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost
           docker system prune -af
           df -h
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          version: 9.15.4
+          bun-version: 1.4.4
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
       - name: Resolve private image lockfile
-        run: pnpm install --resolution-only --ignore-scripts --no-frozen-lockfile
+        run: bun install --no-save
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
@@ -227,7 +227,7 @@ jobs:
                   docker logs fork-smoke
                   exit 1
                 fi
-                if node --input-type=module -e 'const r=await fetch("http://127.0.0.1:3200/api/health");const h=await r.json();if(!r.ok||h.status!=="ok"||h.bootstrapStatus!=="ready")process.exit(1)' 2>/dev/null; then
+                if bun --input-type=module -e 'const r=await fetch("http://127.0.0.1:3200/api/health");const h=await r.json();if(!r.ok||h.status!=="ok"||h.bootstrapStatus!=="ready")process.exit(1)' 2>/dev/null; then
                   ready=true
                   break
                 fi
@@ -235,7 +235,7 @@ jobs:
               done
               docker logs fork-smoke
               if [ "$ready" != true ]; then exit 1; fi
-              node --input-type=module -e 'import assert from "node:assert/strict";const r=await fetch("http://127.0.0.1:3200/");assert.equal(r.status,200);assert.match(await r.text(),/<html/)'
+              bun --input-type=module -e 'import assert from "node:assert/strict";const r=await fetch("http://127.0.0.1:3200/");assert.equal(r.status,200);assert.match(await r.text(),/<html/)'
               docker rm -fv fork-smoke
             fi
           done
@@ -289,9 +289,9 @@ jobs:
           git show "$TOOLING_SHA:scripts/fork-release.mjs" > scripts/fork-release.mjs
       - name: Publish and verify every GitHub package
         run: |
-          node scripts/fork-release.mjs publish release-assets
-          node scripts/fork-release.mjs verify release-assets
-          node scripts/fork-release.mjs smoke release-assets
+          bun scripts/fork-release.mjs publish release-assets
+          bun scripts/fork-release.mjs verify release-assets
+          bun scripts/fork-release.mjs smoke release-assets
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
         with:

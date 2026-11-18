@@ -189,7 +189,7 @@ describe("Vercel deployment connector", () => {
   });
 
   it("updates project configuration and returns only the saved settings", async () => {
-    const settings = { framework: "vite", buildCommand: "pnpm build", outputDirectory: "dist", rootDirectory: null };
+    const settings = { framework: "vite", buildCommand: "bun run build", outputDirectory: "dist", rootDirectory: null };
     const { request, client } = fixture(() => json({ ...project, ...settings, env: [{ value: "hidden" }] }));
     expect(await client.invoke("vercel_update_project", { projectId: project.id, settings })).toEqual({ ...project, ...settings });
     const [url, init] = request.mock.calls[1]!;

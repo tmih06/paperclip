@@ -1,5 +1,5 @@
-#!/usr/bin/env node
-// Run on a disposable Linux verification host after pnpm build. No publication,
+#!/usr/bin/env bun
+// Run on a disposable Linux verification host after bun run build. No publication,
 // credentials, inference, or changes to release versions. Native provisioning is
 // explicit and separate from npm installation, and is removed in finally.
 import assert from 'node:assert/strict';
@@ -8,7 +8,6 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, re
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { stripTypeScriptTypes } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packConcurrency, packStagedPackages, packTimings } from './pack-staged-packages.mjs';
@@ -88,7 +87,7 @@ async function verifyMacConsumer(packageDirectory, sourceRevision, receiptPath) 
     const claude = probe('claude-probe.mjs', installedClaudeProbeSource(join(installed, 'index.js')));
     const startupScript = macInstalledStartupProbeSource(consumer, server, daemon.sha256, join(repo, 'tests/runner-e2e/installed-cli.ts'));
     const startupFile = join(root, 'startup-probe.mts'); writeFileSync(startupFile, startupScript);
-    const startup = JSON.parse(run(process.execPath, ['--import', 'tsx', startupFile], join(repo, 'server')).trim());
+    const startup = JSON.parse(run(process.execPath, [startupFile], join(repo, 'server')).trim());
     const receipt = { schema: 'paperclip.runner.mac-public-install.v1', sourceRevision, platform: process.platform, architecture: process.arch,
       cleanNpmInstall: true, packageCount: manifest.archives.length, codexPackedPayloadsOmitted: true,
       consumerLockPreserved: true, lifecycleSentinelVerified: true, lifecycleNodeHeadersVerified: true, lifecycleNodeVersion: process.versions.node,
@@ -150,7 +149,7 @@ async function verifyLinuxArmConsumer(packageDirectory, sourceRevision, receiptP
     assert.equal(daemon.target, 'linux-arm64');
     const codex = probe('codex-probe.mjs', installedCodexProbeSource(installed + '/index.js', '/consumer', undefined, { nativeCodex: true }));
     cpSync(join(repo, 'tests/runner-e2e/installed-cli.ts'), join(assets, 'installed-cli.ts'));
-    writeFileSync(join(assets, 'types.js'), stripTypeScriptTypes(readFileSync(join(repo, 'tests/runner-e2e/types.ts'), 'utf8')));
+    writeFileSync(join(assets, 'types.js'), new Bun.Transpiler({ loader: 'ts', target: 'node' }).transformSync(readFileSync(join(repo, 'tests/runner-e2e/types.ts'), 'utf8')));
     const home = join(root, 'host-home'), hostTmp = join(root, 'host-tmp');
     for (const directory of [home, hostTmp]) mkdirSync(directory, { mode: 0o700 });
     const hostEnv = { PATH: `${dirname(process.execPath)}:/usr/bin:/bin:/usr/sbin:/sbin`, HOME: home, TMPDIR: hostTmp, LC_ALL: 'C', TZ: 'UTC' };
@@ -245,7 +244,7 @@ try {
   // plugins outside the pnpm workspace) before it stages anything, because it
   // publishes them. Nothing staged here reaches them: `needed` is closed under
   // `workspace:` specs, so every package staged below is a workspace package
-  // that `pnpm build` already built, and that build would only cost one
+  // that `bun run build` already built, and that build would only cost one
   // network install and compile per plugin whose output no tarball reads.
   // Canary Dry Run still runs it through release.sh. The one path that does
   // read a standalone build is qualification-package retention at the end:
@@ -258,7 +257,7 @@ try {
     timing.stage_standalone_build_ms = Math.round(performance.now() - standaloneStarted);
   }
   // The server's `ui-dist` payload is prepared here; with the reuse flag set
-  // above, that copies the `ui/dist` that `pnpm build` produced instead of
+  // above, that copies the `ui/dist` that `bun run build` produced instead of
   // building the UI again.
   const uiDistStarted = performance.now();
   run('bash', [join(repo, 'scripts/prepare-server-ui-dist.sh')], repo);
@@ -341,7 +340,7 @@ try {
   const assets = join(root, 'assets'); mkdirSync(assets, { mode: 0o755 });
   const consumer = join(root, 'consumer'); mkdirSync(consumer);
   // CI can point this at a cache that scripts/warm-public-install-npm-cache.mjs
-  // filled with the same public registry graph while `pnpm build` ran. npm
+  // filled with the same public registry graph while `bun run build` ran. npm
   // checks every cached tarball against the integrity its own resolution
   // records, so a warm cache changes where bytes come from, never what is
   // installed; the consumer directory and its lock still start empty.

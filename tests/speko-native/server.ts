@@ -1,6 +1,6 @@
 /** Throwaway acceptance instance: real app, DB, queues and publications.
  * The execution provider is synthetic. Speko is live unless SPEKO_NATIVE_STUB=1.
- * Run with server/node_modules/.bin/tsx tests/speko-native/server.ts.
+ * Run with bun tests/speko-native/server.ts.
  */
 import { mkdtemp, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -36,7 +36,7 @@ const database = await startEmbeddedPostgresTestDatabase("paperclip-speko-native
 const { spawn } = await import("node:child_process");
 // The supervisor owns the temporary database. Restarting app code preserves
 // calls, credentials and delivery receipts so recovery can be qualified.
-const spawnApp = () => spawn("server/node_modules/.bin/tsx", [...(process.env.SPEKO_NATIVE_WATCH === "0" ? [] : ["watch"]), "tests/speko-native/app.ts"], {
+const spawnApp = () => spawn(process.execPath, [...(process.env.SPEKO_NATIVE_WATCH === "0" ? [] : ["--watch"]), "tests/speko-native/app.ts"], {
   cwd: resolve(import.meta.dirname, "../.."), stdio: "inherit",
   env: { ...process.env, DATABASE_URL: database.connectionString },
 });

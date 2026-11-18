@@ -18,8 +18,8 @@ const manifest = (revision: string): ProviderPackIdentity => {
     target: { platform: "linux", architecture: "x64" },
     runnerSourceRevision: revision.repeat(40),
     artifacts: Object.fromEntries(Object.entries({
-      nodeCommand: "node_modules/node/bin/node", opencodeCommand: "node_modules/.bin/opencode",
-      productionLock: "pnpm-lock.yaml", opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
+      nodeCommand: "node_modules/node/bin/node", bunCommand: "node_modules/bun/bin/bun", bunExecutable: "node_modules/.bin/bun", opencodeCommand: "node_modules/.bin/opencode",
+      productionLock: "bun.lock", opencodeExecutable: "node_modules/opencode-ai/bin/opencode.exe",
       opencodeProxy: "dist/cli/opencode-app-server-proxy.cjs", acpxSidecar: "dist/cli/acpx-runtime-sidecar.cjs",
       grokLauncher: "dist/providers/grok/launcher.cjs",
     }).map(([name, path]) => [name, { path, sha256: sha(`${revision}-${name}`) }])) as ProviderPackIdentity["payload"]["artifacts"],
@@ -36,6 +36,8 @@ describe("installed provider pack compatibility", () => {
     const root = await mkdtemp(join(tmpdir(), "installed-pack-compatibility-"));
     await mkdir(dirname(join(root, installed.payload.artifacts.nodeCommand.path)), { recursive: true });
     await symlink(process.execPath, join(root, installed.payload.artifacts.nodeCommand.path));
+    await mkdir(dirname(join(root, installed.payload.artifacts.bunCommand.path)), { recursive: true });
+    await symlink(process.execPath, join(root, installed.payload.artifacts.bunCommand.path));
     await writeFile(join(root, "provider-pack.json"), JSON.stringify(installed));
     const execute = vi.fn(async (request: Parameters<CommandManagedRuntimeRunner["execute"]>[0]) => {
       try {
@@ -49,7 +51,7 @@ describe("installed provider pack compatibility", () => {
     });
     const input = { runner: { execute }, cwd: root, packRoot: root, manifest: current };
     try {
-      // Exercise the old complete-manifest comparison in a real Node process.
+      // Exercise the complete-manifest comparison in a real Bun process.
       // Only provenance changed; provider bytes and interface are identical.
       await expect(verifyRemoteProviderPack(input)).rejects.toMatchObject({
         message: expect.stringContaining("manifest mismatch"), failureCheck: "manifest_mismatch:runnerSourceRevision" });

@@ -243,7 +243,7 @@ it("uses sparse native transfer end-to-end, including replay and unsupported-run
   let mutateDuringPack = false;
   let failVerification = false, verificationCalls = 0;
   const run = async (command: string) => {
-    if (!supportsCheckpoint && command.startsWith("node --input-type=module")) throw new Error("node unavailable");
+    if (!supportsCheckpoint && command.startsWith("bun --input-type=module")) throw new Error("node unavailable");
     await execute("sh", ["-c", command]);
   };
   const sync = async (operations: import("./sandbox-managed-runtime.js").SandboxSyncOperation[]) => {

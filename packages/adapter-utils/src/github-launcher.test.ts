@@ -19,7 +19,7 @@ describe("managed GitHub launchers", () => {
     await mkdir(managed); await mkdir(real);
     const source = githubLauncherSource({ interpreterPath: process.execPath });
     const defaultSource = githubLauncherSource();
-    expect(defaultSource.split("\n")[0]).toBe("#!/usr/bin/env node");
+    expect(defaultSource.split("\n")[0]).toBe("#!/usr/bin/env bun");
     expect(source.split("\n")[0]).toBe(`#!${process.execPath}`);
     expect(source.slice(source.indexOf("\n"))).toBe(defaultSource.slice(defaultSource.indexOf("\n")));
     const launcher = path.join(managed, "git");
@@ -176,7 +176,7 @@ process.exit(result.status ?? 98);
     const bin = path.join(root,"managed"), realBin = path.join(root,"real");
     await mkdir(bin); await mkdir(realBin);
     await writeFile(path.join(bin,"gh"), githubLauncherSource(), {mode:0o700});
-    await writeFile(path.join(realBin,"gh"), '#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({token:process.env.GH_TOKEN ?? null}));', {mode:0o700});
+    await writeFile(path.join(realBin,"gh"), '#!/usr/bin/env bun\nprocess.stdout.write(JSON.stringify({token:process.env.GH_TOKEN ?? null}));', {mode:0o700});
     const server = createServer((_req,res) => {
       res.setHeader("content-type","application/json");
       res.end(JSON.stringify({status:"unavailable",reason:"More than one managed GitHub identity matches this run",env:{GH_TOKEN:"must-not-be-used"}}));
@@ -195,7 +195,7 @@ process.exit(result.status ?? 98);
     const bin = path.join(root, "managed"), realBin = path.join(root, "real");
     await mkdir(bin); await mkdir(realBin);
     await writeFile(path.join(bin, "gh"), githubLauncherSource(), { mode: 0o700 });
-    await writeFile(path.join(realBin, "gh"), '#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({args:process.argv.slice(2),token:process.env.GH_TOKEN ?? null}));', { mode: 0o700 });
+    await writeFile(path.join(realBin, "gh"), '#!/usr/bin/env bun\nprocess.stdout.write(JSON.stringify({args:process.argv.slice(2),token:process.env.GH_TOKEN ?? null}));', { mode: 0o700 });
     let status = "available";
     const server = createServer((_req, res) => {
       res.setHeader("content-type", "application/json");
@@ -232,7 +232,7 @@ process.exit(result.status ?? 98);
     await mkdir(bin); await mkdir(realBin);
     await exec("git", ["init", root]);
     for (const name of ["git", "gh"]) await writeFile(path.join(bin, name), githubLauncherSource(), { mode: 0o700 });
-    await writeFile(path.join(realBin, "gh"), '#!/usr/bin/env node\nprocess.stdout.write(process.env.GH_TOKEN || "anonymous");', { mode: 0o700 });
+    await writeFile(path.join(realBin, "gh"), '#!/usr/bin/env bun\nprocess.stdout.write(process.env.GH_TOKEN || "anonymous");', { mode: 0o700 });
     const fault = path.join(root, "write-fault.cjs");
     await writeFile(fault, `const fs = require('node:fs'); const write = fs.writeFileSync;
 fs.writeFileSync = (file, ...args) => {
@@ -275,7 +275,7 @@ fs.writeFileSync = (file, ...args) => {
     const bin = path.join(root,"managed"), realBin = path.join(root,"real");
     await mkdir(bin); await mkdir(realBin);
     await writeFile(path.join(bin,"gh"), githubLauncherSource(), {mode:0o700});
-    await writeFile(path.join(realBin,"gh"), '#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({token:process.env.GH_TOKEN ?? null}));', {mode:0o700});
+    await writeFile(path.join(realBin,"gh"), '#!/usr/bin/env bun\nprocess.stdout.write(JSON.stringify({token:process.env.GH_TOKEN ?? null}));', {mode:0o700});
     let requests = 0;
     const server = createServer((_req,res) => {
       requests++;
@@ -298,7 +298,7 @@ fs.writeFileSync = (file, ...args) => {
     const bin = path.join(root, "managed"), realBin = path.join(root, "real"), repo = path.join(root, "repo");
     for (const dir of [bin, realBin, repo, path.join(bin, "gh-config")]) await mkdir(dir, { recursive: true });
     for (const name of ["git", "gh"]) await writeFile(path.join(bin, name), githubLauncherSource(), { mode: 0o700 });
-    await writeFile(path.join(realBin, "gh"), `#!/usr/bin/env node
+    await writeFile(path.join(realBin, "gh"), `#!/usr/bin/env bun
 const {execFileSync}=require('node:child_process');
 const identity=execFileSync('git',['var','GIT_AUTHOR_IDENT'],{encoding:'utf8'}).trim();
 process.stdout.write(JSON.stringify({identity, token:process.env.GH_TOKEN ?? null, global:process.env.GIT_CONFIG_GLOBAL, config:process.env.GH_CONFIG_DIR}));
@@ -419,7 +419,7 @@ it("captures the current task broker file once per invocation and never falls ba
   const bin = path.join(root, "managed"), real = path.join(root, "real");
   await mkdir(bin); await mkdir(real);
   await writeFile(path.join(bin, "gh"), githubLauncherSource({ brokerFile: true }), { mode: 0o700 });
-  await writeFile(path.join(real, "gh"), '#!/usr/bin/env node\nprocess.stdout.write(process.env.GH_TOKEN || "anonymous");\n', { mode: 0o700 });
+  await writeFile(path.join(real, "gh"), '#!/usr/bin/env bun\nprocess.stdout.write(process.env.GH_TOKEN || "anonymous");\n', { mode: 0o700 });
   const captured: string[] = [];
   const server = createServer((req, res) => {
     captured.push(req.headers.authorization!);

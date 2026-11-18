@@ -248,13 +248,13 @@ export async function waitForSandboxReady(
   clients: KubeClients,
   namespace: string,
   name: string,
-  opts: { timeoutMs: number; pollMs?: number } = {
-    timeoutMs: 120_000,
-    pollMs: 2000,
-  },
+  opts: { timeoutMs: number; pollMs?: number } = { timeoutMs: 120_000 },
 ): Promise<SandboxStatus> {
   const deadline = Date.now() + opts.timeoutMs;
   const pollMs = opts.pollMs ?? 2000;
+  // Check sooner on cold starts, with at most three extra reads before
+  // returning to the normal polling interval. Explicit intervals stay fixed.
+  let fastPollsRemaining = opts.pollMs === undefined ? 4 : 0;
 
   while (Date.now() < deadline) {
     const cr = await clients.custom.getNamespacedCustomObject({
@@ -292,8 +292,11 @@ export async function waitForSandboxReady(
         `Sandbox ${namespace}/${name} is Terminating — cannot wait for Ready`,
       );
     }
-    // Pending — keep polling
-    await sleep(pollMs);
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    const delayMs = fastPollsRemaining > 0 ? 500 : pollMs;
+    if (fastPollsRemaining > 0) fastPollsRemaining--;
+    await sleep(Math.min(delayMs, remainingMs));
   }
 
   throw new SandboxCrTimeoutError(namespace, name, opts.timeoutMs);

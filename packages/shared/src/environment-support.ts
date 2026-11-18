@@ -76,6 +76,7 @@ const REMOTE_MANAGED_ADAPTERS = new Set<AgentAdapterType>([
   "kimi_local",
   "opencode_local",
   "pi_local",
+  "ompig_slim",
 ]);
 
 export function adapterSupportsRemoteManagedEnvironments(adapterType: string): boolean {

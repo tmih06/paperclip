@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { dirname, join, parse } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import viteConfig from "../../vite.config";
 
 /**
  * Lexical must resolve to exactly one copy across the app and the rich editor.
@@ -43,18 +44,18 @@ describe("lexical single copy", () => {
     return manifestOf(specifier, from).version;
   }
 
-  /** Walks up from this file to the pnpm workspace root. */
+  /** Walks up from this file to the Bun workspace root. */
   function workspaceRoot(): string {
     let dir = dirname(fileURLToPath(import.meta.url));
     const { root } = parse(dir);
-    while (!existsSync(join(dir, "pnpm-workspace.yaml"))) {
-      if (dir === root) throw new Error("could not find the pnpm workspace root");
+    while (!existsSync(join(dir, "bunfig.toml"))) {
+      if (dir === root) throw new Error("could not find the Bun workspace root");
       dir = dirname(dir);
     }
     return dir;
   }
 
-  it("keeps the Lexical family out of pnpm.overrides", () => {
+  it("keeps the Lexical family out of overrides", () => {
     // An override outranks the range `@mdxeditor/editor` declares, so pnpm
     // stops guaranteeing that the editor gets a version it supports. It also
     // pins only the packages it names: `@lexical/extension` was reached
@@ -64,7 +65,7 @@ describe("lexical single copy", () => {
     // With no override, pnpm honours every declared range, and the copy
     // checks below confirm the app and the editor landed on the same one.
     const manifest = JSON.parse(readFileSync(join(workspaceRoot(), "package.json"), "utf8"));
-    const overrides: Record<string, string> = manifest.pnpm?.overrides ?? {};
+    const overrides: Record<string, string> = manifest.overrides ?? {};
     const forced = Object.keys(overrides).filter(
       (name) => name === "lexical" || name.startsWith("@lexical/"),
     );
@@ -73,6 +74,16 @@ describe("lexical single copy", () => {
       "Pin Lexical through ui/package.json instead. An override cannot cover the "
         + "packages it does not name, and it hides the range @mdxeditor/editor declares.",
     ).toEqual([]);
+  });
+
+  it("aliases an installed browser entry without assuming a workspace linker layout", async () => {
+    const config = await viteConfig({ command: "serve", mode: "development" });
+    const alias = config.resolve?.alias;
+    if (!alias || !("lexical" in alias) || typeof alias.lexical !== "string") {
+      throw new Error("Expected one explicit Lexical browser alias");
+    }
+    expect(alias.lexical).toMatch(/Lexical\.mjs$/);
+    expect(existsSync(alias.lexical)).toBe(true);
   });
 
   it("resolves the same lexical copy for the app and the editor", () => {

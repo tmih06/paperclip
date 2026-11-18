@@ -18,14 +18,14 @@
 // misses an edge, a file imports one outside its layer's references and tsc
 // fails with TS6307 instead of skipping the file.
 //
-// server/tsconfig.json stays the single program that editors and `pnpm build`
+// server/tsconfig.json stays the single program that editors and `bun run build`
 // use.
 //
 // Projects outside the server read the source layers as declarations through a
 // `tsconfig.layers.json` that references tsconfig.declarations.json in the output
 // directory. --declarations-only builds those layers and skips the test layers.
 //
-// Usage: node scripts/typecheck-layers.mjs [--declarations-only]
+// Usage: bun scripts/typecheck-layers.mjs [--declarations-only]
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -332,7 +332,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     rest.every((arg) => arg === "--declarations-only") &&
     (layerIndex === -1 || (Boolean(layer) && !layer.startsWith("--") && rest.length === 0));
   if (!valid) {
-    console.error("Usage: node scripts/typecheck-layers.mjs [--declarations-only | --layer <name>]");
+    console.error("Usage: bun scripts/typecheck-layers.mjs [--declarations-only | --layer <name>]");
     process.exitCode = 2;
   } else {
     process.exitCode = typecheckLayers({

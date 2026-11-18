@@ -21,7 +21,7 @@ async function put(root, file, bytes) { await mkdir(path.dirname(path.join(root,
 async function fixture() {
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "sdk-input-sync-"))); roots.push(root);
   const files = ["package.json", "packages/plugins/sdk/package.json", "packages/plugins/sdk/tsconfig.json",
-    "packages/shared/package.json", "packages/shared/tsconfig.json", "pnpm-lock.yaml", "scripts/ensure-plugin-build-deps.mjs",
+    "packages/shared/package.json", "packages/shared/tsconfig.json", "bun.lock", "scripts/ensure-plugin-build-deps.mjs",
     "tsconfig.base.json", "tsconfig.json", "packages/shared/src/schema.ts", "packages/plugins/sdk/src/types.ts"];
   for (const file of files) await put(root, file, `synthetic original ${file}\n`);
   const baseline = { inputs: Object.fromEntries(files.map(file => [file, blob(`synthetic stale ${file}\n`)])),
@@ -30,7 +30,7 @@ async function fixture() {
     zodPackageSha256: "d".repeat(64), zodEntrySha256: "e".repeat(64), zodTypeFiles: { "index.d.cts": "f".repeat(64) } };
   await put(root, registry, `${JSON.stringify(baseline, null, 2)}\n`);
   // The reviewed report-lock policy: committed lock in, authenticated restored lock out.
-  await put(root, reportLock, reportPolicy(digest("synthetic original pnpm-lock.yaml\n"), baseline.lockSha256));
+  await put(root, reportLock, reportPolicy(digest("synthetic original bun.lock\n"), baseline.lockSha256));
   git(root, "init", "-q"); git(root, "add", ".");
   git(root, "-c", "user.name=Synthetic unit", "-c", "user.email=synthetic@example.invalid", "commit", "-qm", "synthetic source");
   return { root, baseline, revision: git(root, "rev-parse", "HEAD").trim() };
@@ -69,12 +69,12 @@ for (const mutation of ["dirty", "missing", "extra", "symlink", "registry", "rev
 }
 test("admits only the separately pinned restored lock overlay without changing its identities", async () => {
   const { root, baseline, revision } = await fixture();
-  await writeFile(path.join(root, "pnpm-lock.yaml"), "synthetic authenticated restored lock");
+  await writeFile(path.join(root, "bun.lock"), "synthetic authenticated restored lock");
   await synchronizeSdkPublicInputs(root, revision, { write: true });
   const updated = JSON.parse(await readFile(path.join(root, registry), "utf8"));
   assert.equal(updated.lockSha256, baseline.lockSha256);
-  assert.equal(updated.inputs["pnpm-lock.yaml"], git(root, "rev-parse", `${revision}:pnpm-lock.yaml`).trim());
-  await writeFile(path.join(root, "pnpm-lock.yaml"), "unknown lock overlay");
+  assert.equal(updated.inputs["bun.lock"], git(root, "rev-parse", `${revision}:bun.lock`).trim());
+  await writeFile(path.join(root, "bun.lock"), "unknown lock overlay");
   await assert.rejects(synchronizeSdkPublicInputs(root, revision));
 });
 
@@ -84,26 +84,26 @@ test("a lockfile refresh moves lockSha256 to the committed reviewed report-lock 
   const { root, baseline, revision: first } = await fixture();
   await synchronizeSdkPublicInputs(root, first, { write: true });
   commit(root, "synced");
-  const refreshed = "synthetic refreshed pnpm-lock.yaml\n";
-  await put(root, "pnpm-lock.yaml", refreshed);
+  const refreshed = "synthetic refreshed bun.lock\n";
+  await put(root, "bun.lock", refreshed);
   await put(root, reportLock, reportPolicy(baseline.lockSha256, digest(refreshed)));
   const revision = commit(root, "lockfile refresh");
   assert.deepEqual(await staleSdkPublicInputs(root), [
-    { file: "pnpm-lock.yaml", change: "changed" },
+    { file: "bun.lock", change: "changed" },
     { file: `${reportLock} outputSha256`, change: "lockSha256 changed" },
   ]);
   const result = await synchronizeSdkPublicInputs(root, revision, { write: true });
   assert.equal(result.lockPinChanged, true); assert.equal(result.runtimePinsChanged, false);
   const updated = JSON.parse(await readFile(path.join(root, registry), "utf8"));
   assert.equal(updated.lockSha256, digest(refreshed));
-  assert.equal(updated.inputs["pnpm-lock.yaml"], blob(refreshed));
+  assert.equal(updated.inputs["bun.lock"], blob(refreshed));
   const { inputs: _old, lockSha256: _oldLock, ...runtime } = baseline, { inputs: _new, lockSha256: _newLock, ...afterRuntime } = updated;
   assert.deepEqual(afterRuntime, runtime);
   assert.deepEqual(await staleSdkPublicInputs(root), []);
 });
 test("refuses a committed lock that the report-lock policy does not review", async () => {
   const { root } = await fixture();
-  await put(root, "pnpm-lock.yaml", "synthetic unreviewed lock\n");
+  await put(root, "bun.lock", "synthetic unreviewed lock\n");
   const revision = commit(root, "unreviewed lock");
   const before = await readFile(path.join(root, registry));
   await assert.rejects(synchronizeSdkPublicInputs(root, revision, { write: true }), /not reviewed by tests\/runner-e2e\/report-lock\.json/);
@@ -135,16 +135,16 @@ test("the working-tree drift guard sees uncommitted and untracked pinned inputs"
   git(root, "checkout", "--", "packages/shared/src/schema.ts");
   await rm(path.join(root, "packages/shared/src/untracked.ts"));
   // The reviewed restored lock overlay in the working tree is not drift; any other lock edit is.
-  await writeFile(path.join(root, "pnpm-lock.yaml"), "synthetic authenticated restored lock");
+  await writeFile(path.join(root, "bun.lock"), "synthetic authenticated restored lock");
   assert.deepEqual(await staleSdkPublicInputsInWorkingTree(root), []);
-  await writeFile(path.join(root, "pnpm-lock.yaml"), "synthetic unreviewed lock edit\n");
-  assert.deepEqual(await staleSdkPublicInputsInWorkingTree(root), [{ file: "pnpm-lock.yaml", change: "changed" }]);
+  await writeFile(path.join(root, "bun.lock"), "synthetic unreviewed lock edit\n");
+  assert.deepEqual(await staleSdkPublicInputsInWorkingTree(root), [{ file: "bun.lock", change: "changed" }]);
   // Committing the reviewed output lock without a registry refresh is drift: CI's committed-tree guard reports it, so must this one.
-  await writeFile(path.join(root, "pnpm-lock.yaml"), "synthetic authenticated restored lock"); commit(root, "commit reviewed output lock");
-  assert.deepEqual(await staleSdkPublicInputs(root), [{ file: "pnpm-lock.yaml", change: "changed" }]);
-  assert.deepEqual(await staleSdkPublicInputsInWorkingTree(root), [{ file: "pnpm-lock.yaml", change: "changed" }]);
+  await writeFile(path.join(root, "bun.lock"), "synthetic authenticated restored lock"); commit(root, "commit reviewed output lock");
+  assert.deepEqual(await staleSdkPublicInputs(root), [{ file: "bun.lock", change: "changed" }]);
+  assert.deepEqual(await staleSdkPublicInputsInWorkingTree(root), [{ file: "bun.lock", change: "changed" }]);
   assert.equal(isSdkPublicInput("packages/shared/src/types/heartbeat.ts"), true);
-  assert.equal(isSdkPublicInput("pnpm-lock.yaml"), true);
+  assert.equal(isSdkPublicInput("bun.lock"), true);
   assert.equal(isSdkPublicInput("server/src/index.ts"), false);
 });
 test("the drift guard names changed, unpinned and removed inputs and clears after a resync", async () => {

@@ -122,6 +122,11 @@ const adapterDisplayMap: Record<string, AdapterDisplayInfo> = {
     description: "OpenCode multi-provider harness",
     icon: OpenCodeLogoIcon,
   },
+  ompig_slim: {
+    label: "ompig-slim (durable)",
+    description: "Immutable Durable assignments with SQLite checkpoints",
+    icon: Terminal,
+  },
   pi_local: {
     label: "Pi",
     description: "Pi harness",

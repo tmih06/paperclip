@@ -75,7 +75,7 @@ export async function runPlan(root, env, plan) {
   if (plan.manifest) writeFileSync(manifestFile, JSON.stringify(plan.manifest));
   try {
     for (const job of plan.jobs) {
-      const code = job.args === null ? await execute("pnpm", ["test:run"], root, env, job.id)
+      const code = job.args === null ? await execute("bun", ["run", "test:run"], root, env, job.id)
         : await execute(process.execPath, [path.join(root, "scripts/run-vitest-stable.mjs"), ...job.args], root,
           job.selected ? { ...env, PAPERCLIP_CI_TEST_SELECTION: manifestFile,
             PAPERCLIP_CI_SELECTION_HASH: selectionHash(plan.manifest) } : env, job.id);

@@ -107,7 +107,7 @@ export async function setupSleepOtelPeers({ serverDirectory = server, temporaryR
       }
       records.splice(0, records.length, ...updated);
     }
-    const receipt = { version: 1, directory, packages: resolved, linked: missing, ownershipLedger: ledgerPath(root), cleanup: 'node scripts/sleep-qualification/setup-otel.mjs --cleanup' };
+    const receipt = { version: 1, directory, packages: resolved, linked: missing, ownershipLedger: ledgerPath(root), cleanup: 'bun scripts/sleep-qualification/setup-otel.mjs --cleanup' };
     await writeFile(path.join(directory, 'qualification-setup.json'), JSON.stringify(receipt, null, 2));
     return receipt;
   } catch (error) {
@@ -119,7 +119,7 @@ export async function setupSleepOtelPeers({ serverDirectory = server, temporaryR
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
-  if (args.length > 1 || (args.length && args[0] !== '--cleanup')) throw new Error('Usage: node scripts/sleep-qualification/setup-otel.mjs [--cleanup]');
+  if (args.length > 1 || (args.length && args[0] !== '--cleanup')) throw new Error('Usage: bun scripts/sleep-qualification/setup-otel.mjs [--cleanup]');
   const receipt = args[0] === '--cleanup' ? await cleanupSleepOtelLinks() : await setupSleepOtelPeers();
   process.stdout.write(JSON.stringify(receipt) + '\n');
 }

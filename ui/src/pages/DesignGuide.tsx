@@ -674,11 +674,11 @@ export function DesignGuide() {
       <Section title="Runner activity">
         <TaskChatRunnerActivityGroup item={{ id: "design-runner-activity", kind: "activity_phase", active: true, summary: "", interstitial: { id: "design-runner-commentary", kind: "message", author: "agent", text: "I’ll inspect the activity feed and check the layout.", interstitial: true }, items: [
           { id: "design-runner-read", kind: "tool", name: "read", target: "TaskChatRunnerTurn.tsx", status: "completed", detail: "Found the activity groups." },
-          { id: "design-runner-check", kind: "tool", name: "exec_command", target: "pnpm check:token-gates", status: "in_progress" },
+          { id: "design-runner-check", kind: "tool", name: "exec_command", target: "bun run check:token-gates", status: "in_progress" },
         ] }} />
         <TaskChatRunnerActivityGroup item={{ id: "design-runner-completed", kind: "activity_phase", active: false, summary: "", items: [
           { id: "design-completed-read", kind: "tool", name: "read", target: "TaskChatRunnerTurn.tsx", status: "completed", detail: "Read the activity groups." },
-          { id: "design-completed-check", kind: "tool", name: "exec_command", target: "pnpm check:token-gates", status: "failed", detail: "A token check needs another pass." },
+          { id: "design-completed-check", kind: "tool", name: "exec_command", target: "bun run check:token-gates", status: "failed", detail: "A token check needs another pass." },
         ] }} />
       </Section>
 

@@ -1,4 +1,4 @@
-/** Opt-in paid smoke: node cli/node_modules/tsx/dist/cli.mjs server/scripts/verify-agent-commentary-live.ts
+/** Opt-in paid smoke: bun server/scripts/verify-agent-commentary-live.ts
  * Uses real Codex, disposable database/workspaces, and a private copy of login credentials.
  * Writes only content-free evidence to stdout; never runs as part of the unit suite.
  */

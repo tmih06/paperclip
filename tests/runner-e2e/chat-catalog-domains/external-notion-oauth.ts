@@ -140,13 +140,6 @@ export async function privateNotionOAuth(
         await promisify(execFile)(
           process.execPath,
           [
-            "--import",
-            fileURLToPath(
-              new URL(
-                "../../../server/node_modules/tsx/dist/loader.mjs",
-                import.meta.url,
-              ),
-            ),
             fileURLToPath(
               new URL("./external-notion-oauth-worker.ts", import.meta.url),
             ),

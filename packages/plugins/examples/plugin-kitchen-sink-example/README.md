@@ -20,7 +20,7 @@ This plugin is for local development, contributor onboarding, and runtime regres
 ## Install
 
 ```sh
-pnpm --filter @paperclipai/plugin-kitchen-sink-example build
+bun run --filter @paperclipai/plugin-kitchen-sink-example build
 npx paperclipai plugin install ./packages/plugins/examples/plugin-kitchen-sink-example
 ```
 

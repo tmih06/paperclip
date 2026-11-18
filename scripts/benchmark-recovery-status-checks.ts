@@ -13,7 +13,7 @@
  * workspace recovery proof also compares every condition the change touched,
  * for every recovery action of the fixture.
  *
- *   pnpm --filter @paperclipai/server exec tsx ../scripts/benchmark-recovery-status-checks.ts --baseline-ref=<commit>
+ *   bun run --filter @paperclipai/server exec tsx ../scripts/benchmark-recovery-status-checks.ts --baseline-ref=<commit>
  *
  * Options: --fixture=<name> (repeatable), --samples=<n>, --skip-hash-plan, --out=<file>.
  */
@@ -45,7 +45,7 @@ const changedSources = [
 ];
 // Every other helper the checks import must be unchanged, or the baseline is contaminated.
 const changedRuntime = execFileSync("git", ["diff", "--name-only", baselineRevision, "--",
-  "server/src/services", "packages/db/src", "packages/shared/src", "pnpm-lock.yaml"], { encoding: "utf8", cwd: root })
+  "server/src/services", "packages/db/src", "packages/shared/src", "bun.lock"], { encoding: "utf8", cwd: root })
   .trim().split("\n").filter(Boolean);
 assert.deepEqual(changedRuntime.filter(file => !changedSources.includes(file) && !file.endsWith(".test.ts")), [],
   "The baseline must not import changed runtime helpers");

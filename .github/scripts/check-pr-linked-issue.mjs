@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * check-pr-linked-issue.mjs
  * Checks that a PR body either links an existing issue/PR or inlines an

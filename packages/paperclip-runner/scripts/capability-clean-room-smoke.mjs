@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Live smoke for the Capability clean-room chat.
  *
@@ -11,7 +11,7 @@
  *
  * Requires an authenticated local Codex installation and a built runnerd.
  *
- * Usage: node scripts/capability-clean-room-smoke.mjs [--json]
+ * Usage: bun scripts/capability-clean-room-smoke.mjs [--json]
  */
 
 import { createServer } from "node:http";

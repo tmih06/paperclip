@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { pathToFileURL } from "node:url";
 
 export const RELEASE_WORKFLOW = Object.freeze({

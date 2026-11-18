@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Bounded repair for PR-preparation issues stranded on a shared or stale
 // execution-workspace binding (PAP-17617). For each explicit issue=branch
 // pair, this pins the issue's executionWorkspaceSettings to the exact-branch
@@ -11,7 +11,7 @@
 // deletes any branch.
 //
 // Usage:
-//   node scripts/repair-pr-prep-workspace-attachment.mjs PAP-16555=PAP-14380-salvage-pap-9514 [more ISSUE=BRANCH ...] [--apply]
+//   bun scripts/repair-pr-prep-workspace-attachment.mjs PAP-16555=PAP-14380-salvage-pap-9514 [more ISSUE=BRANCH ...] [--apply]
 //
 // Without --apply it reports the current binding and the patch it would send.
 // Requires PAPERCLIP_API_URL and PAPERCLIP_API_KEY in the environment.

@@ -490,7 +490,7 @@ describe("nativeRunEventsToTranscript", () => {
         executionId: "exec-1",
         transport: "process",
         operation: "execute",
-        name: "pnpm test",
+        name: "bun run test",
         status: "running",
         output: null,
         outputBytes: 0,
@@ -502,7 +502,7 @@ describe("nativeRunEventsToTranscript", () => {
         executionId: "exec-1",
         transport: "process",
         operation: "execute",
-        name: "pnpm test",
+        name: "bun run test",
         status: "completed",
         output: "all green",
         outputBytes: 9,
@@ -526,7 +526,7 @@ describe("nativeRunEventsToTranscript", () => {
         kind: "tool_call",
         name: "Bash",
         toolUseId: "exec-1",
-        input: { command: "pnpm test" },
+        input: { command: "bun run test" },
       }),
       expect.objectContaining({
         kind: "tool_result",
@@ -1075,14 +1075,14 @@ describe("nativeRunEventsToTranscript", () => {
       }),
       itemEvent(2, "item.completed", "result:verification:2", {
         kind: "verification",
-        text: "failed: pnpm typecheck",
-        verification: { commandOrCheck: "pnpm typecheck", status: "failed" },
+        text: "failed: bun run typecheck",
+        verification: { commandOrCheck: "bun run typecheck", status: "failed" },
       }),
       itemEvent(3, "item.completed", "result:verification:3", { kind: "verification", text: "malformed" }),
       itemEvent(4, "item.completed", "result:verification:4", {
         kind: "verification",
-        text: "not_run: pnpm test:e2e",
-        verification: { commandOrCheck: "pnpm test:e2e", status: "not_run", reasonCode: "policy_restricted", detail: "x".repeat(300) },
+        text: "not_run: bun run test:e2e",
+        verification: { commandOrCheck: "bun run test:e2e", status: "not_run", reasonCode: "policy_restricted", detail: "x".repeat(300) },
       }),
     ]);
     expect(transcript).toEqual([
@@ -1093,7 +1093,7 @@ describe("nativeRunEventsToTranscript", () => {
         summary: "node --test",
         payload: expect.objectContaining({ verificationId: "result:verification:1", status: "passed", detail: "6 tests passed" }),
       }),
-      expect.objectContaining({ kind: "provider_activity", family: "verification", status: "failed", summary: "pnpm typecheck" }),
+      expect.objectContaining({ kind: "provider_activity", family: "verification", status: "failed", summary: "bun run typecheck" }),
       expect.objectContaining({ family: "verification", status: "informational", payload: expect.objectContaining({ reasonCode: "policy_restricted" }) }),
     ]);
     const checks = transcriptToTaskChatItems(transcript, { runId: RUN_ID, running: false })

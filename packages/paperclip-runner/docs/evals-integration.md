@@ -103,7 +103,7 @@ and incompatible negotiation. It never qualifies a debug binary.
 Run it with:
 
 ```sh
-pnpm --filter @paperclipai/paperclip-runner check:clean-consumers
+bun run --filter @paperclipai/paperclip-runner check:clean-consumers
 ```
 
 Set `PAPERCLIP_CLEAN_CONSUMER_OUTPUT_DIR` to retain the qualifying inputs and
@@ -115,5 +115,5 @@ and digest, and completes deterministic conformance without provider calls.
 
 ```sh
 PAPERCLIP_CLEAN_CONSUMER_OUTPUT_DIR=/absolute/release/directory \
-  pnpm --filter @paperclipai/paperclip-runner check:clean-consumers
+  bun run --filter @paperclipai/paperclip-runner check:clean-consumers
 ```

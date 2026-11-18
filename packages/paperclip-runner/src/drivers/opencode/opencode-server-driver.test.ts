@@ -260,7 +260,7 @@ describe("OpenCodeServerDriver", () => {
     const bindings = { PROBE_PLAIN: "fixture-plain-binding", PROBE_SECRET: 'fixture-"quoted"\\path\nmultiline-binding' };
     const command = join(root, "probe-opencode.mjs");
     await writeFile(command, [
-      "#!/usr/bin/env node",
+      "#!/usr/bin/env bun",
       'import { execFileSync } from "node:child_process";',
       'import { writeFile } from "node:fs/promises";',
       'import { join } from "node:path";',
@@ -3569,7 +3569,7 @@ describe("OpenCodeServerDriver", () => {
       send({ type: "message.updated", properties: { info: { id: "msg_oversized", role: "assistant", sessionID } } });
       send({ type: "message.part.updated", properties: { part: {
         id: "prt_oversized", messageID: "msg_oversized", sessionID, type: "tool", callID: "call_oversized", tool: "bash",
-        state: { status: "completed", input: { command: "pnpm test" }, output, title: "pnpm test", metadata: { exit: 1, output }, time: { start: 1, end: 2 } },
+        state: { status: "completed", input: { command: "bun run test" }, output, title: "bun run test", metadata: { exit: 1, output }, time: { start: 1, end: 2 } },
       } } });
       send({ type: "message.part.updated", properties: { part: {
         id: "prt_final", messageID: "msg_oversized", sessionID, type: "text",
@@ -3791,7 +3791,7 @@ describe("OpenCodeServerDriver", () => {
     const exitingFixture = join(root, "exit-before-health.mjs");
     await writeFile(
       exitingFixture,
-      "#!/usr/bin/env node\nimport { readFileSync } from 'node:fs';\nconst config = JSON.parse(readFileSync(`${process.env.XDG_CONFIG_HOME}/opencode/opencode.json`, 'utf8'));\nprocess.stderr.write(`credential=${process.env.OPENROUTER_API_KEY}\\ngateway=${config.provider.paperclip.options.apiKey}\\nauthorization=super-secret-opencode-token\\n`);\nprocess.exit(17);\n",
+      "#!/usr/bin/env bun\nimport { readFileSync } from 'node:fs';\nconst config = JSON.parse(readFileSync(`${process.env.XDG_CONFIG_HOME}/opencode/opencode.json`, 'utf8'));\nprocess.stderr.write(`credential=${process.env.OPENROUTER_API_KEY}\\ngateway=${config.provider.paperclip.options.apiKey}\\nauthorization=super-secret-opencode-token\\n`);\nprocess.exit(17);\n",
       { mode: 0o755 },
     );
     const diagnostics: string[] = [];

@@ -11,7 +11,7 @@
       "runtimeExecutable": "/bin/sh",
       "runtimeArgs": [
         "-c",
-        "PAPERCLIP_STORYBOOK_API_URL=http://localhost:3121 pnpm --filter @paperclipai/ui exec storybook dev -p 6016 -c storybook/.storybook --no-open --ci"
+        "cd ui && PAPERCLIP_STORYBOOK_API_URL=http://localhost:3121 bun x --bun --no-install storybook dev -p 6016 -c storybook/.storybook --no-open --ci"
       ],
       "port": 6016
     },
@@ -20,7 +20,7 @@
       "runtimeExecutable": "/bin/sh",
       "runtimeArgs": [
         "-c",
-        "cd /Users/tonio/Projects/paperclip-cloud/.worktrees/deploy-stack-master/web && npx vite --port 4173 --strictPort"
+        "cd /Users/tonio/Projects/paperclip-cloud/.worktrees/deploy-stack-master/web && bun x --bun --no-install vite --port 4173 --strictPort"
       ],
       "port": 4173
     },
@@ -29,7 +29,7 @@
       "runtimeExecutable": "/bin/sh",
       "runtimeArgs": [
         "-c",
-        "cd ui && npx vite --config vite.artifact-directions.config.mjs --port 5180 --strictPort"
+        "cd ui && bun x --bun --no-install vp --config vite.artifact-directions.config.mjs --port 5180 --strictPort"
       ],
       "port": 5180
     },
@@ -38,7 +38,7 @@
       "runtimeExecutable": "/bin/sh",
       "runtimeArgs": [
         "-c",
-        "cd ui && export ARTIFACT_DIRECTIONS_OUT_DIR=node_modules/.artifact-directions-dist && npx vite build --config vite.artifact-directions.config.mjs && npx vite preview --config vite.artifact-directions.config.mjs --port 5190 --strictPort"
+        "cd ui && export ARTIFACT_DIRECTIONS_OUT_DIR=node_modules/.artifact-directions-dist && bun x --bun --no-install vp build --config vite.artifact-directions.config.mjs && bun x --bun --no-install vp preview --config vite.artifact-directions.config.mjs --port 5190 --strictPort"
       ],
       "port": 5190
     }
