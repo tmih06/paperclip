@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
 import { execute } from "./execute.js";
 
@@ -50,6 +53,18 @@ describe("ompig Durable execution", () => {
     expect(input.prompt).toContain("Implement task");
     expect(result).toMatchObject({ exitCode: 0, sessionId: "run-1", summary: "Finished", usageBasis: "session_cumulative", usage: { inputTokens: 6, outputTokens: 2, cachedInputTokens: 3, cacheWriteTokens: 1 }, costUsd: 0.01 });
     expect(fixture.restore).toHaveBeenCalledOnce();
+  });
+
+  it("loads managed instructions instead of asking a sandbox to read the controller-only path", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "ompig-instructions-"));
+    const instructionsFilePath = path.join(root, "AGENTS.md");
+    try {
+      await writeFile(instructionsFilePath, "Follow the scoped task and verify the output.");
+      await execute(context({ config: { ...context().config, instructionsFilePath },
+        executionTarget: { kind: "remote", transport: "sandbox", providerKey: "kubernetes", environmentId: "env-a", leaseId: "lease-a", remoteCwd: "/workspace/repo" } }));
+      expect(assignment().prompt).toContain("Follow the scoped task and verify the output.");
+      expect(assignment().prompt).not.toContain(instructionsFilePath);
+    } finally { await rm(root, { recursive: true, force: true }); }
   });
 
   it("resumes pending immutable work across a new Paperclip run without replacing its prompt", async () => {

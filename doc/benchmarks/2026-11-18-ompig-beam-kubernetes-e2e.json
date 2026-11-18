@@ -1,0 +1,166 @@
+{
+  "recordedAt": "2026-11-18T01:13:08.917470+00:00",
+  "outcome": "passed",
+  "scope": "Isolated validation instance, not the original main deployment",
+  "agent": {
+    "id": "768602a0-a1b8-490d-b09c-48124823dfe0",
+    "name": "OMPIG Beam Free",
+    "adapterType": "ompig_slim",
+    "status": "idle",
+    "lifecycleState": "ready",
+    "defaultEnvironmentId": "91f9c9b3-d55d-49f8-98f1-753db8647551"
+  },
+  "model": "opencode-free/beam-free",
+  "issue": {
+    "id": "9120495b-e9a9-4c3c-8c4a-7836a33d6473",
+    "identifier": "OMP-1",
+    "status": "done"
+  },
+  "run": {
+    "id": "19b42b8c-f73a-4f42-b77b-deeaa5c628ca",
+    "status": "succeeded",
+    "scopeKind": "issue",
+    "issueId": "9120495b-e9a9-4c3c-8c4a-7836a33d6473",
+    "exitCode": 0,
+    "errorCode": null,
+    "createdAt": "2026-11-18T01:11:16.280Z",
+    "startedAt": "2026-11-18T01:11:16.728Z",
+    "finishedAt": "2026-11-18T01:11:51.172Z"
+  },
+  "runtimeSeconds": 34.444,
+  "receipt": {
+    "request_id": "19b42b8c-f73a-4f42-b77b-deeaa5c628ca",
+    "status": "done",
+    "answer": "OMPIG_BEAM_FREE_E2E_OK\nChallenge: 1abc025c4a08cdb9b307e82bebec27d3398ae62da4582b4d",
+    "usage": [
+      {
+        "provider": "opencode-free",
+        "model": "beam-free",
+        "input_tokens": 19804,
+        "output_tokens": 2182,
+        "cache_read_tokens": 93376,
+        "cache_write_tokens": 0
+      }
+    ],
+    "events": [
+      {
+        "id": "53:0:0",
+        "type": "text",
+        "content": "OMPIG_BEAM_FREE_E2E_OK\nChallenge: 1abc025c4a08cdb9b307e82bebec27d3398ae62da4582b4d"
+      },
+      {
+        "id": "53:0:1",
+        "type": "usage",
+        "usage": {
+          "provider": "opencode-free",
+          "model": "beam-free",
+          "input_tokens": 209,
+          "output_tokens": 90,
+          "cache_read_tokens": 12288,
+          "cache_write_tokens": 0
+        }
+      }
+    ],
+    "progress": {
+      "present": false
+    }
+  },
+  "usage": {
+    "model": "opencode-free/beam-free",
+    "provider": "opencode-free",
+    "inputTokens": 19804,
+    "outputTokens": 2182,
+    "cachedInputTokens": 93376,
+    "costStatus": "unpriced",
+    "costUsd": null
+  },
+  "proof": {
+    "challenge": "1abc025c4a08cdb9b307e82bebec27d3398ae62da4582b4d",
+    "check": "ompig-beam-free-e2e"
+  },
+  "challengeSha256": "3d50fd792912a1b83406df33e7c79d0cf6c386ab2eff6c16ea0e1ce6c3824c03",
+  "commentIds": [
+    "31d3576a-1859-4213-b792-33e861718771"
+  ],
+  "commentMarkerVerified": true,
+  "workdesk": {
+    "jobRestored": true,
+    "sqliteRestored": true,
+    "workspaceCheckpointed": true,
+    "infrastructureCrashDurability": false
+  },
+  "lease": {
+    "status": "released",
+    "leasePolicy": "ephemeral",
+    "provider": "kubernetes",
+    "providerLeaseId": "pc-01m7p3ajv56vkt8hakmaz8ej3r",
+    "releasedAt": "2026-11-18T01:11:51.894+00:00"
+  },
+  "pod": {
+    "name": "pc-01m7p3ajv56vkt8hakmaz8ej3r",
+    "namespace": "pc-ompig-e2e-a599d591-40f3-4528-a142-a88dbc3808d1",
+    "createdAt": "2026-11-18T01:11:18Z",
+    "securityContext": {
+      "fsGroup": 1000,
+      "fsGroupChangePolicy": "OnRootMismatch",
+      "runAsGroup": 1000,
+      "runAsNonRoot": true,
+      "runAsUser": 1000,
+      "seccompProfile": {
+        "type": "RuntimeDefault"
+      }
+    },
+    "containerSecurityContext": {
+      "allowPrivilegeEscalation": false,
+      "capabilities": {
+        "drop": [
+          "ALL"
+        ]
+      },
+      "readOnlyRootFilesystem": true,
+      "runAsGroup": 1000,
+      "runAsNonRoot": true,
+      "runAsUser": 1000
+    },
+    "resources": {
+      "limits": {
+        "cpu": "2",
+        "memory": "4Gi"
+      },
+      "requests": {
+        "cpu": "250m",
+        "memory": "512Mi"
+      }
+    },
+    "image": "paperclip-ompig-runtime:e2e-51d4583-bun1.4.4",
+    "automountServiceAccountToken": false,
+    "hostNetwork": false,
+    "hostPID": false,
+    "hostIPC": false,
+    "hostPathVolumes": false
+  },
+  "logPhases": [
+    {
+      "at": "2026-11-18T01:11:22.392Z",
+      "message": "[paperclip] Syncing workspace to environment: 100% (0.2/0.2 MB)"
+    },
+    {
+      "at": "2026-11-18T01:11:22.614Z",
+      "message": "[paperclip] Starting sandbox callback bridge for ompig-slim in /workspace/.paperclip-runtime/ompig-slim/paperclip-bridge."
+    },
+    {
+      "at": "2026-11-18T01:11:23.513Z",
+      "message": "[paperclip] Sandbox run log streaming enabled for this run."
+    },
+    {
+      "at": "2026-11-18T01:11:50.612Z",
+      "message": "[paperclip] Restoring workspace from environment: 100% (0.4/0.4 MB)"
+    }
+  ],
+  "toolCalls": 11,
+  "cleanup": {
+    "pods": 0,
+    "sandboxes": 0,
+    "perRunSecrets": 0
+  }
+}

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { AdapterExecutionContext, AdapterExecutionResult } from "@paperclipai/adapter-utils";
 import { cancellableSandboxStartup } from "@paperclipai/adapter-utils/acpx-engine/startup-cancellation";
@@ -98,12 +99,16 @@ async function executeDurable(ctx: AdapterExecutionContext): Promise<AdapterExec
     await hydrateFreshSessionHandoff(ctx, { resumedSession: resumeSaved });
     const sections = selectPaperclipPromptSections(context, { resumedSession: false, includeCommunicationGuidance: false });
     const data = { agentId: agent.id, companyId: agent.companyId, runId, company: { id: agent.companyId }, agent, run: { id: runId }, context };
+    const instructionsFilePath = asString(config.instructionsFilePath, "").trim();
+    const instructions = !resumeSaved && instructionsFilePath
+      ? await readFile(path.resolve(cwd, instructionsFilePath), "utf8")
+      : "";
     const prompt = resumeSaved ? "" : joinPromptSections([
       renderTemplate(asString(config.promptTemplate, context.conversationMode === true ? DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE : DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE), data),
       renderTemplate(asString(config.bootstrapPromptTemplate, ""), data),
       selectInitialCommunicationGuidance(context, { resumedSession: false }), sections.wakePrompt, sections.taskContextNote,
       asString(context.paperclipSessionHandoffMarkdown, ""),
-      asString(config.instructionsFilePath, "") ? `Read and follow the agent instructions at ${asString(config.instructionsFilePath, "")} before starting.` : "",
+      instructions ? `Agent instructions:\n\n${instructions}` : "",
       "Durable mode does not auto-load skills. Use bash and the PAPERCLIP_API_URL/PAPERCLIP_API_KEY environment variables for Paperclip. Include X-Paperclip-Run-Id on mutating API calls. Never log credentials.",
     ]);
     const promptHash = resumeSaved ? saved!.promptHash as string : hash(prompt);

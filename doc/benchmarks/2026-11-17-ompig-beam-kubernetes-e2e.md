@@ -1,6 +1,11 @@
 # ompig-slim / Beam Free Kubernetes validation
 
-## Outcome: configured, but real-answer E2E is blocked
+## Historical outcome: configured, but real-answer E2E was blocked
+
+**Update:** The quota cleared and the real task passed on November 18. See
+[the successful E2E record](2026-11-18-ompig-beam-kubernetes-e2e.md).
+The initial observations below are retained without treating the blocked
+attempt as a pass.
 
 A new **OMPIG Beam Free** agent was created in a separate validation instance,
 using adapter `ompig_slim` and exact model **`opencode-free/beam-free`**. A real

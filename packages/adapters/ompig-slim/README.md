@@ -17,8 +17,9 @@ For native keyless OpenCode Free inference, set `model` to
 `opencode-free/beam-free` and use an ompig-slim build containing that provider.
 It does not require an OpenCode CLI or a copied user profile. The historical
 0.1.10 runtime example below is not qualification of that newer provider; the
-source-pinned 0.2.1 validation and its upstream-quota blocker are recorded in
-`doc/benchmarks/2026-11-17-ompig-beam-kubernetes-e2e.md`.
+source-pinned 0.2.1 real Kubernetes task passed after an upstream quota reset.
+The evidence and limits are recorded in
+`doc/benchmarks/2026-11-18-ompig-beam-kubernetes-e2e.md`.
 
 ## Local kind runtime
 

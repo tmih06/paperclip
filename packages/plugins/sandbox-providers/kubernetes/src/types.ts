@@ -82,6 +82,7 @@ export interface KubernetesLeaseMetadata {
   /** Name of the workload resource (Job name for job backend, Sandbox CR name for sandbox-cr backend). */
   jobName: string;
   podName: string | null;
+  remoteCwd: string;
   secretName: string;
   phase: "Pending" | "Running" | "Succeeded" | "Failed";
   /** Which backend provisioned this lease. */
