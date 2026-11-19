@@ -10,6 +10,12 @@ import { startPackedRegistry, writePackedRegistryCatalog } from '../public-insta
 import { assertPublishedPackage, forkManifest, forkOwnerChecks, releaseVersion } from '../fork-release.mjs';
 import { assertQualification, requiredQualificationJobs } from '../fork-release-qualification.mjs';
 
+test('fork release installs its pinned Bun runtime before running Bun commands', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/fork-release.yml', import.meta.url), 'utf8');
+  const plan = workflow.split('\n  verify:')[0];
+  assert.match(plan, /uses: oven-sh\/setup-bun@[0-9a-f]{40} # v6[\s\S]*?bun-version: 1\.4\.4[\s\S]*?run: bun scripts\/fork-release\.mjs version/);
+});
+
 test('release dates use the existing UTC calendar version format', () => {
   assert.equal(releaseVersion('2026-11-14', 0), '2026.1114.0');
   assert.equal(releaseVersion('2026-03-08', 2), '2026.308.2');
